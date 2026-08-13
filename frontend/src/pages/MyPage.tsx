@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { logout, me, type SessionMember } from "../api/auth";
+import TimeEntriesSection from "../components/TimeEntriesSection";
 
 export default function MyPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -55,7 +56,8 @@ export default function MyPage() {
         </button>
       </div>
       <h1>Bonjour, {member.name}</h1>
-      <p className="meta">Vous êtes identifié·e sur ce projet.</p>
+
+      <TimeEntriesSection projectId={member.project_id} />
     </div>
   );
 }

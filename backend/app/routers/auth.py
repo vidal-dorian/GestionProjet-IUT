@@ -4,8 +4,9 @@ from sqlalchemy.orm import Session
 from app import crud, schemas
 from app.config import settings
 from app.database import get_db
+from app.deps import resolve_session_member
 from app.security import verify_pin
-from app.session import SESSION_COOKIE_NAME, SESSION_MAX_AGE_SECONDS, create_session_token, read_session_token
+from app.session import SESSION_COOKIE_NAME, SESSION_MAX_AGE_SECONDS, create_session_token
 
 router = APIRouter(prefix="/api", tags=["auth"])
 
@@ -30,12 +31,7 @@ def login(project_id: int, member_id: int, credentials: schemas.MemberLogin, res
 
 @router.get("/auth/me", response_model=schemas.SessionMember)
 def me(request: Request, db: Session = Depends(get_db)):
-    token = request.cookies.get(SESSION_COOKIE_NAME)
-    payload = read_session_token(token) if token else None
-    if payload is None:
-        raise HTTPException(status_code=401, detail="Non identifié.")
-
-    member = crud.get_member(db, payload["project_id"], payload["member_id"])
+    member = resolve_session_member(request, db)
     if member is None:
         raise HTTPException(status_code=401, detail="Non identifié.")
     return member

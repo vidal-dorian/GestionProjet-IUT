@@ -64,3 +64,28 @@ def create_member(db: Session, project_id: int, member: schemas.MemberCreate) ->
     db.commit()
     db.refresh(db_member)
     return db_member
+
+
+def list_time_entries_for_member(db: Session, project_id: int, member_id: int) -> list[models.TimeEntry]:
+    return (
+        db.query(models.TimeEntry)
+        .filter(models.TimeEntry.project_id == project_id, models.TimeEntry.member_id == member_id)
+        .order_by(models.TimeEntry.date.desc(), models.TimeEntry.id.desc())
+        .all()
+    )
+
+
+def create_time_entry(
+    db: Session, project_id: int, member_id: int, entry: schemas.TimeEntryCreate
+) -> models.TimeEntry:
+    db_entry = models.TimeEntry(
+        project_id=project_id,
+        member_id=member_id,
+        date=entry.date,
+        duration_hours=entry.duration_hours,
+        description=entry.description,
+    )
+    db.add(db_entry)
+    db.commit()
+    db.refresh(db_entry)
+    return db_entry
