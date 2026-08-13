@@ -107,6 +107,49 @@ def replace_github_issues(db: Session, db_project: models.Project, issues: list[
     db.commit()
 
 
+def list_sprints(db: Session, project_id: int) -> list[models.Sprint]:
+    return (
+        db.query(models.Sprint)
+        .filter(models.Sprint.project_id == project_id)
+        .order_by(models.Sprint.start_date.desc())
+        .all()
+    )
+
+
+def get_sprint(db: Session, project_id: int, sprint_id: int) -> models.Sprint | None:
+    return (
+        db.query(models.Sprint)
+        .filter(models.Sprint.project_id == project_id, models.Sprint.id == sprint_id)
+        .first()
+    )
+
+
+def find_overlapping_sprint(
+    db: Session, project_id: int, start_date, end_date, exclude_id: int | None = None
+) -> models.Sprint | None:
+    query = db.query(models.Sprint).filter(
+        models.Sprint.project_id == project_id,
+        models.Sprint.start_date <= end_date,
+        models.Sprint.end_date >= start_date,
+    )
+    if exclude_id is not None:
+        query = query.filter(models.Sprint.id != exclude_id)
+    return query.first()
+
+
+def create_sprint(db: Session, project_id: int, sprint: schemas.SprintCreate) -> models.Sprint:
+    db_sprint = models.Sprint(
+        project_id=project_id,
+        name=sprint.name.strip(),
+        start_date=sprint.start_date,
+        end_date=sprint.end_date,
+    )
+    db.add(db_sprint)
+    db.commit()
+    db.refresh(db_sprint)
+    return db_sprint
+
+
 def list_members(db: Session, project_id: int) -> list[models.Member]:
     return (
         db.query(models.Member)
@@ -195,6 +238,52 @@ def sum_unattached_hours(db: Session, project_id: int) -> float:
     )
 
 
+def sum_hours_for_sprint(db: Session, project_id: int, sprint_id: int) -> float:
+    return (
+        db.query(func.coalesce(func.sum(models.TimeEntry.duration_hours), 0.0))
+        .filter(models.TimeEntry.project_id == project_id, models.TimeEntry.sprint_id == sprint_id)
+        .scalar()
+        or 0.0
+    )
+
+
+def sum_hours_by_member_for_sprint(
+    db: Session, project_id: int, sprint_id: int
+) -> list[tuple[models.Member, float]]:
+    return (
+        db.query(models.Member, func.coalesce(func.sum(models.TimeEntry.duration_hours), 0.0))
+        .join(models.TimeEntry, models.TimeEntry.member_id == models.Member.id)
+        .filter(models.TimeEntry.project_id == project_id, models.TimeEntry.sprint_id == sprint_id)
+        .group_by(models.Member.id)
+        .all()
+    )
+
+
+def sum_hours_by_github_issue_for_sprint(
+    db: Session, project_id: int, sprint_id: int
+) -> list[tuple[models.GithubIssue, float]]:
+    return (
+        db.query(models.GithubIssue, func.coalesce(func.sum(models.TimeEntry.duration_hours), 0.0))
+        .join(models.TimeEntry, models.TimeEntry.github_issue_id == models.GithubIssue.id)
+        .filter(models.TimeEntry.project_id == project_id, models.TimeEntry.sprint_id == sprint_id)
+        .group_by(models.GithubIssue.id)
+        .all()
+    )
+
+
+def sum_unattached_hours_for_sprint(db: Session, project_id: int, sprint_id: int) -> float:
+    return (
+        db.query(func.coalesce(func.sum(models.TimeEntry.duration_hours), 0.0))
+        .filter(
+            models.TimeEntry.project_id == project_id,
+            models.TimeEntry.sprint_id == sprint_id,
+            models.TimeEntry.github_issue_id.is_(None),
+        )
+        .scalar()
+        or 0.0
+    )
+
+
 def count_active_members(db: Session, project_id: int) -> int:
     return (
         db.query(func.count(func.distinct(models.TimeEntry.member_id)))
@@ -231,6 +320,7 @@ def create_time_entry(
         duration_hours=entry.duration_hours,
         description=entry.description,
         github_issue_id=entry.github_issue_id,
+        sprint_id=entry.sprint_id,
     )
     db.add(db_entry)
     db.commit()
@@ -253,6 +343,7 @@ def update_time_entry(
     db_entry.duration_hours = entry.duration_hours
     db_entry.description = entry.description
     db_entry.github_issue_id = entry.github_issue_id
+    db_entry.sprint_id = entry.sprint_id
     db.commit()
     db.refresh(db_entry)
     return db_entry

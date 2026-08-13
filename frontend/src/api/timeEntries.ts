@@ -1,4 +1,5 @@
 import { ApiError, type GithubIssue } from "./projects";
+import type { Sprint } from "./sprints";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
@@ -12,6 +13,8 @@ export interface TimeEntry {
   created_at: string;
   github_issue_id: number | null;
   github_issue: GithubIssue | null;
+  sprint_id: number | null;
+  sprint: Sprint | null;
 }
 
 export interface TimeEntryInput {
@@ -19,6 +22,7 @@ export interface TimeEntryInput {
   duration_hours: number;
   description: string;
   github_issue_id?: number | null;
+  sprint_id?: number | null;
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {

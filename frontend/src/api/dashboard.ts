@@ -41,6 +41,19 @@ export interface HoursByIssue {
   unattached_hours: number;
 }
 
+export interface MemberHours {
+  member_id: number;
+  member_name: string;
+  hours: number;
+}
+
+export interface SprintStats {
+  sprint: { id: number; name: string; start_date: string; end_date: string };
+  total_hours: number;
+  hours_by_member: MemberHours[];
+  hours_by_issue: HoursByIssue;
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const body = await response.json().catch(() => null);
@@ -71,5 +84,11 @@ export function getProjectStats(projectId: number | string): Promise<ProjectStat
 export function getHoursByIssue(projectId: number | string): Promise<HoursByIssue> {
   return fetch(`${API_URL}/api/projects/${projectId}/dashboard/hours-by-issue`).then((res) =>
     handleResponse<HoursByIssue>(res),
+  );
+}
+
+export function getSprintStats(projectId: number | string, sprintId: number | string): Promise<SprintStats> {
+  return fetch(`${API_URL}/api/projects/${projectId}/dashboard/sprints/${sprintId}/stats`).then((res) =>
+    handleResponse<SprintStats>(res),
   );
 }

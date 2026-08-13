@@ -266,6 +266,64 @@ def test_attaching_a_github_issue_from_another_project_returns_422(client):
     assert response.status_code == 422
 
 
+def create_sprint(client, project_id, name="Sprint 1", start="2026-08-01", end="2026-08-14"):
+    return client.post(
+        f"/api/projects/{project_id}/sprints", json={"name": name, "start_date": start, "end_date": end}
+    ).json()["sprint"]
+
+
+def test_time_entry_without_sprint_has_null_fields(client):
+    project, _ = setup_logged_in_member(client)
+    entry = client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-13", "duration_hours": 1, "description": "Dev"},
+    ).json()
+
+    assert entry["sprint_id"] is None
+    assert entry["sprint"] is None
+
+
+def test_attaching_unknown_sprint_returns_422(client):
+    project, _ = setup_logged_in_member(client)
+
+    response = client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-13", "duration_hours": 1, "description": "Dev", "sprint_id": 999},
+    )
+    assert response.status_code == 422
+
+
+def test_attaching_a_sprint_from_another_project_returns_422(client):
+    project, _ = setup_logged_in_member(client)
+    other_project = client.post("/api/projects", json={"name": "Autre Projet Sprint"}).json()
+    sprint = create_sprint(client, other_project["id"])
+
+    response = client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-13", "duration_hours": 1, "description": "Dev", "sprint_id": sprint["id"]},
+    )
+    assert response.status_code == 422
+
+
+def test_create_and_update_time_entry_can_attach_sprint(client):
+    project, _ = setup_logged_in_member(client)
+    sprint = create_sprint(client, project["id"])
+
+    entry = client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-13", "duration_hours": 1, "description": "Dev", "sprint_id": sprint["id"]},
+    ).json()
+    assert entry["sprint_id"] == sprint["id"]
+    assert entry["sprint"]["name"] == "Sprint 1"
+
+    updated = client.put(
+        f"/api/projects/{project['id']}/time-entries/{entry['id']}",
+        json={"date": "2026-08-13", "duration_hours": 2, "description": "Dev", "sprint_id": None},
+    ).json()
+    assert updated["sprint_id"] is None
+    assert updated["sprint"] is None
+
+
 def test_create_and_update_time_entry_can_attach_github_issue(client):
     project, _ = setup_logged_in_member(client)
     issues = link_repo_and_sync_issues(

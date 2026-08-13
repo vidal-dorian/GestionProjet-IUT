@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { ApiError, type GithubIssue, listGithubIssues } from "../api/projects";
+import { listSprints, type Sprint } from "../api/sprints";
 import { createTimeEntry, deleteTimeEntry, listMyTimeEntries, updateTimeEntry, type TimeEntry } from "../api/timeEntries";
 
 interface Props {
@@ -31,6 +32,8 @@ export default function TimeEntriesSection({ projectId }: Props) {
   const [description, setDescription] = useState("");
   const [issueSearch, setIssueSearch] = useState("");
   const [issues, setIssues] = useState<GithubIssue[]>([]);
+  const [sprints, setSprints] = useState<Sprint[]>([]);
+  const [sprintId, setSprintId] = useState<number | "">("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -43,8 +46,24 @@ export default function TimeEntriesSection({ projectId }: Props) {
     listGithubIssues(projectId)
       .then(setIssues)
       .catch(() => setIssues([]));
+    listSprints(projectId)
+      .then((loadedSprints) => {
+        setSprints(loadedSprints);
+        setSprintId(suggestSprintForDate(today(), loadedSprints));
+      })
+      .catch(() => setSprints([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
+
+  function suggestSprintForDate(isoDate: string, sprintList: Sprint[]): number | "" {
+    const found = sprintList.find((sprint) => sprint.start_date <= isoDate && isoDate <= sprint.end_date);
+    return found ? found.id : "";
+  }
+
+  function handleDateChange(newDate: string) {
+    setDate(newDate);
+    setSprintId(suggestSprintForDate(newDate, sprints));
+  }
 
   function resetForm() {
     setEditingId(null);
@@ -52,6 +71,7 @@ export default function TimeEntriesSection({ projectId }: Props) {
     setDuration("");
     setDescription("");
     setIssueSearch("");
+    setSprintId(suggestSprintForDate(today(), sprints));
   }
 
   function startEditing(entry: TimeEntry) {
@@ -61,6 +81,7 @@ export default function TimeEntriesSection({ projectId }: Props) {
     setDuration(String(entry.duration_hours));
     setDescription(entry.description);
     setIssueSearch(entry.github_issue ? formatIssueLabel(entry.github_issue) : "");
+    setSprintId(entry.sprint_id ?? "");
   }
 
   async function handleDelete(entryId: number) {
@@ -98,6 +119,7 @@ export default function TimeEntriesSection({ projectId }: Props) {
       duration_hours: durationHours,
       description: description.trim(),
       github_issue_id: matchedIssue ? matchedIssue.id : null,
+      sprint_id: sprintId === "" ? null : sprintId,
     };
 
     setSubmitting(true);
@@ -122,7 +144,7 @@ export default function TimeEntriesSection({ projectId }: Props) {
 
       <form onSubmit={handleSubmit} className="form form-inline">
         <label htmlFor="entry-date">Date</label>
-        <input id="entry-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        <input id="entry-date" type="date" value={date} onChange={(e) => handleDateChange(e.target.value)} />
 
         <label htmlFor="entry-duration">Durée (heures)</label>
         <input
@@ -141,6 +163,24 @@ export default function TimeEntriesSection({ projectId }: Props) {
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
         />
+
+        {sprints.length > 0 && (
+          <>
+            <label htmlFor="entry-sprint">Sprint (facultatif)</label>
+            <select
+              id="entry-sprint"
+              value={sprintId}
+              onChange={(e) => setSprintId(e.target.value ? Number(e.target.value) : "")}
+            >
+              <option value="">Aucun</option>
+              {sprints.map((sprint) => (
+                <option key={sprint.id} value={sprint.id}>
+                  {sprint.name}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
 
         {issues.length > 0 && (
           <>
@@ -201,6 +241,7 @@ export default function TimeEntriesSection({ projectId }: Props) {
                   </a>
                 </p>
               )}
+              {entry.sprint && <p className="meta">Sprint : {entry.sprint.name}</p>}
               <div className="entry-actions">
                 <button type="button" className="link-button" onClick={() => startEditing(entry)}>
                   Modifier

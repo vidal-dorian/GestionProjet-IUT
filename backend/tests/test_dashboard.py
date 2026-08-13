@@ -209,6 +209,73 @@ def test_hours_by_issue_groups_by_issue_and_separates_unattached(client):
     ]
 
 
+def create_sprint(client, project_id, name="Sprint 1", start="2026-08-01", end="2026-08-14"):
+    return client.post(
+        f"/api/projects/{project_id}/sprints", json={"name": name, "start_date": start, "end_date": end}
+    ).json()["sprint"]
+
+
+def test_sprint_stats_for_unknown_project_returns_404(client):
+    response = client.get("/api/projects/999/dashboard/sprints/1/stats")
+    assert response.status_code == 404
+
+
+def test_sprint_stats_for_unknown_sprint_returns_404(client):
+    project = client.post("/api/projects", json={"name": "Projet Sprint Stats"}).json()
+    response = client.get(f"/api/projects/{project['id']}/dashboard/sprints/999/stats")
+    assert response.status_code == 404
+
+
+def test_sprint_stats_aggregates_hours_by_member_and_issue(client):
+    project, alice = setup_logged_in_member(client, project_name="Projet Sprint Dashboard")
+    bob = client.post(f"/api/projects/{project['id']}/members", json={"name": "Bob", "pin": "5678"}).json()
+
+    sprint = create_sprint(client, project["id"])
+    other_sprint = create_sprint(client, project["id"], name="Sprint 2", start="2026-09-01", end="2026-09-14")
+
+    issues = link_repo_and_sync_issues(
+        client,
+        project["id"],
+        [{"number": 1, "title": "US-01", "state": "open", "labels": [], "html_url": "https://x/1"}],
+    )
+
+    client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={
+            "date": "2026-08-05",
+            "duration_hours": 3,
+            "description": "Alice avec issue",
+            "sprint_id": sprint["id"],
+            "github_issue_id": issues[1]["id"],
+        },
+    )
+    client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-06", "duration_hours": 1, "description": "Alice sans issue", "sprint_id": sprint["id"]},
+    )
+    client.post(f"/api/projects/{project['id']}/members/{bob['id']}/login", json={"pin": "5678"})
+    client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-07", "duration_hours": 2, "description": "Bob", "sprint_id": sprint["id"]},
+    )
+    # Entry outside this sprint must not be counted.
+    client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-09-05", "duration_hours": 5, "description": "Hors sprint", "sprint_id": other_sprint["id"]},
+    )
+
+    response = client.get(f"/api/projects/{project['id']}/dashboard/sprints/{sprint['id']}/stats")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["sprint"]["id"] == sprint["id"]
+    assert body["total_hours"] == 6.0
+    assert {(m["member_name"], m["hours"]) for m in body["hours_by_member"]} == {("Alice", 4.0), ("Bob", 2.0)}
+    assert body["hours_by_issue"]["items"] == [
+        {"issue_number": 1, "issue_title": "US-01", "issue_url": "https://x/1", "hours": 3.0}
+    ]
+    assert body["hours_by_issue"]["unattached_hours"] == 3.0
+
+
 def test_stats_reflect_members_and_entries(client):
     project, alice = setup_logged_in_member(client, project_name="Projet Stats")
     bob = client.post(f"/api/projects/{project['id']}/members", json={"name": "Bob", "pin": "5678"}).json()

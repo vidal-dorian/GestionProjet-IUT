@@ -1,7 +1,7 @@
 from datetime import date as date_type
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class ProjectCreate(BaseModel):
@@ -43,6 +43,34 @@ class GithubIssueRead(BaseModel):
 class GithubSyncResult(BaseModel):
     synced_at: datetime
     issue_count: int
+
+
+class SprintCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    start_date: date_type
+    end_date: date_type
+
+    @model_validator(mode="after")
+    def end_after_start(self) -> "SprintCreate":
+        if self.end_date <= self.start_date:
+            raise ValueError("La date de fin doit être postérieure à la date de début.")
+        return self
+
+
+class SprintRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    project_id: int
+    name: str
+    start_date: date_type
+    end_date: date_type
+    created_at: datetime
+
+
+class SprintWriteResult(BaseModel):
+    sprint: SprintRead
+    overlap_warning: str | None = None
 
 
 class ProjectSummary(BaseModel):
@@ -93,6 +121,7 @@ class TimeEntryCreate(BaseModel):
     duration_hours: float = Field(gt=0, le=24)
     description: str = Field(min_length=1, max_length=2000)
     github_issue_id: int | None = None
+    sprint_id: int | None = None
 
     @field_validator("description")
     @classmethod
@@ -114,6 +143,8 @@ class TimeEntryRead(BaseModel):
     created_at: datetime
     github_issue_id: int | None
     github_issue: GithubIssueRead | None
+    sprint_id: int | None
+    sprint: SprintRead | None
 
 
 class HoursOverTimePoint(BaseModel):
@@ -155,3 +186,16 @@ class HoursByIssueItem(BaseModel):
 class HoursByIssue(BaseModel):
     items: list[HoursByIssueItem]
     unattached_hours: float
+
+
+class MemberHours(BaseModel):
+    member_id: int
+    member_name: str
+    hours: float
+
+
+class SprintStats(BaseModel):
+    sprint: SprintRead
+    total_hours: float
+    hours_by_member: list[MemberHours]
+    hours_by_issue: HoursByIssue

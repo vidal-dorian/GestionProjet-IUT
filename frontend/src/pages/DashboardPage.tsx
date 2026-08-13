@@ -2,21 +2,28 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getProject, type Project } from "../api/projects";
 import { listMembers, type Member } from "../api/members";
+import { listSprints, type Sprint } from "../api/sprints";
 import {
   getHoursByIssue,
   getHoursOverTime,
   getProjectStats,
   getRecentEntries,
+  getSprintStats,
   type HoursByIssue,
   type HoursOverTime,
   type ProjectStats,
   type RecentTimeEntry,
+  type SprintStats,
 } from "../api/dashboard";
 import HoursByIssueChart from "../components/HoursByIssueChart";
 import HoursByMemberChart from "../components/HoursByMemberChart";
 import HoursOverTimeChart from "../components/HoursOverTimeChart";
 import ProjectStatsTiles from "../components/ProjectStatsTiles";
 import RecentEntriesList from "../components/RecentEntriesList";
+
+function formatHours(hours: number): string {
+  return `${Math.round(hours * 100) / 100} h`;
+}
 
 export default function DashboardPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -26,6 +33,10 @@ export default function DashboardPage() {
   const [recentEntries, setRecentEntries] = useState<RecentTimeEntry[] | null>(null);
   const [stats, setStats] = useState<ProjectStats | null>(null);
   const [hoursByIssue, setHoursByIssue] = useState<HoursByIssue | null>(null);
+  const [sprints, setSprints] = useState<Sprint[]>([]);
+  const [selectedSprintId, setSelectedSprintId] = useState<number | "">("");
+  const [sprintStats, setSprintStats] = useState<SprintStats | null>(null);
+  const [sprintStatsError, setSprintStatsError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -37,17 +48,40 @@ export default function DashboardPage() {
       getRecentEntries(projectId),
       getProjectStats(projectId),
       getHoursByIssue(projectId),
+      listSprints(projectId),
     ])
-      .then(([projectData, membersData, hoursOverTimeData, recentEntriesData, statsData, hoursByIssueData]) => {
-        setProject(projectData);
-        setMembers(membersData);
-        setHoursOverTime(hoursOverTimeData);
-        setRecentEntries(recentEntriesData);
-        setStats(statsData);
-        setHoursByIssue(hoursByIssueData);
-      })
+      .then(
+        ([
+          projectData,
+          membersData,
+          hoursOverTimeData,
+          recentEntriesData,
+          statsData,
+          hoursByIssueData,
+          sprintsData,
+        ]) => {
+          setProject(projectData);
+          setMembers(membersData);
+          setHoursOverTime(hoursOverTimeData);
+          setRecentEntries(recentEntriesData);
+          setStats(statsData);
+          setHoursByIssue(hoursByIssueData);
+          setSprints(sprintsData);
+        },
+      )
       .catch(() => setError("Impossible de charger le dashboard pour le moment."));
   }, [projectId]);
+
+  useEffect(() => {
+    if (!projectId || selectedSprintId === "") {
+      setSprintStats(null);
+      return;
+    }
+    setSprintStatsError(null);
+    getSprintStats(projectId, selectedSprintId)
+      .then(setSprintStats)
+      .catch(() => setSprintStatsError("Impossible de charger le détail de ce sprint pour le moment."));
+  }, [projectId, selectedSprintId]);
 
   if (error) {
     return (
@@ -104,6 +138,64 @@ export default function DashboardPage() {
           <HoursByIssueChart data={hoursByIssue} />
         )}
       </section>
+
+      {sprints.length > 0 && (
+        <section className="chart-section">
+          <h2>Détail par sprint</h2>
+          <select value={selectedSprintId} onChange={(e) => setSelectedSprintId(e.target.value ? Number(e.target.value) : "")}>
+            <option value="">Sélectionner un sprint...</option>
+            {sprints.map((sprint) => (
+              <option key={sprint.id} value={sprint.id}>
+                {sprint.name}
+              </option>
+            ))}
+          </select>
+
+          {sprintStatsError && <p className="error">{sprintStatsError}</p>}
+
+          {sprintStats && (
+            <div className="sprint-stats">
+              <p className="meta">Total : {formatHours(sprintStats.total_hours)}</p>
+
+              <h3>Heures par membre</h3>
+              {sprintStats.hours_by_member.length === 0 ? (
+                <p>Aucune heure saisie sur ce sprint.</p>
+              ) : (
+                <ul className="member-list">
+                  {sprintStats.hours_by_member.map((item) => (
+                    <li key={item.member_id}>
+                      <span>{item.member_name}</span>
+                      <span className="member-hours">{formatHours(item.hours)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <h3>Heures par issue</h3>
+              {sprintStats.hours_by_issue.items.length === 0 && sprintStats.hours_by_issue.unattached_hours === 0 ? (
+                <p>Aucune heure saisie sur ce sprint.</p>
+              ) : (
+                <ul className="member-list">
+                  {sprintStats.hours_by_issue.items.map((item) => (
+                    <li key={item.issue_number}>
+                      <a href={item.issue_url} target="_blank" rel="noreferrer">
+                        #{item.issue_number} {item.issue_title}
+                      </a>
+                      <span className="member-hours">{formatHours(item.hours)}</span>
+                    </li>
+                  ))}
+                  {sprintStats.hours_by_issue.unattached_hours > 0 && (
+                    <li>
+                      <span>Sans issue rattachée</span>
+                      <span className="member-hours">{formatHours(sprintStats.hours_by_issue.unattached_hours)}</span>
+                    </li>
+                  )}
+                </ul>
+              )}
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="chart-section">
         <h2>Dernières entrées</h2>

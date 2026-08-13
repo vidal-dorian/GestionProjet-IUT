@@ -21,6 +21,7 @@ class Project(Base):
     github_issues: Mapped[list["GithubIssue"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
+    sprints: Mapped[list["Sprint"]] = relationship(back_populates="project", cascade="all, delete-orphan")
 
     @property
     def github_label_filter(self) -> list[str]:
@@ -58,9 +59,11 @@ class TimeEntry(Base):
     github_issue_id: Mapped[int | None] = mapped_column(
         ForeignKey("github_issues.id", ondelete="SET NULL"), nullable=True
     )
+    sprint_id: Mapped[int | None] = mapped_column(ForeignKey("sprints.id", ondelete="SET NULL"), nullable=True)
 
     member: Mapped[Member] = relationship(back_populates="time_entries")
     github_issue: Mapped["GithubIssue | None"] = relationship()
+    sprint: Mapped["Sprint | None"] = relationship()
 
     @property
     def member_name(self) -> str:
@@ -85,3 +88,16 @@ class GithubIssue(Base):
     @property
     def labels(self) -> list[str]:
         return [label for label in self.labels_raw.split(",") if label]
+
+
+class Sprint(Base):
+    __tablename__ = "sprints"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    start_date: Mapped[date] = mapped_column(Date, nullable=False)
+    end_date: Mapped[date] = mapped_column(Date, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+
+    project: Mapped[Project] = relationship(back_populates="sprints")

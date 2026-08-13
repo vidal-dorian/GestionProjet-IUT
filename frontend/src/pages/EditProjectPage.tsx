@@ -11,6 +11,7 @@ import {
   syncGithubIssues,
   updateProject,
 } from "../api/projects";
+import SprintsSection from "../components/SprintsSection";
 
 export default function EditProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -267,6 +268,8 @@ export default function EditProjectPage() {
           </div>
         )}
       </section>
+
+      {projectId && <SprintsSection projectId={Number(projectId)} />}
 
       <section className="danger-zone">
         <h2>Zone dangereuse</h2>
