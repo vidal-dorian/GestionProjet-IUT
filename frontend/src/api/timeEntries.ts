@@ -41,3 +41,25 @@ export function createTimeEntry(projectId: number | string, input: TimeEntryInpu
     body: JSON.stringify(input),
   }).then((res) => handleResponse<TimeEntry>(res));
 }
+
+export function updateTimeEntry(
+  projectId: number | string,
+  entryId: number,
+  input: TimeEntryInput,
+): Promise<TimeEntry> {
+  return fetch(`${API_URL}/api/projects/${projectId}/time-entries/${entryId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(input),
+  }).then((res) => handleResponse<TimeEntry>(res));
+}
+
+export function deleteTimeEntry(projectId: number | string, entryId: number): Promise<void> {
+  return fetch(`${API_URL}/api/projects/${projectId}/time-entries/${entryId}`, {
+    method: "DELETE",
+    credentials: "include",
+  }).then((res) => {
+    if (!res.ok) throw new ApiError(res.status, "Impossible de supprimer cette entrée.");
+  });
+}

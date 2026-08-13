@@ -49,3 +49,11 @@ export function createProject(input: ProjectInput): Promise<Project> {
 export function getProject(id: number | string): Promise<Project> {
   return fetch(`${API_URL}/api/projects/${id}`).then((res) => handleResponse<Project>(res));
 }
+
+export function updateProject(id: number | string, input: ProjectInput): Promise<Project> {
+  return fetch(`${API_URL}/api/projects/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  }).then((res) => handleResponse<Project>(res));
+}

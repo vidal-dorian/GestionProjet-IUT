@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app import crud, models, schemas
@@ -6,6 +6,17 @@ from app.database import get_db
 from app.deps import get_current_member
 
 router = APIRouter(prefix="/api/projects/{project_id}/time-entries", tags=["time-entries"])
+
+
+def _get_owned_entry(
+    db: Session, project_id: int, entry_id: int, member: models.Member
+) -> models.TimeEntry:
+    entry = crud.get_time_entry(db, project_id, entry_id)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="Entrée introuvable.")
+    if entry.member_id != member.id:
+        raise HTTPException(status_code=403, detail="Vous ne pouvez modifier que vos propres entrées.")
+    return entry
 
 
 @router.get("", response_model=list[schemas.TimeEntryRead])
@@ -23,3 +34,26 @@ def create_time_entry(
     db: Session = Depends(get_db),
 ):
     return crud.create_time_entry(db, project_id, member.id, entry)
+
+
+@router.put("/{entry_id}", response_model=schemas.TimeEntryRead)
+def update_time_entry(
+    project_id: int,
+    entry_id: int,
+    entry: schemas.TimeEntryCreate,
+    member: models.Member = Depends(get_current_member),
+    db: Session = Depends(get_db),
+):
+    db_entry = _get_owned_entry(db, project_id, entry_id, member)
+    return crud.update_time_entry(db, db_entry, entry)
+
+
+@router.delete("/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_time_entry(
+    project_id: int,
+    entry_id: int,
+    member: models.Member = Depends(get_current_member),
+    db: Session = Depends(get_db),
+):
+    db_entry = _get_owned_entry(db, project_id, entry_id, member)
+    crud.delete_time_entry(db, db_entry)

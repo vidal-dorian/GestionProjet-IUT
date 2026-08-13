@@ -6,11 +6,11 @@ interface Props {
 }
 
 const WIDTH = 640;
-const HEIGHT = 220;
-const PADDING_LEFT = 36;
+const HEIGHT = 240;
+const PADDING_LEFT = 44;
 const PADDING_RIGHT = 12;
-const PADDING_TOP = 16;
-const PADDING_BOTTOM = 28;
+const PADDING_TOP = 20;
+const PADDING_BOTTOM = 34;
 const INNER_WIDTH = WIDTH - PADDING_LEFT - PADDING_RIGHT;
 const INNER_HEIGHT = HEIGHT - PADDING_TOP - PADDING_BOTTOM;
 const MAX_X_LABELS = 7;
@@ -61,7 +61,7 @@ export default function HoursOverTimeChart({ data }: Props) {
           return (
             <g key={fraction}>
               <line x1={PADDING_LEFT} y1={y} x2={WIDTH - PADDING_RIGHT} y2={y} className="line-chart-grid" />
-              <text x={PADDING_LEFT - 8} y={y} className="line-chart-axis-label" textAnchor="end" dy="0.32em">
+              <text x={PADDING_LEFT - 10} y={y} className="line-chart-axis-label" textAnchor="end" dy="0.32em">
                 {Math.round(yMax * fraction)}
               </text>
             </g>
@@ -74,7 +74,7 @@ export default function HoursOverTimeChart({ data }: Props) {
               <text
                 key={c.period}
                 x={c.x}
-                y={HEIGHT - PADDING_BOTTOM + 16}
+                y={HEIGHT - PADDING_BOTTOM + 22}
                 className="line-chart-axis-label"
                 textAnchor="middle"
               >
