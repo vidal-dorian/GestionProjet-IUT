@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.0.0](https://github.com/vidal-dorian/GestionProjet-IUT/compare/v0.2.0...v1.0.0) (2026-08-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* remplace entièrement le système de membres avec PIN à 4 chiffres (US-05, US-08) par une authentification déléguée à Cloudflare Access, avec Google comme fournisseur d'identité.
+
+### Features
+
+* déploiement continu (CI/CD) sur le Raspberry Pi ([dd7f400](https://github.com/vidal-dorian/GestionProjet-IUT/commit/dd7f40025ca56f253dbf86d0c2cc6b9ea1848962))
+* déploiement continu (CI/CD) sur le Raspberry Pi ([8736867](https://github.com/vidal-dorian/GestionProjet-IUT/commit/87368675ff73ecf40312191cf5417261ec405d79))
+* Epic 8 — sprints (US-26, US-27, US-28) ([d6d668f](https://github.com/vidal-dorian/GestionProjet-IUT/commit/d6d668fdee35817f887cd14335a2e2793893876e))
+* US-21 — lier un dépôt GitHub à un projet ([9b8dbc1](https://github.com/vidal-dorian/GestionProjet-IUT/commit/9b8dbc1785e20e397ebb18a3dddcf2eb0201ffa4))
+* US-22 — synchroniser les issues GitHub ([9def9d7](https://github.com/vidal-dorian/GestionProjet-IUT/commit/9def9d7e400e6609466272b902799721b2209d87))
+* US-23 — filtrer les issues GitHub remontées par label ([6d35548](https://github.com/vidal-dorian/GestionProjet-IUT/commit/6d35548e771d4c504babe51be69cfc6cdfcbf9b9))
+* US-24 — pointer une saisie de temps sur une issue GitHub ([1cd2b79](https://github.com/vidal-dorian/GestionProjet-IUT/commit/1cd2b791b6402c28acffbf937a455e85057080dc))
+* US-25 — visualiser les heures par User Story ([1ff4208](https://github.com/vidal-dorian/GestionProjet-IUT/commit/1ff420800b6fdc1e17c7ae41b348dfe75ffd40cc))
+* US-30, US-31 — exporter les données en Excel ([d1ed237](https://github.com/vidal-dorian/GestionProjet-IUT/commit/d1ed237f8b73338c75c58cb0102f41843b64df75))
+* US-37 — catégoriser mes saisies ([9cec8c3](https://github.com/vidal-dorian/GestionProjet-IUT/commit/9cec8c3cc2654fa6c728da57c035c9f21da243b2))
+* US-41 — authentification via Google (Cloudflare Access) ([b367f56](https://github.com/vidal-dorian/GestionProjet-IUT/commit/b367f567b1c3381322c2c6ab88a235e0507163dc))
+
+
+### Bug Fixes
+
+* limiter la fréquence de synchronisation manuelle des issues GitHub ([c32095a](https://github.com/vidal-dorian/GestionProjet-IUT/commit/c32095a5454410c737ed42829bca094a576047fc))
+
 ## [0.2.0](https://github.com/vidal-dorian/GestionProjet-IUT/compare/v0.1.0...v0.2.0) (2026-08-13)
 
 
