@@ -94,3 +94,22 @@ class HoursOverTimePoint(BaseModel):
 class HoursOverTime(BaseModel):
     granularity: str
     points: list[HoursOverTimePoint]
+
+
+class RecentTimeEntry(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    member_id: int
+    member_name: str
+    date: date_type
+    duration_hours: float
+    description: str
+
+
+class ProjectStats(BaseModel):
+    total_hours: float
+    member_count: int
+    active_member_count: int
+    entry_count: int
+    average_hours_per_member: float

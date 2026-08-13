@@ -251,6 +251,10 @@ h1 {
   white-space: pre-wrap;
 }
 
+.entry-author {
+  color: #2b6cb0;
+}
+
 .chart-section {
   margin-top: 1.5rem;
   background: #fff;
@@ -355,4 +359,27 @@ h1 {
   margin-top: 0.5rem;
   font-size: 0.85rem;
   color: #444;
+}
+
+.stat-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 1rem;
+}
+
+.stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.stat-tile-label {
+  font-size: 0.8rem;
+  color: #898781;
+}
+
+.stat-tile-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1a1a1a;
 }

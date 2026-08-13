@@ -47,3 +47,7 @@ class TimeEntry(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
     member: Mapped[Member] = relationship(back_populates="time_entries")
+
+    @property
+    def member_name(self) -> str:
+        return self.member.name

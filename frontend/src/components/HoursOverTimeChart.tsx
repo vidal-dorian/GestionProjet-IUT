@@ -85,11 +85,16 @@ export default function HoursOverTimeChart({ data }: Props) {
 
         <path d={pathD} className="line-chart-line" fill="none" />
 
-        {last && (
-          <text x={last.x} y={last.y - 10} className="line-chart-end-label" textAnchor="end">
-            {last.hours} h
-          </text>
-        )}
+        {last &&
+          (coords.length > 1 ? (
+            <text x={last.x} y={last.y - 10} className="line-chart-end-label" textAnchor="end">
+              {last.hours} h
+            </text>
+          ) : (
+            <text x={last.x + 10} y={last.y} className="line-chart-end-label" textAnchor="start" dy="0.32em">
+              {last.hours} h
+            </text>
+          ))}
 
         {coords.map((c, i) => (
           <rect
