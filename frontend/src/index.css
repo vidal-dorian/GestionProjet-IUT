@@ -195,3 +195,50 @@ h1 {
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+.time-entries-section {
+  margin-top: 2rem;
+}
+
+.time-entries-section h2 {
+  font-size: 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.time-entries-section h2:not(:first-child) {
+  margin-top: 2rem;
+}
+
+.entry-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.entry-list li {
+  background: #fff;
+  padding: 0.75rem 0.9rem;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.entry-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  font-weight: 600;
+}
+
+.entry-duration {
+  color: #2b6cb0;
+}
+
+.entry-description {
+  margin: 0.3rem 0 0;
+  color: #444;
+  white-space: pre-wrap;
+}
