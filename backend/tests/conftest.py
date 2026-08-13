@@ -26,6 +26,15 @@ def _enable_dev_bypass_auth(monkeypatch):
     monkeypatch.setattr(settings, "dev_bypass_auth_enabled", True)
 
 
+@pytest.fixture(autouse=True)
+def _disable_auto_create_schema(monkeypatch):
+    # Le schéma de test est géré par le fixture `client` ci-dessous, sur son
+    # propre moteur sqlite en mémoire — la création automatique du schéma au
+    # démarrage de l'app (contre la vraie base configurée) doit rester
+    # désactivée pendant les tests.
+    monkeypatch.setattr(settings, "auto_create_schema", False)
+
+
 @pytest.fixture()
 def client():
     Base.metadata.create_all(bind=engine)

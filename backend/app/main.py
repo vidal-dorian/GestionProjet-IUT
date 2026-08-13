@@ -9,11 +9,15 @@ from app.config import settings
 from app.database import Base, engine
 from app.routers import auth, categories, dashboard, exports, github, projects, sprints, time_entries
 
-Base.metadata.create_all(bind=engine)
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Créer le schéma au démarrage plutôt qu'à l'import du module : un
+    # simple `import app.main` (tests, outils) ne doit pas forcer une
+    # connexion à la base réelle. Les tests désactivent ce comportement
+    # (auto_create_schema=False) et gèrent leur propre schéma en mémoire.
+    if settings.auto_create_schema:
+        Base.metadata.create_all(bind=engine)
     task = asyncio.create_task(github_sync.periodic_sync_loop())
     try:
         yield
