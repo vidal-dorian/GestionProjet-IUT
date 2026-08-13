@@ -103,11 +103,11 @@ def sprint_stats(project_id: int, sprint_id: int, db: Session = Depends(get_db))
     if db_sprint is None:
         raise HTTPException(status_code=404, detail="Sprint introuvable.")
 
-    hours_by_member = [
-        schemas.MemberHours(member_id=member.id, member_name=member.name, hours=round(hours, 2))
-        for member, hours in crud.sum_hours_by_member_for_sprint(db, project_id, sprint_id)
+    hours_by_account = [
+        schemas.AccountHours(account_id=account.id, account_email=account.email, hours=round(hours, 2))
+        for account, hours in crud.sum_hours_by_account_for_sprint(db, project_id, sprint_id)
     ]
-    hours_by_member.sort(key=lambda item: item.hours, reverse=True)
+    hours_by_account.sort(key=lambda item: item.hours, reverse=True)
 
     issue_items = [
         schemas.HoursByIssueItem(
@@ -120,7 +120,7 @@ def sprint_stats(project_id: int, sprint_id: int, db: Session = Depends(get_db))
     return schemas.SprintStats(
         sprint=db_sprint,
         total_hours=round(crud.sum_hours_for_sprint(db, project_id, sprint_id), 2),
-        hours_by_member=hours_by_member,
+        hours_by_account=hours_by_account,
         hours_by_issue=schemas.HoursByIssue(
             items=issue_items,
             unattached_hours=round(crud.sum_unattached_hours_for_sprint(db, project_id, sprint_id), 2),
@@ -133,14 +133,13 @@ def project_stats(project_id: int, db: Session = Depends(get_db)):
     if crud.get_project(db, project_id) is None:
         raise HTTPException(status_code=404, detail="Projet introuvable.")
 
-    member_count = crud.count_members(db, project_id)
+    contributor_count = crud.count_contributors(db, project_id)
     total_hours = crud.sum_project_hours(db, project_id)
-    average = round(total_hours / member_count, 2) if member_count else 0.0
+    average = round(total_hours / contributor_count, 2) if contributor_count else 0.0
 
     return schemas.ProjectStats(
         total_hours=round(total_hours, 2),
-        member_count=member_count,
-        active_member_count=crud.count_active_members(db, project_id),
+        contributor_count=contributor_count,
         entry_count=crud.count_time_entries(db, project_id),
-        average_hours_per_member=average,
+        average_hours_per_contributor=average,
     )

@@ -37,7 +37,7 @@ export default function ProjectListPage() {
                 <h2>{project.name}</h2>
                 {project.description && <p className="description">{project.description}</p>}
                 <p className="meta">
-                  {project.member_count} membre{project.member_count > 1 ? "s" : ""}
+                  {project.contributor_count} contributeur{project.contributor_count > 1 ? "s" : ""}
                 </p>
               </Link>
             </li>

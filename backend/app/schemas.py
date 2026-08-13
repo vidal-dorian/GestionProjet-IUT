@@ -86,47 +86,22 @@ class CategoryRead(BaseModel):
     created_at: datetime
 
 
+class AccountRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    email: str
+    is_admin: bool
+    created_at: datetime
+
+
 class ProjectSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     name: str
     description: str | None
-    member_count: int
-
-
-class MemberCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=80)
-    pin: str
-
-    @field_validator("pin")
-    @classmethod
-    def pin_must_be_four_digits(cls, value: str) -> str:
-        if not value.isdigit() or len(value) != 4:
-            raise ValueError("Le PIN doit être composé de 4 chiffres.")
-        return value
-
-
-class MemberRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    name: str
-    project_id: int
-    created_at: datetime
-    total_hours: float
-
-
-class MemberLogin(BaseModel):
-    pin: str
-
-
-class SessionMember(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    name: str
-    project_id: int
+    contributor_count: int
 
 
 class TimeEntryCreate(BaseModel):
@@ -150,7 +125,8 @@ class TimeEntryRead(BaseModel):
 
     id: int
     project_id: int
-    member_id: int
+    account_id: int
+    account: AccountRead
     date: date_type
     duration_hours: float
     description: str
@@ -177,8 +153,8 @@ class RecentTimeEntry(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    member_id: int
-    member_name: str
+    account_id: int
+    account_email: str
     date: date_type
     duration_hours: float
     description: str
@@ -186,10 +162,9 @@ class RecentTimeEntry(BaseModel):
 
 class ProjectStats(BaseModel):
     total_hours: float
-    member_count: int
-    active_member_count: int
+    contributor_count: int
     entry_count: int
-    average_hours_per_member: float
+    average_hours_per_contributor: float
 
 
 class HoursByIssueItem(BaseModel):
@@ -204,16 +179,16 @@ class HoursByIssue(BaseModel):
     unattached_hours: float
 
 
-class MemberHours(BaseModel):
-    member_id: int
-    member_name: str
+class AccountHours(BaseModel):
+    account_id: int
+    account_email: str
     hours: float
 
 
 class SprintStats(BaseModel):
     sprint: SprintRead
     total_hours: float
-    hours_by_member: list[MemberHours]
+    hours_by_account: list[AccountHours]
     hours_by_issue: HoursByIssue
 
 

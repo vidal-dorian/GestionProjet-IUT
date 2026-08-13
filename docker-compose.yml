@@ -21,8 +21,9 @@ services:
     environment:
       DATABASE_URL: mysql+pymysql://${MYSQL_USER:-gestionprojet}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE:-gestionprojet}
       CORS_ORIGINS: "${CORS_ORIGINS:?Renseigne CORS_ORIGINS dans .env}"
-      SECRET_KEY: "${SECRET_KEY:?Renseigne SECRET_KEY dans .env}"
-      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      CLOUDFLARE_TEAM_DOMAIN: "${CLOUDFLARE_TEAM_DOMAIN:?Renseigne CLOUDFLARE_TEAM_DOMAIN dans .env (voir docs/deploiement-raspberry-pi.md)}"
+      CLOUDFLARE_ACCESS_AUD: "${CLOUDFLARE_ACCESS_AUD:?Renseigne CLOUDFLARE_ACCESS_AUD dans .env (voir docs/deploiement-raspberry-pi.md)}"
     depends_on:
       mysql:
         condition: service_healthy

@@ -1,11 +1,10 @@
 from unittest.mock import AsyncMock, patch
 
 
-def setup_logged_in_member(client, project_name="Projet Dashboard", pin="1234"):
+def setup_authenticated_account(client, project_name="Projet Dashboard", email="alice@test.local"):
     project = client.post("/api/projects", json={"name": project_name}).json()
-    member = client.post(f"/api/projects/{project['id']}/members", json={"name": "Alice", "pin": pin}).json()
-    client.post(f"/api/projects/{project['id']}/members/{member['id']}/login", json={"pin": pin})
-    return project, member
+    client.headers["X-Dev-Email"] = email
+    return project, email
 
 
 def link_repo_and_sync_issues(client, project_id, issues):
@@ -32,7 +31,7 @@ def test_hours_over_time_with_no_entries_returns_empty_series(client):
 
 
 def test_hours_over_time_uses_daily_granularity_for_short_span_and_fills_gaps(client):
-    project, _ = setup_logged_in_member(client)
+    project, _ = setup_authenticated_account(client)
 
     client.post(
         f"/api/projects/{project['id']}/time-entries",
@@ -54,23 +53,25 @@ def test_hours_over_time_uses_daily_granularity_for_short_span_and_fills_gaps(cl
     ]
 
 
-def test_hours_over_time_sums_entries_from_all_members(client):
-    project, alice = setup_logged_in_member(client)
-    bob = client.post(f"/api/projects/{project['id']}/members", json={"name": "Bob", "pin": "5678"}).json()
-    client.post(f"/api/projects/{project['id']}/members/{bob['id']}/login", json={"pin": "5678"})
-
+def test_hours_over_time_sums_entries_from_all_accounts(client):
+    project, _ = setup_authenticated_account(client)
     client.post(
         f"/api/projects/{project['id']}/time-entries",
-        json={"date": "2026-08-01", "duration_hours": 2, "description": "Alice ou Bob selon la session"},
+        json={"date": "2026-08-01", "duration_hours": 2, "description": "Alice"},
+    )
+    client.headers["X-Dev-Email"] = "bob@test.local"
+    client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-01", "duration_hours": 1, "description": "Bob"},
     )
 
     response = client.get(f"/api/projects/{project['id']}/dashboard/hours-over-time")
     body = response.json()
-    assert body["points"] == [{"period": "2026-08-01", "hours": 2.0}]
+    assert body["points"] == [{"period": "2026-08-01", "hours": 3.0}]
 
 
 def test_hours_over_time_uses_weekly_granularity_for_long_span(client):
-    project, _ = setup_logged_in_member(client, project_name="Projet Long")
+    project, _ = setup_authenticated_account(client, project_name="Projet Long")
 
     client.post(
         f"/api/projects/{project['id']}/time-entries",
@@ -101,15 +102,14 @@ def test_recent_entries_empty_project_returns_empty_list(client):
     assert response.json() == []
 
 
-def test_recent_entries_includes_author_across_all_members_sorted_by_date_desc(client):
-    project, alice = setup_logged_in_member(client, project_name="Projet Multi Auteurs")
-    bob = client.post(f"/api/projects/{project['id']}/members", json={"name": "Bob", "pin": "5678"}).json()
+def test_recent_entries_includes_author_across_all_accounts_sorted_by_date_desc(client):
+    project, _ = setup_authenticated_account(client, project_name="Projet Multi Auteurs")
 
     client.post(
         f"/api/projects/{project['id']}/time-entries",
         json={"date": "2026-08-01", "duration_hours": 2, "description": "Entrée d'Alice"},
     )
-    client.post(f"/api/projects/{project['id']}/members/{bob['id']}/login", json={"pin": "5678"})
+    client.headers["X-Dev-Email"] = "bob@test.local"
     client.post(
         f"/api/projects/{project['id']}/time-entries",
         json={"date": "2026-08-05", "duration_hours": 1, "description": "Entrée de Bob"},
@@ -119,15 +119,15 @@ def test_recent_entries_includes_author_across_all_members_sorted_by_date_desc(c
     assert response.status_code == 200
     body = response.json()
     assert len(body) == 2
-    assert body[0]["member_name"] == "Bob"
+    assert body[0]["account_email"] == "bob@test.local"
     assert body[0]["date"] == "2026-08-05"
     assert body[0]["duration_hours"] == 1
     assert body[0]["description"] == "Entrée de Bob"
-    assert body[1]["member_name"] == "Alice"
+    assert body[1]["account_email"] == "alice@test.local"
 
 
 def test_recent_entries_limited_to_ten(client):
-    project, _ = setup_logged_in_member(client, project_name="Projet Beaucoup D'Entrées")
+    project, _ = setup_authenticated_account(client, project_name="Projet Beaucoup D'Entrées")
     for day in range(1, 13):
         client.post(
             f"/api/projects/{project['id']}/time-entries",
@@ -146,16 +146,15 @@ def test_stats_for_unknown_project_returns_404(client):
     assert response.status_code == 404
 
 
-def test_stats_for_project_without_members_or_entries(client):
+def test_stats_for_project_without_entries(client):
     project = client.post("/api/projects", json={"name": "Projet Stats Vide"}).json()
     response = client.get(f"/api/projects/{project['id']}/dashboard/stats")
     assert response.status_code == 200
     assert response.json() == {
         "total_hours": 0.0,
-        "member_count": 0,
-        "active_member_count": 0,
+        "contributor_count": 0,
         "entry_count": 0,
-        "average_hours_per_member": 0.0,
+        "average_hours_per_contributor": 0.0,
     }
 
 
@@ -172,7 +171,7 @@ def test_hours_by_issue_with_no_entries_returns_empty(client):
 
 
 def test_hours_by_issue_groups_by_issue_and_separates_unattached(client):
-    project, _ = setup_logged_in_member(client, project_name="Projet Hours By Issue")
+    project, _ = setup_authenticated_account(client, project_name="Projet Hours By Issue")
     issues = link_repo_and_sync_issues(
         client,
         project["id"],
@@ -226,9 +225,8 @@ def test_sprint_stats_for_unknown_sprint_returns_404(client):
     assert response.status_code == 404
 
 
-def test_sprint_stats_aggregates_hours_by_member_and_issue(client):
-    project, alice = setup_logged_in_member(client, project_name="Projet Sprint Dashboard")
-    bob = client.post(f"/api/projects/{project['id']}/members", json={"name": "Bob", "pin": "5678"}).json()
+def test_sprint_stats_aggregates_hours_by_account_and_issue(client):
+    project, _ = setup_authenticated_account(client, project_name="Projet Sprint Dashboard")
 
     sprint = create_sprint(client, project["id"])
     other_sprint = create_sprint(client, project["id"], name="Sprint 2", start="2026-09-01", end="2026-09-14")
@@ -253,7 +251,7 @@ def test_sprint_stats_aggregates_hours_by_member_and_issue(client):
         f"/api/projects/{project['id']}/time-entries",
         json={"date": "2026-08-06", "duration_hours": 1, "description": "Alice sans issue", "sprint_id": sprint["id"]},
     )
-    client.post(f"/api/projects/{project['id']}/members/{bob['id']}/login", json={"pin": "5678"})
+    client.headers["X-Dev-Email"] = "bob@test.local"
     client.post(
         f"/api/projects/{project['id']}/time-entries",
         json={"date": "2026-08-07", "duration_hours": 2, "description": "Bob", "sprint_id": sprint["id"]},
@@ -269,7 +267,10 @@ def test_sprint_stats_aggregates_hours_by_member_and_issue(client):
     body = response.json()
     assert body["sprint"]["id"] == sprint["id"]
     assert body["total_hours"] == 6.0
-    assert {(m["member_name"], m["hours"]) for m in body["hours_by_member"]} == {("Alice", 4.0), ("Bob", 2.0)}
+    assert {(a["account_email"], a["hours"]) for a in body["hours_by_account"]} == {
+        ("alice@test.local", 4.0),
+        ("bob@test.local", 2.0),
+    }
     assert body["hours_by_issue"]["items"] == [
         {"issue_number": 1, "issue_title": "US-01", "issue_url": "https://x/1", "hours": 3.0}
     ]
@@ -293,7 +294,7 @@ def test_hours_by_category_with_no_entries_returns_empty(client):
 
 
 def test_hours_by_category_groups_by_category_and_separates_unattached(client):
-    project, _ = setup_logged_in_member(client, project_name="Projet Hours By Category")
+    project, _ = setup_authenticated_account(client, project_name="Projet Hours By Category")
     dev = create_category(client, project["id"], name="Dev")
     docs = create_category(client, project["id"], name="Documentation")
 
@@ -324,11 +325,8 @@ def test_hours_by_category_groups_by_category_and_separates_unattached(client):
     ]
 
 
-def test_stats_reflect_members_and_entries(client):
-    project, alice = setup_logged_in_member(client, project_name="Projet Stats")
-    bob = client.post(f"/api/projects/{project['id']}/members", json={"name": "Bob", "pin": "5678"}).json()
-    # Zoe is a registered member but never logs any hours (inactive)
-    client.post(f"/api/projects/{project['id']}/members", json={"name": "Zoe", "pin": "9999"})
+def test_stats_reflect_contributors_and_entries(client):
+    project, _ = setup_authenticated_account(client, project_name="Projet Stats")
 
     client.post(
         f"/api/projects/{project['id']}/time-entries",
@@ -338,7 +336,7 @@ def test_stats_reflect_members_and_entries(client):
         f"/api/projects/{project['id']}/time-entries",
         json={"date": "2026-08-02", "duration_hours": 2, "description": "Alice 2"},
     )
-    client.post(f"/api/projects/{project['id']}/members/{bob['id']}/login", json={"pin": "5678"})
+    client.headers["X-Dev-Email"] = "bob@test.local"
     client.post(
         f"/api/projects/{project['id']}/time-entries",
         json={"date": "2026-08-03", "duration_hours": 1, "description": "Bob 1"},
@@ -348,7 +346,6 @@ def test_stats_reflect_members_and_entries(client):
     assert response.status_code == 200
     body = response.json()
     assert body["total_hours"] == 6.0
-    assert body["member_count"] == 3
-    assert body["active_member_count"] == 2
+    assert body["contributor_count"] == 2
     assert body["entry_count"] == 3
-    assert body["average_hours_per_member"] == 2.0
+    assert body["average_hours_per_contributor"] == 3.0

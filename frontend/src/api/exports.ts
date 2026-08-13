@@ -1,3 +1,4 @@
+import { devAuthHeaders } from "./authHeaders";
 import { ApiError } from "./projects";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
@@ -22,6 +23,7 @@ function filenameFromResponse(response: Response, fallback: string): string {
 export async function downloadMyTimeEntriesExport(projectId: number | string): Promise<void> {
   const response = await fetch(`${API_URL}/api/projects/${projectId}/time-entries/export`, {
     credentials: "include",
+    headers: devAuthHeaders(),
   });
   if (!response.ok) {
     throw new ApiError(response.status, "Impossible d'exporter vos données pour le moment.");

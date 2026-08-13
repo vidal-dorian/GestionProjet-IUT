@@ -1,37 +1,20 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { logout, me, type SessionMember } from "../api/auth";
+import { Link, useParams } from "react-router-dom";
+import { me, type Account } from "../api/auth";
 import TimeEntriesSection from "../components/TimeEntriesSection";
 
 export default function MyPage() {
   const { projectId } = useParams<{ projectId: string }>();
-  const navigate = useNavigate();
-  const [member, setMember] = useState<SessionMember | null>(null);
+  const [account, setAccount] = useState<Account | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loggingOut, setLoggingOut] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     me()
-      .then((current) => {
-        if (current.project_id !== Number(projectId)) {
-          navigate(`/projects/${projectId}/login`, { replace: true });
-          return;
-        }
-        setMember(current);
-      })
-      .catch(() => navigate(`/projects/${projectId}/login`, { replace: true }))
+      .then(setAccount)
+      .catch(() => setError("Authentification requise. Vérifiez que vous accédez à l'application via le lien fourni par votre administrateur."))
       .finally(() => setLoading(false));
-  }, [projectId, navigate]);
-
-  async function handleLogout() {
-    setLoggingOut(true);
-    try {
-      await logout();
-      navigate(`/projects/${projectId}/login`, { replace: true });
-    } finally {
-      setLoggingOut(false);
-    }
-  }
+  }, [projectId]);
 
   if (loading) {
     return (
@@ -41,8 +24,13 @@ export default function MyPage() {
     );
   }
 
-  if (!member) {
-    return null;
+  if (error || !account) {
+    return (
+      <div className="page">
+        <p className="error">{error}</p>
+        <Link to={`/projects/${projectId}`}>← Retour au projet</Link>
+      </div>
+    );
   }
 
   return (
@@ -51,13 +39,13 @@ export default function MyPage() {
         <Link to={`/projects/${projectId}`} className="back-link">
           ← Retour au projet
         </Link>
-        <button type="button" onClick={handleLogout} disabled={loggingOut} className="button-secondary">
-          {loggingOut ? "Déconnexion..." : "Se déconnecter"}
-        </button>
+        <a href="/cdn-cgi/access/logout" className="button-secondary">
+          Se déconnecter
+        </a>
       </div>
-      <h1>Bonjour, {member.name}</h1>
+      <h1>Bonjour, {account.email}</h1>
 
-      <TimeEntriesSection projectId={member.project_id} />
+      <TimeEntriesSection projectId={Number(projectId)} />
     </div>
   );
 }

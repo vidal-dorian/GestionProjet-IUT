@@ -7,9 +7,9 @@ interface Props {
 export default function ProjectStatsTiles({ stats }: Props) {
   const tiles = [
     { label: "Total d'heures", value: `${stats.total_hours} h` },
-    { label: "Membres actifs", value: `${stats.active_member_count} / ${stats.member_count}` },
+    { label: "Contributeurs", value: stats.contributor_count },
     { label: "Entrées saisies", value: stats.entry_count },
-    { label: "Moyenne par membre", value: `${stats.average_hours_per_member} h` },
+    { label: "Moyenne par contributeur", value: `${stats.average_hours_per_contributor} h` },
   ];
 
   return (

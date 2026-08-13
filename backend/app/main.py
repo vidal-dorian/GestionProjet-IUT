@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import github_sync
 from app.config import settings
 from app.database import Base, engine
-from app.routers import auth, categories, dashboard, exports, github, members, projects, sprints, time_entries
+from app.routers import auth, categories, dashboard, exports, github, projects, sprints, time_entries
 
 Base.metadata.create_all(bind=engine)
 
@@ -32,7 +32,6 @@ app.add_middleware(
 )
 
 app.include_router(projects.router)
-app.include_router(members.router)
 app.include_router(auth.router)
 app.include_router(time_entries.router)
 app.include_router(dashboard.router)

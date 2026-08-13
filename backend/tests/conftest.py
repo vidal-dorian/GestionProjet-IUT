@@ -21,6 +21,11 @@ def _disable_github_sync_rate_limit(monkeypatch):
     monkeypatch.setattr(settings, "github_sync_interval_minutes", 0)
 
 
+@pytest.fixture(autouse=True)
+def _enable_dev_bypass_auth(monkeypatch):
+    monkeypatch.setattr(settings, "dev_bypass_auth_enabled", True)
+
+
 @pytest.fixture()
 def client():
     Base.metadata.create_all(bind=engine)

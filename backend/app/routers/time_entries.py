@@ -3,18 +3,18 @@ from sqlalchemy.orm import Session
 
 from app import crud, models, schemas
 from app.database import get_db
-from app.deps import get_current_member
+from app.deps import get_current_account
 
 router = APIRouter(prefix="/api/projects/{project_id}/time-entries", tags=["time-entries"])
 
 
 def _get_owned_entry(
-    db: Session, project_id: int, entry_id: int, member: models.Member
+    db: Session, project_id: int, entry_id: int, account: models.Account
 ) -> models.TimeEntry:
     entry = crud.get_time_entry(db, project_id, entry_id)
     if entry is None:
         raise HTTPException(status_code=404, detail="Entrée introuvable.")
-    if entry.member_id != member.id:
+    if entry.account_id != account.id:
         raise HTTPException(status_code=403, detail="Vous ne pouvez modifier que vos propres entrées.")
     return entry
 
@@ -36,22 +36,22 @@ def _validate_category(db: Session, project_id: int, entry: schemas.TimeEntryCre
 
 @router.get("", response_model=list[schemas.TimeEntryRead])
 def list_my_time_entries(
-    project_id: int, member: models.Member = Depends(get_current_member), db: Session = Depends(get_db)
+    project_id: int, account: models.Account = Depends(get_current_account), db: Session = Depends(get_db)
 ):
-    return crud.list_time_entries_for_member(db, project_id, member.id)
+    return crud.list_time_entries_for_account(db, project_id, account.id)
 
 
 @router.post("", response_model=schemas.TimeEntryRead, status_code=status.HTTP_201_CREATED)
 def create_time_entry(
     project_id: int,
     entry: schemas.TimeEntryCreate,
-    member: models.Member = Depends(get_current_member),
+    account: models.Account = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
     _validate_github_issue(db, project_id, entry)
     _validate_sprint(db, project_id, entry)
     _validate_category(db, project_id, entry)
-    return crud.create_time_entry(db, project_id, member.id, entry)
+    return crud.create_time_entry(db, project_id, account.id, entry)
 
 
 @router.put("/{entry_id}", response_model=schemas.TimeEntryRead)
@@ -59,10 +59,10 @@ def update_time_entry(
     project_id: int,
     entry_id: int,
     entry: schemas.TimeEntryCreate,
-    member: models.Member = Depends(get_current_member),
+    account: models.Account = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
-    db_entry = _get_owned_entry(db, project_id, entry_id, member)
+    db_entry = _get_owned_entry(db, project_id, entry_id, account)
     _validate_github_issue(db, project_id, entry)
     _validate_sprint(db, project_id, entry)
     _validate_category(db, project_id, entry)
@@ -73,8 +73,8 @@ def update_time_entry(
 def delete_time_entry(
     project_id: int,
     entry_id: int,
-    member: models.Member = Depends(get_current_member),
+    account: models.Account = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
-    db_entry = _get_owned_entry(db, project_id, entry_id, member)
+    db_entry = _get_owned_entry(db, project_id, entry_id, account)
     crud.delete_time_entry(db, db_entry)

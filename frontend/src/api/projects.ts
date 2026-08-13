@@ -28,7 +28,13 @@ export interface ProjectSummary {
   id: number;
   name: string;
   description: string | null;
-  member_count: number;
+  contributor_count: number;
+}
+
+export interface Contributor {
+  account_id: number;
+  account_email: string;
+  hours: number;
 }
 
 export interface ProjectInput {
@@ -108,4 +114,8 @@ export function setGithubLabelFilter(id: number | string, labels: string[]): Pro
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ labels }),
   }).then((res) => handleResponse<Project>(res));
+}
+
+export function listContributors(id: number | string): Promise<Contributor[]> {
+  return fetch(`${API_URL}/api/projects/${id}/contributors`).then((res) => handleResponse<Contributor[]>(res));
 }

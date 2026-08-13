@@ -81,13 +81,19 @@ cp .env.example .env
 |---|---|
 | `MYSQL_PASSWORD` | Un mot de passe fort, généré aléatoirement |
 | `MYSQL_ROOT_PASSWORD` | Un mot de passe fort différent du précédent |
-| `SECRET_KEY` | Généré avec `openssl rand -hex 32` — sert à signer les cookies de session, ne jamais réutiliser une valeur d'exemple |
 | `CORS_ORIGINS` | Le hostname public final, ex. `https://suivi.mondomaine.fr` (celui qui sera configuré dans Cloudflare Tunnel à l'étape 5) |
-| `COOKIE_SECURE` | `true` (l'application est servie en HTTPS via le tunnel) |
+| `CLOUDFLARE_TEAM_DOMAIN` | Domaine de l'équipe Cloudflare Zero Trust, ex. `mon-equipe.cloudflareaccess.com` — voir étape 6 |
+| `CLOUDFLARE_ACCESS_AUD` | "Application Audience (AUD) Tag" de l'application Access créée à l'étape 6 |
 
 Laisser `VITE_API_URL` **vide** — c'est la configuration attendue pour le
 reverse-proxy nginx décrit plus haut (le frontend appelle l'API en
 same-origin, pas de domaine séparé à renseigner).
+
+`CLOUDFLARE_TEAM_DOMAIN` et `CLOUDFLARE_ACCESS_AUD` ne sont connues qu'une
+fois l'application Access créée (étape 6, après le tunnel) : il est normal
+de laisser des valeurs provisoires ici pour le premier `docker compose up`,
+tant qu'on sait qu'il faudra revenir les renseigner avant d'exposer
+l'application publiquement — voir l'avertissement de l'étape 6.
 
 `.env` contient des secrets réels : il ne doit **jamais** être commité (déjà
 listé dans `.gitignore`) ni partagé.
@@ -189,6 +195,75 @@ curl -s https://suivi.mondomaine.fr/api/health
 Puis ouvrir `https://suivi.mondomaine.fr` dans un navigateur : la liste des
 projets doit s'afficher.
 
+À ce stade, l'application est accessible **sans aucune authentification** —
+n'importe qui connaissant l'URL peut l'utiliser. L'étape suivante corrige
+cela avant toute annonce de l'URL à qui que ce soit.
+
+## 6. Protéger l'accès avec Cloudflare Access (authentification Google)
+
+L'application ne gère plus elle-même l'authentification : elle délègue
+entièrement le contrôle d'accès à **Cloudflare Access**, avec **Google**
+comme fournisseur d'identité. Concrètement :
+
+- Cloudflare Access s'interpose devant le hostname public (celui configuré
+  dans le tunnel à l'étape 5) : personne n'atteint même le frontend sans
+  s'être authentifié avec un compte Google autorisé.
+- Une politique d'accès restreint qui peut se connecter (liste d'adresses
+  e-mail précises, ou domaine complet type `*@mon-universite.fr`).
+- Une fois authentifié, Cloudflare transmet l'identité au backend via un
+  jeton signé (`Cf-Access-Jwt-Assertion`) que l'application vérifie
+  elle-même avant de faire confiance à l'e-mail reçu — voir
+  `backend/app/cloudflare_auth.py` pour le détail de cette vérification côté
+  code si besoin de débugger.
+- **Aucun compte à créer manuellement** : au premier accès réussi d'une
+  adresse e-mail, l'application crée automatiquement le compte applicatif
+  correspondant.
+
+### Créer l'application Access
+
+1. Aller sur [one.dash.cloudflare.com](https://one.dash.cloudflare.com) →
+   **Zero Trust** → **Access** → **Applications** → **Add an application** →
+   **Self-hosted**.
+2. Renseigner :
+   - **Application name** : `GestionProjet-IUT` (libre).
+   - **Session duration** : durée de validité de la session avant nouvelle
+     authentification Google (ex. `24h` ou `7 days`, au choix).
+   - **Application domain** : le hostname exact utilisé pour `CORS_ORIGINS`
+     et le tunnel (ex. `suivi.mondomaine.fr`), sans schéma ni slash final.
+3. Étape **Identity providers** : sélectionner **Google** (l'activer au
+   préalable dans **Settings → Authentication** si ce n'est pas déjà fait —
+   Cloudflare guide pas à pas la création des identifiants OAuth Google).
+4. Étape **Add policies** : créer une politique **Allow** avec une règle
+   **Emails** (une ou plusieurs adresses précises) ou **Email domain**
+   (`@mon-universite.fr` par exemple) selon qui doit pouvoir accéder à
+   l'application. Sans politique correspondante, personne ne passe.
+5. Valider. Cloudflare affiche alors la page de l'application créée.
+
+### Récupérer les valeurs pour `.env`
+
+Sur la page de l'application Access créée à l'instant :
+
+- **Application Audience (AUD) Tag** : visible dans l'onglet **Overview** de
+  l'application → coller dans `CLOUDFLARE_ACCESS_AUD` dans `.env`.
+- **Team domain** : visible dans **Zero Trust → Settings → Custom Pages** (ou
+  dans l'URL du tableau de bord Zero Trust, `<team-name>.cloudflareaccess.com`)
+  → coller dans `CLOUDFLARE_TEAM_DOMAIN` dans `.env` (sans `https://`).
+
+Puis relancer le backend pour qu'il prenne en compte ces valeurs :
+
+```bash
+docker compose up -d --build backend
+```
+
+### Vérifier
+
+Ouvrir `https://suivi.mondomaine.fr` dans une fenêtre de navigation privée :
+Cloudflare doit rediriger vers un écran de connexion Google avant de laisser
+passer quoi que ce soit. Se connecter avec un compte Google autorisé par la
+politique de l'étape 4 doit ensuite donner accès normal à l'application ; un
+compte non autorisé doit être bloqué par Cloudflare lui-même, avant même
+d'atteindre le serveur.
+
 ## Mettre à jour l'application
 
 ```bash
@@ -242,12 +317,21 @@ usage prolongé.
 - **Un conteneur ne démarre pas** : `docker compose ps` pour voir l'état,
   puis `docker compose logs <service>` pour la raison exacte.
 - **`docker compose up` échoue en signalant une variable manquante** (ex.
-  `required variable SECRET_KEY is missing a value`) : le fichier `.env` est
-  absent ou incomplet — revoir l'étape 2.
-- **La connexion (US-08) ne fonctionne pas une fois exposé publiquement** :
-  vérifier que `COOKIE_SECURE=true` dans `.env` et que le hostname dans
-  `CORS_ORIGINS` correspond exactement (schéma `https://` inclus, sans slash
-  final) à celui configuré dans `config.yml` de `cloudflared`.
+  `required variable CLOUDFLARE_ACCESS_AUD is missing a value`) : le fichier
+  `.env` est absent ou incomplet — revoir l'étape 2 (et l'étape 6 si ce sont
+  les variables Cloudflare Access qui manquent).
+- **`403`/écran Cloudflare bloquant même les comptes autorisés** : vérifier
+  la politique **Allow** de l'application Access (étape 6) — l'adresse ou le
+  domaine e-mail utilisé doit y figurer exactement.
+- **L'application affiche « Authentification requise » alors que Cloudflare
+  a bien laissé passer la connexion** : `CLOUDFLARE_TEAM_DOMAIN` ou
+  `CLOUDFLARE_ACCESS_AUD` dans `.env` ne correspondent pas à l'application
+  Access réellement configurée — revoir l'étape 6, puis
+  `docker compose up -d --build backend`.
+- **Un hostname dans `CORS_ORIGINS`, dans `config.yml` de `cloudflared` et
+  dans l'application Access qui ne correspondent pas exactement** (schéma
+  `https://` inclus dans `CORS_ORIGINS`, sans slash final) empêche
+  l'application de fonctionner correctement même si le tunnel répond.
 - **Repartir de zéro sans perdre les données** : `docker compose down` puis
   `docker compose up -d --build` (le volume `mysql_data` n'est pas supprimé
   par `down` sans l'option `-v`). Ne jamais lancer `docker compose down -v`
@@ -255,8 +339,16 @@ usage prolongé.
 
 ## Rappel de sécurité
 
-L'authentification (US-08) utilise un PIN à 4 chiffres par membre — c'est un
-mécanisme volontairement léger, pensé pour un usage en groupe restreint
-(projet étudiant), pas pour protéger des données sensibles. Il est
-remplacé par une authentification robuste en V2 (US-34). En attendant,
-éviter d'y stocker des informations confidentielles, même derrière HTTPS.
+L'authentification repose entièrement sur Cloudflare Access (étape 6) : sans
+application Access correctement configurée avec une politique **Allow**
+restrictive, l'application est accessible à quiconque connaît l'URL
+publique. Ne jamais considérer le déploiement comme terminé avant d'avoir
+vérifié l'étape 6 (fenêtre de navigation privée → écran de connexion
+Google → politique appliquée).
+
+`DEV_BYPASS_AUTH_ENABLED` (variable backend, absente de la configuration
+Docker Compose fournie) permet de contourner Cloudflare Access en local pour
+le développement, via un en-tête `X-Dev-Email` non vérifié. Elle ne doit
+**jamais** être positionnée à `true` dans `.env` en production — sa simple
+présence désactiverait toute vérification d'identité pour l'application
+exposée publiquement.

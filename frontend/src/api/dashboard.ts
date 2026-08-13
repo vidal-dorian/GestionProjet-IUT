@@ -14,8 +14,8 @@ export interface HoursOverTime {
 
 export interface RecentTimeEntry {
   id: number;
-  member_id: number;
-  member_name: string;
+  account_id: number;
+  account_email: string;
   date: string;
   duration_hours: number;
   description: string;
@@ -23,10 +23,9 @@ export interface RecentTimeEntry {
 
 export interface ProjectStats {
   total_hours: number;
-  member_count: number;
-  active_member_count: number;
+  contributor_count: number;
   entry_count: number;
-  average_hours_per_member: number;
+  average_hours_per_contributor: number;
 }
 
 export interface HoursByIssueItem {
@@ -41,16 +40,16 @@ export interface HoursByIssue {
   unattached_hours: number;
 }
 
-export interface MemberHours {
-  member_id: number;
-  member_name: string;
+export interface AccountHours {
+  account_id: number;
+  account_email: string;
   hours: number;
 }
 
 export interface SprintStats {
   sprint: { id: number; name: string; start_date: string; end_date: string };
   total_hours: number;
-  hours_by_member: MemberHours[];
+  hours_by_account: AccountHours[];
   hours_by_issue: HoursByIssue;
 }
 

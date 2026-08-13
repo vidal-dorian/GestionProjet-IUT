@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { downloadProjectExport } from "../api/exports";
-import { ApiError, getProject, type Project } from "../api/projects";
-import { listMembers, type Member } from "../api/members";
+import { ApiError, getProject, listContributors, type Contributor, type Project } from "../api/projects";
 import { listSprints, type Sprint } from "../api/sprints";
 import {
   getHoursByCategory,
@@ -19,8 +18,8 @@ import {
   type SprintStats,
 } from "../api/dashboard";
 import HoursByCategoryChart from "../components/HoursByCategoryChart";
+import HoursByContributorChart from "../components/HoursByContributorChart";
 import HoursByIssueChart from "../components/HoursByIssueChart";
-import HoursByMemberChart from "../components/HoursByMemberChart";
 import HoursOverTimeChart from "../components/HoursOverTimeChart";
 import ProjectStatsTiles from "../components/ProjectStatsTiles";
 import RecentEntriesList from "../components/RecentEntriesList";
@@ -32,7 +31,7 @@ function formatHours(hours: number): string {
 export default function DashboardPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const [project, setProject] = useState<Project | null>(null);
-  const [members, setMembers] = useState<Member[] | null>(null);
+  const [contributors, setContributors] = useState<Contributor[] | null>(null);
   const [hoursOverTime, setHoursOverTime] = useState<HoursOverTime | null>(null);
   const [recentEntries, setRecentEntries] = useState<RecentTimeEntry[] | null>(null);
   const [stats, setStats] = useState<ProjectStats | null>(null);
@@ -50,7 +49,7 @@ export default function DashboardPage() {
     if (!projectId) return;
     Promise.all([
       getProject(projectId),
-      listMembers(projectId),
+      listContributors(projectId),
       getHoursOverTime(projectId),
       getRecentEntries(projectId),
       getProjectStats(projectId),
@@ -61,7 +60,7 @@ export default function DashboardPage() {
       .then(
         ([
           projectData,
-          membersData,
+          contributorsData,
           hoursOverTimeData,
           recentEntriesData,
           statsData,
@@ -70,7 +69,7 @@ export default function DashboardPage() {
           hoursByCategoryData,
         ]) => {
           setProject(projectData);
-          setMembers(membersData);
+          setContributors(contributorsData);
           setHoursOverTime(hoursOverTimeData);
           setRecentEntries(recentEntriesData);
           setStats(statsData);
@@ -115,7 +114,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (!project || !members || !hoursOverTime || !recentEntries || !stats || !hoursByIssue || !hoursByCategory) {
+  if (!project || !contributors || !hoursOverTime || !recentEntries || !stats || !hoursByIssue || !hoursByCategory) {
     return (
       <div className="page">
         <p>Chargement...</p>
@@ -142,11 +141,11 @@ export default function DashboardPage() {
       </section>
 
       <section className="chart-section">
-        <h2>Heures par membre</h2>
-        {members.length === 0 ? (
-          <p>Aucun membre sur ce projet pour l'instant.</p>
+        <h2>Heures par contributeur</h2>
+        {contributors.length === 0 ? (
+          <p>Aucune heure saisie sur ce projet pour l'instant.</p>
         ) : (
-          <HoursByMemberChart members={members} />
+          <HoursByContributorChart contributors={contributors} />
         )}
       </section>
 
@@ -195,14 +194,14 @@ export default function DashboardPage() {
             <div className="sprint-stats">
               <p className="meta">Total : {formatHours(sprintStats.total_hours)}</p>
 
-              <h3>Heures par membre</h3>
-              {sprintStats.hours_by_member.length === 0 ? (
+              <h3>Heures par contributeur</h3>
+              {sprintStats.hours_by_account.length === 0 ? (
                 <p>Aucune heure saisie sur ce sprint.</p>
               ) : (
                 <ul className="member-list">
-                  {sprintStats.hours_by_member.map((item) => (
-                    <li key={item.member_id}>
-                      <span>{item.member_name}</span>
+                  {sprintStats.hours_by_account.map((item) => (
+                    <li key={item.account_id}>
+                      <span>{item.account_email}</span>
                       <span className="member-hours">{formatHours(item.hours)}</span>
                     </li>
                   ))}

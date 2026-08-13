@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getProject, type Project } from "../api/projects";
-import MembersSection from "../components/MembersSection";
+import ContributorsSection from "../components/ContributorsSection";
 
 export default function ProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -45,8 +45,8 @@ export default function ProjectPage() {
           <Link to={`/projects/${project.id}/dashboard`} className="button-secondary">
             Dashboard
           </Link>
-          <Link to={`/projects/${project.id}/login`} className="button-link">
-            Se connecter
+          <Link to={`/projects/${project.id}/me`} className="button-link">
+            Mes heures
           </Link>
         </div>
       </div>
@@ -56,7 +56,7 @@ export default function ProjectPage() {
         Créé le {new Date(project.created_at).toLocaleDateString("fr-FR")}
       </p>
 
-      <MembersSection projectId={project.id} />
+      <ContributorsSection projectId={project.id} />
     </div>
   );
 }

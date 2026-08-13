@@ -4,15 +4,19 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.security import hash_pin
 
 
 def list_projects(db: Session) -> list[models.Project]:
     return db.query(models.Project).order_by(models.Project.created_at.desc()).all()
 
 
-def count_members(db: Session, project_id: int) -> int:
-    return db.query(func.count(models.Member.id)).filter(models.Member.project_id == project_id).scalar() or 0
+def count_contributors(db: Session, project_id: int) -> int:
+    return (
+        db.query(func.count(func.distinct(models.TimeEntry.account_id)))
+        .filter(models.TimeEntry.project_id == project_id)
+        .scalar()
+        or 0
+    )
 
 
 def get_project(db: Session, project_id: int) -> models.Project | None:
@@ -175,46 +179,31 @@ def create_category(db: Session, project_id: int, category: schemas.CategoryCrea
     return db_category
 
 
-def list_members(db: Session, project_id: int) -> list[models.Member]:
+def get_account(db: Session, account_id: int) -> models.Account | None:
+    return db.get(models.Account, account_id)
+
+
+def get_or_create_account(db: Session, email: str) -> models.Account:
+    account = db.query(models.Account).filter(models.Account.email == email).first()
+    if account is not None:
+        return account
+
+    account = models.Account(email=email)
+    db.add(account)
+    db.commit()
+    db.refresh(account)
+    return account
+
+
+def list_project_contributors(db: Session, project_id: int) -> list[tuple[models.Account, float]]:
     return (
-        db.query(models.Member)
-        .filter(models.Member.project_id == project_id)
-        .order_by(models.Member.name)
+        db.query(models.Account, func.coalesce(func.sum(models.TimeEntry.duration_hours), 0.0))
+        .join(models.TimeEntry, models.TimeEntry.account_id == models.Account.id)
+        .filter(models.TimeEntry.project_id == project_id)
+        .group_by(models.Account.id)
+        .order_by(models.Account.email)
         .all()
     )
-
-
-def get_member(db: Session, project_id: int, member_id: int) -> models.Member | None:
-    return (
-        db.query(models.Member)
-        .filter(models.Member.project_id == project_id, models.Member.id == member_id)
-        .first()
-    )
-
-
-def get_member_by_name(db: Session, project_id: int, name: str) -> models.Member | None:
-    return (
-        db.query(models.Member)
-        .filter(models.Member.project_id == project_id, models.Member.name == name)
-        .first()
-    )
-
-
-def create_member(db: Session, project_id: int, member: schemas.MemberCreate) -> models.Member:
-    db_member = models.Member(
-        project_id=project_id,
-        name=member.name.strip(),
-        pin_hash=hash_pin(member.pin),
-    )
-    db.add(db_member)
-    db.commit()
-    db.refresh(db_member)
-    return db_member
-
-
-def delete_member(db: Session, db_member: models.Member) -> None:
-    db.delete(db_member)
-    db.commit()
 
 
 def list_time_entries_for_project(db: Session, project_id: int) -> list[models.TimeEntry]:
@@ -291,14 +280,14 @@ def sum_hours_for_sprint(db: Session, project_id: int, sprint_id: int) -> float:
     )
 
 
-def sum_hours_by_member_for_sprint(
+def sum_hours_by_account_for_sprint(
     db: Session, project_id: int, sprint_id: int
-) -> list[tuple[models.Member, float]]:
+) -> list[tuple[models.Account, float]]:
     return (
-        db.query(models.Member, func.coalesce(func.sum(models.TimeEntry.duration_hours), 0.0))
-        .join(models.TimeEntry, models.TimeEntry.member_id == models.Member.id)
+        db.query(models.Account, func.coalesce(func.sum(models.TimeEntry.duration_hours), 0.0))
+        .join(models.TimeEntry, models.TimeEntry.account_id == models.Account.id)
         .filter(models.TimeEntry.project_id == project_id, models.TimeEntry.sprint_id == sprint_id)
-        .group_by(models.Member.id)
+        .group_by(models.Account.id)
         .all()
     )
 
@@ -328,19 +317,10 @@ def sum_unattached_hours_for_sprint(db: Session, project_id: int, sprint_id: int
     )
 
 
-def count_active_members(db: Session, project_id: int) -> int:
-    return (
-        db.query(func.count(func.distinct(models.TimeEntry.member_id)))
-        .filter(models.TimeEntry.project_id == project_id)
-        .scalar()
-        or 0
-    )
-
-
-def list_time_entries_for_member(db: Session, project_id: int, member_id: int) -> list[models.TimeEntry]:
+def list_time_entries_for_account(db: Session, project_id: int, account_id: int) -> list[models.TimeEntry]:
     return (
         db.query(models.TimeEntry)
-        .filter(models.TimeEntry.project_id == project_id, models.TimeEntry.member_id == member_id)
+        .filter(models.TimeEntry.project_id == project_id, models.TimeEntry.account_id == account_id)
         .order_by(models.TimeEntry.date.desc(), models.TimeEntry.id.desc())
         .all()
     )
@@ -355,11 +335,11 @@ def get_github_issue(db: Session, project_id: int, issue_id: int) -> models.Gith
 
 
 def create_time_entry(
-    db: Session, project_id: int, member_id: int, entry: schemas.TimeEntryCreate
+    db: Session, project_id: int, account_id: int, entry: schemas.TimeEntryCreate
 ) -> models.TimeEntry:
     db_entry = models.TimeEntry(
         project_id=project_id,
-        member_id=member_id,
+        account_id=account_id,
         date=entry.date,
         duration_hours=entry.duration_hours,
         description=entry.description,

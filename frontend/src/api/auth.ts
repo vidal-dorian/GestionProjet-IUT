@@ -1,11 +1,13 @@
+import { devAuthHeaders } from "./authHeaders";
 import { ApiError } from "./projects";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
-export interface SessionMember {
+export interface Account {
   id: number;
-  name: string;
-  project_id: number;
+  email: string;
+  is_admin: boolean;
+  created_at: string;
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
@@ -17,27 +19,8 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function login(
-  projectId: number | string,
-  memberId: number,
-  pin: string,
-): Promise<SessionMember> {
-  return fetch(`${API_URL}/api/projects/${projectId}/members/${memberId}/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ pin }),
-  }).then((res) => handleResponse<SessionMember>(res));
-}
-
-export function me(): Promise<SessionMember> {
-  return fetch(`${API_URL}/api/auth/me`, { credentials: "include" }).then((res) =>
-    handleResponse<SessionMember>(res),
+export function me(): Promise<Account> {
+  return fetch(`${API_URL}/api/me`, { credentials: "include", headers: devAuthHeaders() }).then((res) =>
+    handleResponse<Account>(res),
   );
-}
-
-export function logout(): Promise<void> {
-  return fetch(`${API_URL}/api/auth/logout`, { method: "POST", credentials: "include" }).then((res) => {
-    if (!res.ok) throw new ApiError(res.status, "Impossible de se déconnecter.");
-  });
 }

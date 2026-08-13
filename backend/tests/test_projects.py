@@ -91,12 +91,9 @@ def test_delete_unknown_project_returns_404(client):
     assert response.status_code == 404
 
 
-def test_delete_project_cascades_to_members_and_time_entries(client):
+def test_delete_project_cascades_to_time_entries(client):
     project = client.post("/api/projects", json={"name": "Projet Cascade"}).json()
-    member = client.post(
-        f"/api/projects/{project['id']}/members", json={"name": "Alice", "pin": "1234"}
-    ).json()
-    client.post(f"/api/projects/{project['id']}/members/{member['id']}/login", json={"pin": "1234"})
+    client.headers["X-Dev-Email"] = "alice@test.local"
     client.post(
         f"/api/projects/{project['id']}/time-entries",
         json={"date": "2026-08-13", "duration_hours": 2, "description": "Dev"},
@@ -106,7 +103,7 @@ def test_delete_project_cascades_to_members_and_time_entries(client):
     assert response.status_code == 204
 
     # A freed project name can be reused, proving the underlying rows are gone
-    # (a lingering member/time-entry row referencing project_id would break the
+    # (a lingering time-entry row referencing project_id would break the
     # cascade at the database level and this recreation would fail).
     recreated = client.post("/api/projects", json={"name": "Projet Cascade"})
     assert recreated.status_code == 201
