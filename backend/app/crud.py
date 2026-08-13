@@ -38,6 +38,14 @@ def list_members(db: Session, project_id: int) -> list[models.Member]:
     )
 
 
+def get_member(db: Session, project_id: int, member_id: int) -> models.Member | None:
+    return (
+        db.query(models.Member)
+        .filter(models.Member.project_id == project_id, models.Member.id == member_id)
+        .first()
+    )
+
+
 def get_member_by_name(db: Session, project_id: int, name: str) -> models.Member | None:
     return (
         db.query(models.Member)
