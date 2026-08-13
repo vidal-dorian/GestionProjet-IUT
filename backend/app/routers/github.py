@@ -1,17 +1,22 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app import crud, github_client, schemas
+from app import crud, github_client, github_sync, schemas
 from app.database import get_db
 
 router = APIRouter(prefix="/api/projects/{project_id}/github", tags=["github"])
 
 
-@router.put("", response_model=schemas.ProjectRead)
-async def link_repo(project_id: int, link: schemas.GithubRepoLink, db: Session = Depends(get_db)):
+def _get_project_or_404(project_id: int, db: Session):
     db_project = crud.get_project(db, project_id)
     if db_project is None:
         raise HTTPException(status_code=404, detail="Projet introuvable.")
+    return db_project
+
+
+@router.put("", response_model=schemas.ProjectRead)
+async def link_repo(project_id: int, link: schemas.GithubRepoLink, db: Session = Depends(get_db)):
+    db_project = _get_project_or_404(project_id, db)
 
     repo = link.repo.strip()
     if not github_client.is_valid_repo_format(repo):
@@ -27,3 +32,27 @@ async def link_repo(project_id: int, link: schemas.GithubRepoLink, db: Session =
         ) from exc
 
     return crud.link_github_repo(db, db_project, repo)
+
+
+@router.post("/sync", response_model=schemas.GithubSyncResult)
+async def sync_repo(project_id: int, db: Session = Depends(get_db)):
+    db_project = _get_project_or_404(project_id, db)
+    if not db_project.github_repo:
+        raise HTTPException(status_code=400, detail="Aucun dépôt GitHub n'est lié à ce projet.")
+
+    try:
+        issues = await github_sync.sync_project(db, db_project)
+    except github_client.GithubRepoNotFound as exc:
+        raise HTTPException(status_code=404, detail="Ce dépôt est introuvable ou inaccessible.") from exc
+    except github_client.GithubApiError as exc:
+        raise HTTPException(
+            status_code=502, detail="Impossible de synchroniser ce dépôt auprès de GitHub pour le moment."
+        ) from exc
+
+    return schemas.GithubSyncResult(synced_at=db_project.github_last_synced_at, issue_count=len(issues))
+
+
+@router.get("/issues", response_model=list[schemas.GithubIssueRead])
+async def list_issues(project_id: int, db: Session = Depends(get_db)):
+    _get_project_or_404(project_id, db)
+    return crud.list_github_issues(db, project_id)

@@ -17,10 +17,27 @@ class ProjectRead(BaseModel):
     description: str | None
     created_at: datetime
     github_repo: str | None
+    github_last_synced_at: datetime | None
 
 
 class GithubRepoLink(BaseModel):
     repo: str = Field(min_length=1, max_length=255)
+
+
+class GithubIssueRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    number: int
+    title: str
+    state: str
+    labels: list[str]
+    url: str
+
+
+class GithubSyncResult(BaseModel):
+    synced_at: datetime
+    issue_count: int
 
 
 class ProjectSummary(BaseModel):

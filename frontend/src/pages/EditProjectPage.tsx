@@ -1,6 +1,15 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ApiError, deleteProject, getProject, linkGithubRepo, updateProject } from "../api/projects";
+import {
+  ApiError,
+  deleteProject,
+  getProject,
+  type GithubIssue,
+  linkGithubRepo,
+  listGithubIssues,
+  syncGithubIssues,
+  updateProject,
+} from "../api/projects";
 
 export default function EditProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -10,12 +19,16 @@ export default function EditProjectPage() {
   const [description, setDescription] = useState("");
   const [githubRepo, setGithubRepo] = useState("");
   const [linkedRepo, setLinkedRepo] = useState<string | null>(null);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+  const [issues, setIssues] = useState<GithubIssue[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [githubError, setGithubError] = useState<string | null>(null);
   const [linkingGithub, setLinkingGithub] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!projectId) return;
@@ -26,6 +39,10 @@ export default function EditProjectPage() {
         setDescription(project.description ?? "");
         setGithubRepo(project.github_repo ?? "");
         setLinkedRepo(project.github_repo);
+        setLastSyncedAt(project.github_last_synced_at);
+        if (project.github_repo) {
+          listGithubIssues(projectId).then(setIssues).catch(() => {});
+        }
       })
       .catch(() => setError("Ce projet est introuvable."))
       .finally(() => setLoading(false));
@@ -44,10 +61,27 @@ export default function EditProjectPage() {
     try {
       const updated = await linkGithubRepo(projectId!, githubRepo.trim());
       setLinkedRepo(updated.github_repo);
+      setLastSyncedAt(updated.github_last_synced_at);
+      setIssues([]);
     } catch (err) {
       setGithubError(err instanceof ApiError ? err.message : "Impossible de lier ce dépôt pour le moment.");
     } finally {
       setLinkingGithub(false);
+    }
+  }
+
+  async function handleSync() {
+    setSyncError(null);
+    setSyncing(true);
+    try {
+      const result = await syncGithubIssues(projectId!);
+      setLastSyncedAt(result.synced_at);
+      const fetchedIssues = await listGithubIssues(projectId!);
+      setIssues(fetchedIssues);
+    } catch (err) {
+      setSyncError(err instanceof ApiError ? err.message : "Impossible de synchroniser les issues pour le moment.");
+    } finally {
+      setSyncing(false);
     }
   }
 
@@ -156,6 +190,39 @@ export default function EditProjectPage() {
             {linkingGithub ? "Vérification..." : linkedRepo ? "Mettre à jour" : "Lier le dépôt"}
           </button>
         </form>
+
+        {linkedRepo && (
+          <div className="github-sync">
+            <p className="meta">
+              {lastSyncedAt
+                ? `Dernière synchronisation : ${new Date(lastSyncedAt).toLocaleString()}`
+                : "Pas encore synchronisé."}
+            </p>
+            <button type="button" onClick={handleSync} disabled={syncing}>
+              {syncing ? "Synchronisation..." : "Synchroniser les issues"}
+            </button>
+
+            {syncError && <p className="error">{syncError}</p>}
+
+            {issues.length > 0 && (
+              <ul className="github-issues-list">
+                {issues.map((issue) => (
+                  <li key={issue.id}>
+                    <a href={issue.url} target="_blank" rel="noreferrer">
+                      #{issue.number} {issue.title}
+                    </a>{" "}
+                    <span className={`badge badge-${issue.state}`}>{issue.state}</span>
+                    {issue.labels.map((label) => (
+                      <span key={label} className="badge">
+                        {label}
+                      </span>
+                    ))}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </section>
 
       <section className="danger-zone">

@@ -6,6 +6,21 @@ export interface Project {
   description: string | null;
   created_at: string;
   github_repo: string | null;
+  github_last_synced_at: string | null;
+}
+
+export interface GithubIssue {
+  id: number;
+  number: number;
+  title: string;
+  state: string;
+  labels: string[];
+  url: string;
+}
+
+export interface GithubSyncResult {
+  synced_at: string;
+  issue_count: number;
 }
 
 export interface ProjectSummary {
@@ -74,4 +89,14 @@ export function linkGithubRepo(id: number | string, repo: string): Promise<Proje
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ repo }),
   }).then((res) => handleResponse<Project>(res));
+}
+
+export function syncGithubIssues(id: number | string): Promise<GithubSyncResult> {
+  return fetch(`${API_URL}/api/projects/${id}/github/sync`, { method: "POST" }).then((res) =>
+    handleResponse<GithubSyncResult>(res),
+  );
+}
+
+export function listGithubIssues(id: number | string): Promise<GithubIssue[]> {
+  return fetch(`${API_URL}/api/projects/${id}/github/issues`).then((res) => handleResponse<GithubIssue[]>(res));
 }

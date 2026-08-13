@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     secret_key: str = "dev-secret-change-me"
     cookie_secure: bool = False
     github_token: str | None = None
+    github_sync_interval_minutes: int = 15
 
 
 settings = Settings()

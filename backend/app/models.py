@@ -14,8 +14,12 @@ class Project(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
     github_repo: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    github_last_synced_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     members: Mapped[list["Member"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    github_issues: Mapped[list["GithubIssue"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
 
 
 class Member(Base):
@@ -52,3 +56,23 @@ class TimeEntry(Base):
     @property
     def member_name(self) -> str:
         return self.member.name
+
+
+class GithubIssue(Base):
+    __tablename__ = "github_issues"
+    __table_args__ = (UniqueConstraint("project_id", "number", name="uq_github_issue_project_number"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    number: Mapped[int] = mapped_column(nullable=False)
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    state: Mapped[str] = mapped_column(String(20), nullable=False)
+    labels_raw: Mapped[str] = mapped_column(String(500), nullable=False, default="")
+    url: Mapped[str] = mapped_column(String(500), nullable=False)
+    synced_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+    project: Mapped[Project] = relationship(back_populates="github_issues")
+
+    @property
+    def labels(self) -> list[str]:
+        return [label for label in self.labels_raw.split(",") if label]

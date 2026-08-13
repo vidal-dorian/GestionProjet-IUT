@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -47,6 +49,46 @@ def link_github_repo(db: Session, db_project: models.Project, repo: str) -> mode
     db.commit()
     db.refresh(db_project)
     return db_project
+
+
+def list_projects_with_github_repo(db: Session) -> list[models.Project]:
+    return db.query(models.Project).filter(models.Project.github_repo.isnot(None)).all()
+
+
+def list_github_issues(db: Session, project_id: int) -> list[models.GithubIssue]:
+    return (
+        db.query(models.GithubIssue)
+        .filter(models.GithubIssue.project_id == project_id)
+        .order_by(models.GithubIssue.number.desc())
+        .all()
+    )
+
+
+def replace_github_issues(db: Session, db_project: models.Project, issues: list[dict]) -> None:
+    existing = {
+        issue.number: issue
+        for issue in db.query(models.GithubIssue).filter(models.GithubIssue.project_id == db_project.id)
+    }
+    synced_at = datetime.utcnow()
+
+    for payload in issues:
+        number = payload["number"]
+        labels_raw = ",".join(label["name"] for label in payload.get("labels", []))
+        db_issue = existing.pop(number, None)
+        if db_issue is None:
+            db_issue = models.GithubIssue(project_id=db_project.id, number=number)
+            db.add(db_issue)
+        db_issue.title = payload["title"]
+        db_issue.state = payload["state"]
+        db_issue.labels_raw = labels_raw
+        db_issue.url = payload["html_url"]
+        db_issue.synced_at = synced_at
+
+    for stale_issue in existing.values():
+        db.delete(stale_issue)
+
+    db_project.github_last_synced_at = synced_at
+    db.commit()
 
 
 def list_members(db: Session, project_id: int) -> list[models.Member]:

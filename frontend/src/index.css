@@ -335,6 +335,48 @@ h1 {
   margin: 0 0 1.25rem;
 }
 
+.github-sync {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #eee;
+}
+
+.github-issues-list {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.github-issues-list li {
+  background: #f9f9f9;
+  padding: 0.6rem 0.9rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.badge {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  background: #e2e8f0;
+  color: #333;
+}
+
+.badge-open {
+  background: #c6f6d5;
+  color: #22543d;
+}
+
+.badge-closed {
+  background: #fed7d7;
+  color: #822727;
+}
+
 .bar-chart {
   display: flex;
   flex-direction: column;

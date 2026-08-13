@@ -1,13 +1,27 @@
+import asyncio
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app import github_sync
 from app.config import settings
 from app.database import Base, engine
 from app.routers import auth, dashboard, github, members, projects, time_entries
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="GestionProjet-IUT API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    task = asyncio.create_task(github_sync.periodic_sync_loop())
+    try:
+        yield
+    finally:
+        task.cancel()
+
+
+app = FastAPI(title="GestionProjet-IUT API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

@@ -42,11 +42,11 @@ async def verify_repo(repo: str) -> None:
         raise GithubApiError(f"GitHub a répondu {response.status_code}")
 
 
-async def list_open_issues(repo: str) -> list[dict]:
-    """Returns raw GitHub issue payloads (pull requests excluded), paginated to completion."""
+async def list_issues(repo: str) -> list[dict]:
+    """Returns raw GitHub issue payloads for all states (pull requests excluded), paginated to completion."""
     issues: list[dict] = []
     url = f"{GITHUB_API_URL}/repos/{repo}/issues"
-    params = {"state": "open", "per_page": 100}
+    params = {"state": "all", "per_page": 100}
 
     async with httpx.AsyncClient(timeout=15.0) as client:
         while url:
