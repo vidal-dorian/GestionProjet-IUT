@@ -38,9 +38,14 @@ export default function ProjectPage() {
         <Link to="/" className="back-link">
           ← Retour aux projets
         </Link>
-        <Link to={`/projects/${project.id}/login`} className="button-link">
-          Se connecter
-        </Link>
+        <div className="page-header-actions">
+          <Link to={`/projects/${project.id}/dashboard`} className="button-secondary">
+            Dashboard
+          </Link>
+          <Link to={`/projects/${project.id}/login`} className="button-link">
+            Se connecter
+          </Link>
+        </div>
       </div>
       <h1>{project.name}</h1>
       {project.description && <p className="description">{project.description}</p>}
