@@ -6,6 +6,11 @@ interface Props {
   projectId: number;
 }
 
+function formatHours(hours: number): string {
+  const rounded = Math.round(hours * 10) / 10;
+  return `${rounded} h`;
+}
+
 export default function MembersSection({ projectId }: Props) {
   const [members, setMembers] = useState<Member[] | null>(null);
   const [name, setName] = useState("");
@@ -57,7 +62,10 @@ export default function MembersSection({ projectId }: Props) {
       {members && members.length > 0 && (
         <ul className="member-list">
           {members.map((member) => (
-            <li key={member.id}>{member.name}</li>
+            <li key={member.id}>
+              <span className="member-name">{member.name}</span>
+              <span className="member-hours">{formatHours(member.total_hours)}</span>
+            </li>
           ))}
         </ul>
       )}

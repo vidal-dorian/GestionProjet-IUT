@@ -28,3 +28,8 @@ class Member(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
     project: Mapped[Project] = relationship(back_populates="members")
+
+    @property
+    def total_hours(self) -> float:
+        # Reste à 0 tant que la saisie d'heures (US-10) n'existe pas.
+        return 0.0

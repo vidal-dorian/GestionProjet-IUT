@@ -60,6 +60,18 @@ def test_member_appears_immediately_in_project_members_list(client):
     assert names == ["Alice"]
 
 
+def test_members_list_shows_name_and_total_hours(client):
+    project = create_test_project(client)
+    client.post(f"/api/projects/{project['id']}/members", json={"name": "Bob", "pin": "1234"})
+    client.post(f"/api/projects/{project['id']}/members", json={"name": "Alice", "pin": "5678"})
+
+    response = client.get(f"/api/projects/{project['id']}/members")
+    assert response.status_code == 200
+    body = response.json()
+    assert [m["name"] for m in body] == ["Alice", "Bob"]
+    assert all(m["total_hours"] == 0 for m in body)
+
+
 def test_project_list_member_count_reflects_added_members(client):
     project = create_test_project(client)
     client.post(f"/api/projects/{project['id']}/members", json={"name": "Alice", "pin": "1234"})
