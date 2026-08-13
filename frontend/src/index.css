@@ -1,0 +1,79 @@
+:root {
+  color-scheme: light;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f5f6f8;
+  color: #1a1a1a;
+}
+
+.page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem;
+}
+
+h1 {
+  font-size: 1.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  background: #fff;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.form label {
+  font-weight: 600;
+  margin-top: 0.75rem;
+}
+
+.form input,
+.form textarea {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+.form button {
+  margin-top: 1.5rem;
+  padding: 0.7rem 1rem;
+  border: none;
+  border-radius: 6px;
+  background: #2b6cb0;
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error {
+  color: #c53030;
+  margin: 0.5rem 0 0;
+}
+
+.meta {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.description {
+  white-space: pre-wrap;
+}
