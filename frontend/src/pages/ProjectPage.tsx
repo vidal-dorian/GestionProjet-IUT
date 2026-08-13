@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getProject, type Project } from "../api/projects";
+import MembersSection from "../components/MembersSection";
 
 export default function ProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -41,6 +42,8 @@ export default function ProjectPage() {
       <p className="meta">
         Créé le {new Date(project.created_at).toLocaleDateString("fr-FR")}
       </p>
+
+      <MembersSection projectId={project.id} />
     </div>
   );
 }

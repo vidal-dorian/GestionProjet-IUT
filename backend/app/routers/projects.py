@@ -9,9 +9,13 @@ router = APIRouter(prefix="/api/projects", tags=["projects"])
 
 @router.get("", response_model=list[schemas.ProjectSummary])
 def list_projects(db: Session = Depends(get_db)):
-    # member_count reste à 0 tant que la gestion des membres (US-05/US-06) n'existe pas.
     return [
-        schemas.ProjectSummary(id=p.id, name=p.name, description=p.description, member_count=0)
+        schemas.ProjectSummary(
+            id=p.id,
+            name=p.name,
+            description=p.description,
+            member_count=crud.count_members(db, p.id),
+        )
         for p in crud.list_projects(db)
     ]
 
