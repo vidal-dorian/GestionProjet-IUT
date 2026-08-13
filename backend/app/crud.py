@@ -29,6 +29,19 @@ def create_project(db: Session, project: schemas.ProjectCreate) -> models.Projec
     return db_project
 
 
+def update_project(db: Session, db_project: models.Project, project: schemas.ProjectCreate) -> models.Project:
+    db_project.name = project.name.strip()
+    db_project.description = project.description
+    db.commit()
+    db.refresh(db_project)
+    return db_project
+
+
+def delete_project(db: Session, db_project: models.Project) -> None:
+    db.delete(db_project)
+    db.commit()
+
+
 def list_members(db: Session, project_id: int) -> list[models.Member]:
     return (
         db.query(models.Member)
@@ -64,6 +77,11 @@ def create_member(db: Session, project_id: int, member: schemas.MemberCreate) ->
     db.commit()
     db.refresh(db_member)
     return db_member
+
+
+def delete_member(db: Session, db_member: models.Member) -> None:
+    db.delete(db_member)
+    db.commit()
 
 
 def list_time_entries_for_project(db: Session, project_id: int) -> list[models.TimeEntry]:
@@ -125,3 +143,27 @@ def create_time_entry(
     db.commit()
     db.refresh(db_entry)
     return db_entry
+
+
+def get_time_entry(db: Session, project_id: int, entry_id: int) -> models.TimeEntry | None:
+    return (
+        db.query(models.TimeEntry)
+        .filter(models.TimeEntry.project_id == project_id, models.TimeEntry.id == entry_id)
+        .first()
+    )
+
+
+def update_time_entry(
+    db: Session, db_entry: models.TimeEntry, entry: schemas.TimeEntryCreate
+) -> models.TimeEntry:
+    db_entry.date = entry.date
+    db_entry.duration_hours = entry.duration_hours
+    db_entry.description = entry.description
+    db.commit()
+    db.refresh(db_entry)
+    return db_entry
+
+
+def delete_time_entry(db: Session, db_entry: models.TimeEntry) -> None:
+    db.delete(db_entry)
+    db.commit()

@@ -80,3 +80,58 @@ def test_project_list_member_count_reflects_added_members(client):
     response = client.get("/api/projects")
     body = {p["id"]: p for p in response.json()}
     assert body[project["id"]]["member_count"] == 2
+
+
+def test_delete_member_succeeds(client):
+    project = create_test_project(client)
+    member = client.post(
+        f"/api/projects/{project['id']}/members", json={"name": "Alice", "pin": "1234"}
+    ).json()
+
+    response = client.delete(f"/api/projects/{project['id']}/members/{member['id']}")
+    assert response.status_code == 204
+
+    remaining = client.get(f"/api/projects/{project['id']}/members").json()
+    assert remaining == []
+
+
+def test_delete_unknown_member_returns_404(client):
+    project = create_test_project(client)
+    response = client.delete(f"/api/projects/{project['id']}/members/999")
+    assert response.status_code == 404
+
+
+def test_delete_member_for_unknown_project_returns_404(client):
+    response = client.delete("/api/projects/999/members/1")
+    assert response.status_code == 404
+
+
+def test_delete_member_removes_their_time_entries(client):
+    project = create_test_project(client)
+    member = client.post(
+        f"/api/projects/{project['id']}/members", json={"name": "Alice", "pin": "1234"}
+    ).json()
+    client.post(f"/api/projects/{project['id']}/members/{member['id']}/login", json={"pin": "1234"})
+    client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-13", "duration_hours": 2, "description": "Dev"},
+    )
+
+    response = client.delete(f"/api/projects/{project['id']}/members/{member['id']}")
+    assert response.status_code == 204
+
+    recent = client.get(f"/api/projects/{project['id']}/dashboard/recent-entries").json()
+    assert recent == []
+
+
+def test_deleted_members_session_is_rejected(client):
+    project = create_test_project(client)
+    member = client.post(
+        f"/api/projects/{project['id']}/members", json={"name": "Alice", "pin": "1234"}
+    ).json()
+    client.post(f"/api/projects/{project['id']}/members/{member['id']}/login", json={"pin": "1234"})
+    assert client.get("/api/auth/me").status_code == 200
+
+    client.delete(f"/api/projects/{project['id']}/members/{member['id']}")
+
+    assert client.get("/api/auth/me").status_code == 401

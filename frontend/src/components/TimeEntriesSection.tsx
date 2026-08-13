@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { ApiError } from "../api/projects";
-import { createTimeEntry, listMyTimeEntries, type TimeEntry } from "../api/timeEntries";
+import { createTimeEntry, deleteTimeEntry, listMyTimeEntries, updateTimeEntry, type TimeEntry } from "../api/timeEntries";
 
 interface Props {
   projectId: number;
@@ -21,6 +21,7 @@ function formatTotalHours(entries: TimeEntry[]): number {
 
 export default function TimeEntriesSection({ projectId }: Props) {
   const [entries, setEntries] = useState<TimeEntry[] | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [date, setDate] = useState(today());
   const [duration, setDuration] = useState("");
   const [description, setDescription] = useState("");
@@ -35,6 +36,32 @@ export default function TimeEntriesSection({ projectId }: Props) {
     loadEntries().catch(() => setError("Impossible de charger l'historique pour le moment."));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
+
+  function resetForm() {
+    setEditingId(null);
+    setDate(today());
+    setDuration("");
+    setDescription("");
+  }
+
+  function startEditing(entry: TimeEntry) {
+    setError(null);
+    setEditingId(entry.id);
+    setDate(entry.date);
+    setDuration(String(entry.duration_hours));
+    setDescription(entry.description);
+  }
+
+  async function handleDelete(entryId: number) {
+    if (!window.confirm("Supprimer cette entrée ? Cette action est irréversible.")) return;
+    try {
+      await deleteTimeEntry(projectId, entryId);
+      if (editingId === entryId) resetForm();
+      await loadEntries();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Impossible de supprimer cette entrée pour le moment.");
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -54,12 +81,16 @@ export default function TimeEntriesSection({ projectId }: Props) {
       return;
     }
 
+    const payload = { date, duration_hours: durationHours, description: description.trim() };
+
     setSubmitting(true);
     try {
-      await createTimeEntry(projectId, { date, duration_hours: durationHours, description: description.trim() });
-      setDate(today());
-      setDuration("");
-      setDescription("");
+      if (editingId) {
+        await updateTimeEntry(projectId, editingId, payload);
+      } else {
+        await createTimeEntry(projectId, payload);
+      }
+      resetForm();
       await loadEntries();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Impossible d'enregistrer cette entrée pour le moment.");
@@ -70,7 +101,7 @@ export default function TimeEntriesSection({ projectId }: Props) {
 
   return (
     <section className="time-entries-section">
-      <h2>Saisir une entrée de temps</h2>
+      <h2>{editingId ? "Modifier l'entrée" : "Saisir une entrée de temps"}</h2>
 
       <form onSubmit={handleSubmit} className="form form-inline">
         <label htmlFor="entry-date">Date</label>
@@ -96,9 +127,16 @@ export default function TimeEntriesSection({ projectId }: Props) {
 
         {error && <p className="error">{error}</p>}
 
-        <button type="submit" disabled={submitting}>
-          {submitting ? "Enregistrement..." : "Enregistrer"}
-        </button>
+        <div className="form-actions">
+          <button type="submit" disabled={submitting}>
+            {submitting ? "Enregistrement..." : editingId ? "Mettre à jour" : "Enregistrer"}
+          </button>
+          {editingId && (
+            <button type="button" className="button-secondary" onClick={resetForm}>
+              Annuler
+            </button>
+          )}
+        </div>
       </form>
 
       <div className="page-header">
@@ -119,6 +157,14 @@ export default function TimeEntriesSection({ projectId }: Props) {
                 <span className="entry-duration">{entry.duration_hours} h</span>
               </div>
               <p className="entry-description">{entry.description}</p>
+              <div className="entry-actions">
+                <button type="button" className="link-button" onClick={() => startEditing(entry)}>
+                  Modifier
+                </button>
+                <button type="button" className="link-button" onClick={() => handleDelete(entry.id)}>
+                  Supprimer
+                </button>
+              </div>
             </li>
           ))}
         </ul>

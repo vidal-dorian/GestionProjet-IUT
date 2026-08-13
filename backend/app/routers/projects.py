@@ -20,15 +20,21 @@ def list_projects(db: Session = Depends(get_db)):
     ]
 
 
-@router.post("", response_model=schemas.ProjectRead, status_code=status.HTTP_201_CREATED)
-def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)):
-    name = project.name.strip()
+def _validate_name(db: Session, name: str, *, exclude_project_id: int | None = None) -> str:
+    name = name.strip()
     if not name:
         raise HTTPException(status_code=422, detail="Le nom du projet est obligatoire.")
 
-    if crud.get_project_by_name(db, name):
+    existing = crud.get_project_by_name(db, name)
+    if existing and existing.id != exclude_project_id:
         raise HTTPException(status_code=409, detail="Un projet porte déjà ce nom.")
 
+    return name
+
+
+@router.post("", response_model=schemas.ProjectRead, status_code=status.HTTP_201_CREATED)
+def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)):
+    name = _validate_name(db, project.name)
     return crud.create_project(db, schemas.ProjectCreate(name=name, description=project.description))
 
 
@@ -38,3 +44,21 @@ def read_project(project_id: int, db: Session = Depends(get_db)):
     if db_project is None:
         raise HTTPException(status_code=404, detail="Projet introuvable.")
     return db_project
+
+
+@router.put("/{project_id}", response_model=schemas.ProjectRead)
+def update_project(project_id: int, project: schemas.ProjectCreate, db: Session = Depends(get_db)):
+    db_project = crud.get_project(db, project_id)
+    if db_project is None:
+        raise HTTPException(status_code=404, detail="Projet introuvable.")
+
+    name = _validate_name(db, project.name, exclude_project_id=project_id)
+    return crud.update_project(db, db_project, schemas.ProjectCreate(name=name, description=project.description))
+
+
+@router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_project(project_id: int, db: Session = Depends(get_db)):
+    db_project = crud.get_project(db, project_id)
+    if db_project is None:
+        raise HTTPException(status_code=404, detail="Projet introuvable.")
+    crud.delete_project(db, db_project)

@@ -39,6 +39,9 @@ export default function ProjectPage() {
           ← Retour aux projets
         </Link>
         <div className="page-header-actions">
+          <Link to={`/projects/${project.id}/edit`} className="button-secondary">
+            Modifier
+          </Link>
           <Link to={`/projects/${project.id}/dashboard`} className="button-secondary">
             Dashboard
           </Link>
