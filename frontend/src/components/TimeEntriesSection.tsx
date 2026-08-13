@@ -14,6 +14,11 @@ function formatDate(isoDate: string): string {
   return new Date(isoDate).toLocaleDateString("fr-FR", { timeZone: "UTC" });
 }
 
+function formatTotalHours(entries: TimeEntry[]): number {
+  const total = entries.reduce((sum, entry) => sum + entry.duration_hours, 0);
+  return Math.round(total * 100) / 100;
+}
+
 export default function TimeEntriesSection({ projectId }: Props) {
   const [entries, setEntries] = useState<TimeEntry[] | null>(null);
   const [date, setDate] = useState(today());
@@ -96,7 +101,12 @@ export default function TimeEntriesSection({ projectId }: Props) {
         </button>
       </form>
 
-      <h2>Mes entrées</h2>
+      <div className="page-header">
+        <h2>Mes entrées</h2>
+        {entries && (
+          <span className="meta">Total : {formatTotalHours(entries)} h sur ce projet</span>
+        )}
+      </div>
 
       {entries && entries.length === 0 && <p>Aucune entrée pour l'instant.</p>}
 
