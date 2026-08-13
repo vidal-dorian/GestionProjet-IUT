@@ -19,6 +19,11 @@ def _get_owned_entry(
     return entry
 
 
+def _validate_github_issue(db: Session, project_id: int, entry: schemas.TimeEntryCreate) -> None:
+    if entry.github_issue_id is not None and crud.get_github_issue(db, project_id, entry.github_issue_id) is None:
+        raise HTTPException(status_code=422, detail="Cette issue GitHub n'existe pas pour ce projet.")
+
+
 @router.get("", response_model=list[schemas.TimeEntryRead])
 def list_my_time_entries(
     project_id: int, member: models.Member = Depends(get_current_member), db: Session = Depends(get_db)
@@ -33,6 +38,7 @@ def create_time_entry(
     member: models.Member = Depends(get_current_member),
     db: Session = Depends(get_db),
 ):
+    _validate_github_issue(db, project_id, entry)
     return crud.create_time_entry(db, project_id, member.id, entry)
 
 
@@ -45,6 +51,7 @@ def update_time_entry(
     db: Session = Depends(get_db),
 ):
     db_entry = _get_owned_entry(db, project_id, entry_id, member)
+    _validate_github_issue(db, project_id, entry)
     return crud.update_time_entry(db, db_entry, entry)
 
 

@@ -55,8 +55,12 @@ class TimeEntry(Base):
     duration_hours: Mapped[float] = mapped_column(Float, nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    github_issue_id: Mapped[int | None] = mapped_column(
+        ForeignKey("github_issues.id", ondelete="SET NULL"), nullable=True
+    )
 
     member: Mapped[Member] = relationship(back_populates="time_entries")
+    github_issue: Mapped["GithubIssue | None"] = relationship()
 
     @property
     def member_name(self) -> str:

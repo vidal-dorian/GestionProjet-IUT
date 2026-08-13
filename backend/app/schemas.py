@@ -92,6 +92,7 @@ class TimeEntryCreate(BaseModel):
     date: date_type
     duration_hours: float = Field(gt=0, le=24)
     description: str = Field(min_length=1, max_length=2000)
+    github_issue_id: int | None = None
 
     @field_validator("description")
     @classmethod
@@ -111,6 +112,8 @@ class TimeEntryRead(BaseModel):
     duration_hours: float
     description: str
     created_at: datetime
+    github_issue_id: int | None
+    github_issue: GithubIssueRead | None
 
 
 class HoursOverTimePoint(BaseModel):

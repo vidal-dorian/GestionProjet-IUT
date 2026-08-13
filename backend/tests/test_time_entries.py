@@ -1,8 +1,20 @@
+from unittest.mock import AsyncMock, patch
+
+
 def setup_logged_in_member(client, pin="1234"):
     project = client.post("/api/projects", json={"name": "Projet Heures"}).json()
     member = client.post(f"/api/projects/{project['id']}/members", json={"name": "Alice", "pin": pin}).json()
     client.post(f"/api/projects/{project['id']}/members/{member['id']}/login", json={"pin": pin})
     return project, member
+
+
+def link_repo_and_sync_issues(client, project_id, issues):
+    with patch("app.routers.github.github_client.verify_repo", new_callable=AsyncMock):
+        client.put(f"/api/projects/{project_id}/github", json={"repo": "owner/repo"})
+    with patch("app.github_sync.github_client.list_issues", new_callable=AsyncMock) as mock_list_issues:
+        mock_list_issues.return_value = issues
+        client.post(f"/api/projects/{project_id}/github/sync")
+    return {issue["number"]: issue for issue in client.get(f"/api/projects/{project_id}/github/issues").json()}
 
 
 def test_create_time_entry_requires_authentication(client):
@@ -215,3 +227,65 @@ def test_delete_recalculates_member_total_hours_immediately(client):
 
     members = client.get(f"/api/projects/{project['id']}/members").json()
     assert next(m for m in members if m["id"] == member["id"])["total_hours"] == 0.0
+
+
+def test_time_entry_without_github_issue_has_null_fields(client):
+    project, _ = setup_logged_in_member(client)
+    entry = client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-13", "duration_hours": 1, "description": "Dev"},
+    ).json()
+
+    assert entry["github_issue_id"] is None
+    assert entry["github_issue"] is None
+
+
+def test_attaching_unknown_github_issue_returns_422(client):
+    project, _ = setup_logged_in_member(client)
+
+    response = client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-13", "duration_hours": 1, "description": "Dev", "github_issue_id": 999},
+    )
+    assert response.status_code == 422
+
+
+def test_attaching_a_github_issue_from_another_project_returns_422(client):
+    project, _ = setup_logged_in_member(client)
+    other_project = client.post("/api/projects", json={"name": "Autre Projet"}).json()
+    issues = link_repo_and_sync_issues(
+        client,
+        other_project["id"],
+        [{"number": 1, "title": "US-01", "state": "open", "labels": [], "html_url": "https://x/1"}],
+    )
+
+    response = client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-13", "duration_hours": 1, "description": "Dev", "github_issue_id": issues[1]["id"]},
+    )
+    assert response.status_code == 422
+
+
+def test_create_and_update_time_entry_can_attach_github_issue(client):
+    project, _ = setup_logged_in_member(client)
+    issues = link_repo_and_sync_issues(
+        client,
+        project["id"],
+        [{"number": 5, "title": "US-05 — Se connecter", "state": "open", "labels": [], "html_url": "https://x/5"}],
+    )
+    issue_id = issues[5]["id"]
+
+    entry = client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-13", "duration_hours": 1, "description": "Dev", "github_issue_id": issue_id},
+    ).json()
+    assert entry["github_issue_id"] == issue_id
+    assert entry["github_issue"]["number"] == 5
+    assert entry["github_issue"]["title"] == "US-05 — Se connecter"
+
+    updated = client.put(
+        f"/api/projects/{project['id']}/time-entries/{entry['id']}",
+        json={"date": "2026-08-13", "duration_hours": 2, "description": "Dev", "github_issue_id": None},
+    ).json()
+    assert updated["github_issue_id"] is None
+    assert updated["github_issue"] is None

@@ -194,6 +194,14 @@ def list_time_entries_for_member(db: Session, project_id: int, member_id: int) -
     )
 
 
+def get_github_issue(db: Session, project_id: int, issue_id: int) -> models.GithubIssue | None:
+    return (
+        db.query(models.GithubIssue)
+        .filter(models.GithubIssue.project_id == project_id, models.GithubIssue.id == issue_id)
+        .first()
+    )
+
+
 def create_time_entry(
     db: Session, project_id: int, member_id: int, entry: schemas.TimeEntryCreate
 ) -> models.TimeEntry:
@@ -203,6 +211,7 @@ def create_time_entry(
         date=entry.date,
         duration_hours=entry.duration_hours,
         description=entry.description,
+        github_issue_id=entry.github_issue_id,
     )
     db.add(db_entry)
     db.commit()
@@ -224,6 +233,7 @@ def update_time_entry(
     db_entry.date = entry.date
     db_entry.duration_hours = entry.duration_hours
     db_entry.description = entry.description
+    db_entry.github_issue_id = entry.github_issue_id
     db.commit()
     db.refresh(db_entry)
     return db_entry

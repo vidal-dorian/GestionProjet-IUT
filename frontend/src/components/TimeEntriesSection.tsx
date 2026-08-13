@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useState } from "react";
-import { ApiError } from "../api/projects";
+import { ApiError, type GithubIssue, listGithubIssues } from "../api/projects";
 import { createTimeEntry, deleteTimeEntry, listMyTimeEntries, updateTimeEntry, type TimeEntry } from "../api/timeEntries";
 
 interface Props {
@@ -14,6 +14,10 @@ function formatDate(isoDate: string): string {
   return new Date(isoDate).toLocaleDateString("fr-FR", { timeZone: "UTC" });
 }
 
+function formatIssueLabel(issue: { number: number; title: string }): string {
+  return `#${issue.number} ${issue.title}`;
+}
+
 function formatTotalHours(entries: TimeEntry[]): number {
   const total = entries.reduce((sum, entry) => sum + entry.duration_hours, 0);
   return Math.round(total * 100) / 100;
@@ -25,6 +29,8 @@ export default function TimeEntriesSection({ projectId }: Props) {
   const [date, setDate] = useState(today());
   const [duration, setDuration] = useState("");
   const [description, setDescription] = useState("");
+  const [issueSearch, setIssueSearch] = useState("");
+  const [issues, setIssues] = useState<GithubIssue[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -34,6 +40,9 @@ export default function TimeEntriesSection({ projectId }: Props) {
 
   useEffect(() => {
     loadEntries().catch(() => setError("Impossible de charger l'historique pour le moment."));
+    listGithubIssues(projectId)
+      .then(setIssues)
+      .catch(() => setIssues([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
@@ -42,6 +51,7 @@ export default function TimeEntriesSection({ projectId }: Props) {
     setDate(today());
     setDuration("");
     setDescription("");
+    setIssueSearch("");
   }
 
   function startEditing(entry: TimeEntry) {
@@ -50,6 +60,7 @@ export default function TimeEntriesSection({ projectId }: Props) {
     setDate(entry.date);
     setDuration(String(entry.duration_hours));
     setDescription(entry.description);
+    setIssueSearch(entry.github_issue ? formatIssueLabel(entry.github_issue) : "");
   }
 
   async function handleDelete(entryId: number) {
@@ -81,7 +92,13 @@ export default function TimeEntriesSection({ projectId }: Props) {
       return;
     }
 
-    const payload = { date, duration_hours: durationHours, description: description.trim() };
+    const matchedIssue = issues.find((issue) => formatIssueLabel(issue) === issueSearch.trim());
+    const payload = {
+      date,
+      duration_hours: durationHours,
+      description: description.trim(),
+      github_issue_id: matchedIssue ? matchedIssue.id : null,
+    };
 
     setSubmitting(true);
     try {
@@ -125,6 +142,25 @@ export default function TimeEntriesSection({ projectId }: Props) {
           rows={3}
         />
 
+        {issues.length > 0 && (
+          <>
+            <label htmlFor="entry-issue">Issue GitHub (facultatif)</label>
+            <input
+              id="entry-issue"
+              type="text"
+              list="entry-issue-options"
+              value={issueSearch}
+              onChange={(e) => setIssueSearch(e.target.value)}
+              placeholder="Rechercher par numéro ou titre..."
+            />
+            <datalist id="entry-issue-options">
+              {issues.map((issue) => (
+                <option key={issue.id} value={formatIssueLabel(issue)} />
+              ))}
+            </datalist>
+          </>
+        )}
+
         {error && <p className="error">{error}</p>}
 
         <div className="form-actions">
@@ -157,6 +193,14 @@ export default function TimeEntriesSection({ projectId }: Props) {
                 <span className="entry-duration">{entry.duration_hours} h</span>
               </div>
               <p className="entry-description">{entry.description}</p>
+              {entry.github_issue && (
+                <p className="meta">
+                  Issue :{" "}
+                  <a href={entry.github_issue.url} target="_blank" rel="noreferrer">
+                    {formatIssueLabel(entry.github_issue)}
+                  </a>
+                </p>
+              )}
               <div className="entry-actions">
                 <button type="button" className="link-button" onClick={() => startEditing(entry)}>
                   Modifier
