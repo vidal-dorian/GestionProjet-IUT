@@ -1,4 +1,5 @@
 import { type FormEvent, useEffect, useState } from "react";
+import { listCategories, type Category } from "../api/categories";
 import { ApiError, type GithubIssue, listGithubIssues } from "../api/projects";
 import { listSprints, type Sprint } from "../api/sprints";
 import { createTimeEntry, deleteTimeEntry, listMyTimeEntries, updateTimeEntry, type TimeEntry } from "../api/timeEntries";
@@ -34,6 +35,8 @@ export default function TimeEntriesSection({ projectId }: Props) {
   const [issues, setIssues] = useState<GithubIssue[]>([]);
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [sprintId, setSprintId] = useState<number | "">("");
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryId, setCategoryId] = useState<number | "">("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -52,6 +55,9 @@ export default function TimeEntriesSection({ projectId }: Props) {
         setSprintId(suggestSprintForDate(today(), loadedSprints));
       })
       .catch(() => setSprints([]));
+    listCategories(projectId)
+      .then(setCategories)
+      .catch(() => setCategories([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
@@ -72,6 +78,7 @@ export default function TimeEntriesSection({ projectId }: Props) {
     setDescription("");
     setIssueSearch("");
     setSprintId(suggestSprintForDate(today(), sprints));
+    setCategoryId("");
   }
 
   function startEditing(entry: TimeEntry) {
@@ -82,6 +89,7 @@ export default function TimeEntriesSection({ projectId }: Props) {
     setDescription(entry.description);
     setIssueSearch(entry.github_issue ? formatIssueLabel(entry.github_issue) : "");
     setSprintId(entry.sprint_id ?? "");
+    setCategoryId(entry.category_id ?? "");
   }
 
   async function handleDelete(entryId: number) {
@@ -120,6 +128,7 @@ export default function TimeEntriesSection({ projectId }: Props) {
       description: description.trim(),
       github_issue_id: matchedIssue ? matchedIssue.id : null,
       sprint_id: sprintId === "" ? null : sprintId,
+      category_id: categoryId === "" ? null : categoryId,
     };
 
     setSubmitting(true);
@@ -176,6 +185,24 @@ export default function TimeEntriesSection({ projectId }: Props) {
               {sprints.map((sprint) => (
                 <option key={sprint.id} value={sprint.id}>
                   {sprint.name}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
+
+        {categories.length > 0 && (
+          <>
+            <label htmlFor="entry-category">Catégorie (facultatif)</label>
+            <select
+              id="entry-category"
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : "")}
+            >
+              <option value="">Aucune</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
                 </option>
               ))}
             </select>
@@ -242,6 +269,7 @@ export default function TimeEntriesSection({ projectId }: Props) {
                 </p>
               )}
               {entry.sprint && <p className="meta">Sprint : {entry.sprint.name}</p>}
+              {entry.category && <p className="meta">Catégorie : {entry.category.name}</p>}
               <div className="entry-actions">
                 <button type="button" className="link-button" onClick={() => startEditing(entry)}>
                   Modifier

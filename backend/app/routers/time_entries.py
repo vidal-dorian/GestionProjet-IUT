@@ -29,6 +29,11 @@ def _validate_sprint(db: Session, project_id: int, entry: schemas.TimeEntryCreat
         raise HTTPException(status_code=422, detail="Ce sprint n'existe pas pour ce projet.")
 
 
+def _validate_category(db: Session, project_id: int, entry: schemas.TimeEntryCreate) -> None:
+    if entry.category_id is not None and crud.get_category(db, project_id, entry.category_id) is None:
+        raise HTTPException(status_code=422, detail="Cette catégorie n'existe pas pour ce projet.")
+
+
 @router.get("", response_model=list[schemas.TimeEntryRead])
 def list_my_time_entries(
     project_id: int, member: models.Member = Depends(get_current_member), db: Session = Depends(get_db)
@@ -45,6 +50,7 @@ def create_time_entry(
 ):
     _validate_github_issue(db, project_id, entry)
     _validate_sprint(db, project_id, entry)
+    _validate_category(db, project_id, entry)
     return crud.create_time_entry(db, project_id, member.id, entry)
 
 
@@ -59,6 +65,7 @@ def update_time_entry(
     db_entry = _get_owned_entry(db, project_id, entry_id, member)
     _validate_github_issue(db, project_id, entry)
     _validate_sprint(db, project_id, entry)
+    _validate_category(db, project_id, entry)
     return crud.update_time_entry(db, db_entry, entry)
 
 

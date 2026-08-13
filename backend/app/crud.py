@@ -150,6 +150,31 @@ def create_sprint(db: Session, project_id: int, sprint: schemas.SprintCreate) ->
     return db_sprint
 
 
+def list_categories(db: Session, project_id: int) -> list[models.Category]:
+    return (
+        db.query(models.Category)
+        .filter(models.Category.project_id == project_id)
+        .order_by(models.Category.name)
+        .all()
+    )
+
+
+def get_category(db: Session, project_id: int, category_id: int) -> models.Category | None:
+    return (
+        db.query(models.Category)
+        .filter(models.Category.project_id == project_id, models.Category.id == category_id)
+        .first()
+    )
+
+
+def create_category(db: Session, project_id: int, category: schemas.CategoryCreate) -> models.Category:
+    db_category = models.Category(project_id=project_id, name=category.name.strip())
+    db.add(db_category)
+    db.commit()
+    db.refresh(db_category)
+    return db_category
+
+
 def list_members(db: Session, project_id: int) -> list[models.Member]:
     return (
         db.query(models.Member)
@@ -238,6 +263,25 @@ def sum_unattached_hours(db: Session, project_id: int) -> float:
     )
 
 
+def sum_hours_by_category(db: Session, project_id: int) -> list[tuple[models.Category, float]]:
+    return (
+        db.query(models.Category, func.coalesce(func.sum(models.TimeEntry.duration_hours), 0.0))
+        .join(models.TimeEntry, models.TimeEntry.category_id == models.Category.id)
+        .filter(models.TimeEntry.project_id == project_id)
+        .group_by(models.Category.id)
+        .all()
+    )
+
+
+def sum_unattached_category_hours(db: Session, project_id: int) -> float:
+    return (
+        db.query(func.coalesce(func.sum(models.TimeEntry.duration_hours), 0.0))
+        .filter(models.TimeEntry.project_id == project_id, models.TimeEntry.category_id.is_(None))
+        .scalar()
+        or 0.0
+    )
+
+
 def sum_hours_for_sprint(db: Session, project_id: int, sprint_id: int) -> float:
     return (
         db.query(func.coalesce(func.sum(models.TimeEntry.duration_hours), 0.0))
@@ -321,6 +365,7 @@ def create_time_entry(
         description=entry.description,
         github_issue_id=entry.github_issue_id,
         sprint_id=entry.sprint_id,
+        category_id=entry.category_id,
     )
     db.add(db_entry)
     db.commit()
@@ -344,6 +389,7 @@ def update_time_entry(
     db_entry.description = entry.description
     db_entry.github_issue_id = entry.github_issue_id
     db_entry.sprint_id = entry.sprint_id
+    db_entry.category_id = entry.category_id
     db.commit()
     db.refresh(db_entry)
     return db_entry

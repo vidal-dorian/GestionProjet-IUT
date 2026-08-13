@@ -22,6 +22,7 @@ class Project(Base):
         back_populates="project", cascade="all, delete-orphan"
     )
     sprints: Mapped[list["Sprint"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    categories: Mapped[list["Category"]] = relationship(back_populates="project", cascade="all, delete-orphan")
 
     @property
     def github_label_filter(self) -> list[str]:
@@ -60,10 +61,12 @@ class TimeEntry(Base):
         ForeignKey("github_issues.id", ondelete="SET NULL"), nullable=True
     )
     sprint_id: Mapped[int | None] = mapped_column(ForeignKey("sprints.id", ondelete="SET NULL"), nullable=True)
+    category_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
 
     member: Mapped[Member] = relationship(back_populates="time_entries")
     github_issue: Mapped["GithubIssue | None"] = relationship()
     sprint: Mapped["Sprint | None"] = relationship()
+    category: Mapped["Category | None"] = relationship()
 
     @property
     def member_name(self) -> str:
@@ -101,3 +104,15 @@ class Sprint(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
     project: Mapped[Project] = relationship(back_populates="sprints")
+
+
+class Category(Base):
+    __tablename__ = "categories"
+    __table_args__ = (UniqueConstraint("project_id", "name", name="uq_category_project_name"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+
+    project: Mapped[Project] = relationship(back_populates="categories")

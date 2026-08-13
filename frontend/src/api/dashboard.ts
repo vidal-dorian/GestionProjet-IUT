@@ -54,6 +54,17 @@ export interface SprintStats {
   hours_by_issue: HoursByIssue;
 }
 
+export interface HoursByCategoryItem {
+  category_id: number;
+  category_name: string;
+  hours: number;
+}
+
+export interface HoursByCategory {
+  items: HoursByCategoryItem[];
+  unattached_hours: number;
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const body = await response.json().catch(() => null);
@@ -90,5 +101,11 @@ export function getHoursByIssue(projectId: number | string): Promise<HoursByIssu
 export function getSprintStats(projectId: number | string, sprintId: number | string): Promise<SprintStats> {
   return fetch(`${API_URL}/api/projects/${projectId}/dashboard/sprints/${sprintId}/stats`).then((res) =>
     handleResponse<SprintStats>(res),
+  );
+}
+
+export function getHoursByCategory(projectId: number | string): Promise<HoursByCategory> {
+  return fetch(`${API_URL}/api/projects/${projectId}/dashboard/hours-by-category`).then((res) =>
+    handleResponse<HoursByCategory>(res),
   );
 }

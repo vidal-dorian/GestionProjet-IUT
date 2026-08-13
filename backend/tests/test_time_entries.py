@@ -347,3 +347,59 @@ def test_create_and_update_time_entry_can_attach_github_issue(client):
     ).json()
     assert updated["github_issue_id"] is None
     assert updated["github_issue"] is None
+
+
+def create_category(client, project_id, name="Dev"):
+    return client.post(f"/api/projects/{project_id}/categories", json={"name": name}).json()
+
+
+def test_time_entry_without_category_has_null_fields(client):
+    project, _ = setup_logged_in_member(client)
+    entry = client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-13", "duration_hours": 1, "description": "Dev"},
+    ).json()
+
+    assert entry["category_id"] is None
+    assert entry["category"] is None
+
+
+def test_attaching_unknown_category_returns_422(client):
+    project, _ = setup_logged_in_member(client)
+
+    response = client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-13", "duration_hours": 1, "description": "Dev", "category_id": 999},
+    )
+    assert response.status_code == 422
+
+
+def test_attaching_a_category_from_another_project_returns_422(client):
+    project, _ = setup_logged_in_member(client)
+    other_project = client.post("/api/projects", json={"name": "Autre Projet Catégorie"}).json()
+    category = create_category(client, other_project["id"])
+
+    response = client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-13", "duration_hours": 1, "description": "Dev", "category_id": category["id"]},
+    )
+    assert response.status_code == 422
+
+
+def test_create_and_update_time_entry_can_attach_category(client):
+    project, _ = setup_logged_in_member(client)
+    category = create_category(client, project["id"])
+
+    entry = client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-13", "duration_hours": 1, "description": "Dev", "category_id": category["id"]},
+    ).json()
+    assert entry["category_id"] == category["id"]
+    assert entry["category"]["name"] == "Dev"
+
+    updated = client.put(
+        f"/api/projects/{project['id']}/time-entries/{entry['id']}",
+        json={"date": "2026-08-13", "duration_hours": 2, "description": "Dev", "category_id": None},
+    ).json()
+    assert updated["category_id"] is None
+    assert updated["category"] is None

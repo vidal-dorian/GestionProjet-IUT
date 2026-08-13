@@ -11,6 +11,7 @@ import {
   syncGithubIssues,
   updateProject,
 } from "../api/projects";
+import CategoriesSection from "../components/CategoriesSection";
 import SprintsSection from "../components/SprintsSection";
 
 export default function EditProjectPage() {
@@ -270,6 +271,7 @@ export default function EditProjectPage() {
       </section>
 
       {projectId && <SprintsSection projectId={Number(projectId)} />}
+      {projectId && <CategoriesSection projectId={Number(projectId)} />}
 
       <section className="danger-zone">
         <h2>Zone dangereuse</h2>

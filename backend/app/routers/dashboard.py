@@ -77,6 +77,23 @@ def hours_by_issue(project_id: int, db: Session = Depends(get_db)):
     return schemas.HoursByIssue(items=items, unattached_hours=round(crud.sum_unattached_hours(db, project_id), 2))
 
 
+@router.get("/hours-by-category", response_model=schemas.HoursByCategory)
+def hours_by_category(project_id: int, db: Session = Depends(get_db)):
+    if crud.get_project(db, project_id) is None:
+        raise HTTPException(status_code=404, detail="Projet introuvable.")
+
+    rows = crud.sum_hours_by_category(db, project_id)
+    items = [
+        schemas.HoursByCategoryItem(category_id=category.id, category_name=category.name, hours=round(hours, 2))
+        for category, hours in rows
+    ]
+    items.sort(key=lambda item: item.hours, reverse=True)
+
+    return schemas.HoursByCategory(
+        items=items, unattached_hours=round(crud.sum_unattached_category_hours(db, project_id), 2)
+    )
+
+
 @router.get("/sprints/{sprint_id}/stats", response_model=schemas.SprintStats)
 def sprint_stats(project_id: int, sprint_id: int, db: Session = Depends(get_db)):
     if crud.get_project(db, project_id) is None:

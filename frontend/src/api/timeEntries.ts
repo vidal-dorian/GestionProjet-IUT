@@ -1,3 +1,4 @@
+import type { Category } from "./categories";
 import { ApiError, type GithubIssue } from "./projects";
 import type { Sprint } from "./sprints";
 
@@ -15,6 +16,8 @@ export interface TimeEntry {
   github_issue: GithubIssue | null;
   sprint_id: number | null;
   sprint: Sprint | null;
+  category_id: number | null;
+  category: Category | null;
 }
 
 export interface TimeEntryInput {
@@ -23,6 +26,7 @@ export interface TimeEntryInput {
   description: string;
   github_issue_id?: number | null;
   sprint_id?: number | null;
+  category_id?: number | null;
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {

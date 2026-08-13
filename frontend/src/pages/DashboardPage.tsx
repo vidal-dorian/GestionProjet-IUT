@@ -4,17 +4,20 @@ import { getProject, type Project } from "../api/projects";
 import { listMembers, type Member } from "../api/members";
 import { listSprints, type Sprint } from "../api/sprints";
 import {
+  getHoursByCategory,
   getHoursByIssue,
   getHoursOverTime,
   getProjectStats,
   getRecentEntries,
   getSprintStats,
+  type HoursByCategory,
   type HoursByIssue,
   type HoursOverTime,
   type ProjectStats,
   type RecentTimeEntry,
   type SprintStats,
 } from "../api/dashboard";
+import HoursByCategoryChart from "../components/HoursByCategoryChart";
 import HoursByIssueChart from "../components/HoursByIssueChart";
 import HoursByMemberChart from "../components/HoursByMemberChart";
 import HoursOverTimeChart from "../components/HoursOverTimeChart";
@@ -33,6 +36,7 @@ export default function DashboardPage() {
   const [recentEntries, setRecentEntries] = useState<RecentTimeEntry[] | null>(null);
   const [stats, setStats] = useState<ProjectStats | null>(null);
   const [hoursByIssue, setHoursByIssue] = useState<HoursByIssue | null>(null);
+  const [hoursByCategory, setHoursByCategory] = useState<HoursByCategory | null>(null);
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [selectedSprintId, setSelectedSprintId] = useState<number | "">("");
   const [sprintStats, setSprintStats] = useState<SprintStats | null>(null);
@@ -49,6 +53,7 @@ export default function DashboardPage() {
       getProjectStats(projectId),
       getHoursByIssue(projectId),
       listSprints(projectId),
+      getHoursByCategory(projectId),
     ])
       .then(
         ([
@@ -59,6 +64,7 @@ export default function DashboardPage() {
           statsData,
           hoursByIssueData,
           sprintsData,
+          hoursByCategoryData,
         ]) => {
           setProject(projectData);
           setMembers(membersData);
@@ -67,6 +73,7 @@ export default function DashboardPage() {
           setStats(statsData);
           setHoursByIssue(hoursByIssueData);
           setSprints(sprintsData);
+          setHoursByCategory(hoursByCategoryData);
         },
       )
       .catch(() => setError("Impossible de charger le dashboard pour le moment."));
@@ -92,7 +99,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (!project || !members || !hoursOverTime || !recentEntries || !stats || !hoursByIssue) {
+  if (!project || !members || !hoursOverTime || !recentEntries || !stats || !hoursByIssue || !hoursByCategory) {
     return (
       <div className="page">
         <p>Chargement...</p>
@@ -136,6 +143,15 @@ export default function DashboardPage() {
           <p>Aucune heure saisie sur ce projet pour l'instant.</p>
         ) : (
           <HoursByIssueChart data={hoursByIssue} />
+        )}
+      </section>
+
+      <section className="chart-section">
+        <h2>Heures par catégorie</h2>
+        {hoursByCategory.items.length === 0 && hoursByCategory.unattached_hours === 0 ? (
+          <p>Aucune heure saisie sur ce projet pour l'instant.</p>
+        ) : (
+          <HoursByCategoryChart data={hoursByCategory} />
         )}
       </section>
 

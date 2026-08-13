@@ -276,6 +276,54 @@ def test_sprint_stats_aggregates_hours_by_member_and_issue(client):
     assert body["hours_by_issue"]["unattached_hours"] == 3.0
 
 
+def create_category(client, project_id, name="Dev"):
+    return client.post(f"/api/projects/{project_id}/categories", json={"name": name}).json()
+
+
+def test_hours_by_category_for_unknown_project_returns_404(client):
+    response = client.get("/api/projects/999/dashboard/hours-by-category")
+    assert response.status_code == 404
+
+
+def test_hours_by_category_with_no_entries_returns_empty(client):
+    project = client.post("/api/projects", json={"name": "Projet Sans Catégories"}).json()
+    response = client.get(f"/api/projects/{project['id']}/dashboard/hours-by-category")
+    assert response.status_code == 200
+    assert response.json() == {"items": [], "unattached_hours": 0.0}
+
+
+def test_hours_by_category_groups_by_category_and_separates_unattached(client):
+    project, _ = setup_logged_in_member(client, project_name="Projet Hours By Category")
+    dev = create_category(client, project["id"], name="Dev")
+    docs = create_category(client, project["id"], name="Documentation")
+
+    client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-01", "duration_hours": 3, "description": "A", "category_id": dev["id"]},
+    )
+    client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-02", "duration_hours": 2, "description": "B", "category_id": dev["id"]},
+    )
+    client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-03", "duration_hours": 1, "description": "C", "category_id": docs["id"]},
+    )
+    client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-04", "duration_hours": 4, "description": "Sans catégorie"},
+    )
+
+    response = client.get(f"/api/projects/{project['id']}/dashboard/hours-by-category")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["unattached_hours"] == 4.0
+    assert body["items"] == [
+        {"category_id": dev["id"], "category_name": "Dev", "hours": 5.0},
+        {"category_id": docs["id"], "category_name": "Documentation", "hours": 1.0},
+    ]
+
+
 def test_stats_reflect_members_and_entries(client):
     project, alice = setup_logged_in_member(client, project_name="Projet Stats")
     bob = client.post(f"/api/projects/{project['id']}/members", json={"name": "Bob", "pin": "5678"}).json()

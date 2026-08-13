@@ -73,6 +73,19 @@ class SprintWriteResult(BaseModel):
     overlap_warning: str | None = None
 
 
+class CategoryCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+
+
+class CategoryRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    project_id: int
+    name: str
+    created_at: datetime
+
+
 class ProjectSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -122,6 +135,7 @@ class TimeEntryCreate(BaseModel):
     description: str = Field(min_length=1, max_length=2000)
     github_issue_id: int | None = None
     sprint_id: int | None = None
+    category_id: int | None = None
 
     @field_validator("description")
     @classmethod
@@ -145,6 +159,8 @@ class TimeEntryRead(BaseModel):
     github_issue: GithubIssueRead | None
     sprint_id: int | None
     sprint: SprintRead | None
+    category_id: int | None
+    category: CategoryRead | None
 
 
 class HoursOverTimePoint(BaseModel):
@@ -199,3 +215,14 @@ class SprintStats(BaseModel):
     total_hours: float
     hours_by_member: list[MemberHours]
     hours_by_issue: HoursByIssue
+
+
+class HoursByCategoryItem(BaseModel):
+    category_id: int
+    category_name: str
+    hours: float
+
+
+class HoursByCategory(BaseModel):
+    items: list[HoursByCategoryItem]
+    unattached_hours: float

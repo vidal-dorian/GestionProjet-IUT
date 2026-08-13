@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import github_sync
 from app.config import settings
 from app.database import Base, engine
-from app.routers import auth, dashboard, github, members, projects, sprints, time_entries
+from app.routers import auth, categories, dashboard, github, members, projects, sprints, time_entries
 
 Base.metadata.create_all(bind=engine)
 
@@ -38,6 +38,7 @@ app.include_router(time_entries.router)
 app.include_router(dashboard.router)
 app.include_router(github.router)
 app.include_router(sprints.router)
+app.include_router(categories.router)
 
 
 @app.get("/api/health")
