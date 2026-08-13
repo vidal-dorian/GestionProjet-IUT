@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock, patch
 
 from app import github_client
+from app.config import settings
 
 
 def create_test_project(client, name="Projet GitHub"):
@@ -118,6 +119,20 @@ def test_sync_removes_issues_no_longer_returned(mock_list_issues, client):
     assert len(issues) == 1
     assert issues[0]["number"] == 1
     assert issues[0]["state"] == "closed"
+
+
+@patch("app.github_sync.github_client.list_issues", new_callable=AsyncMock)
+def test_sync_is_rate_limited_within_configured_interval(mock_list_issues, client, monkeypatch):
+    monkeypatch.setattr(settings, "github_sync_interval_minutes", 15)
+    mock_list_issues.return_value = []
+    project = create_test_project(client)
+    _link_repo(client, project["id"])
+
+    first = client.post(f"/api/projects/{project['id']}/github/sync")
+    assert first.status_code == 200
+
+    second = client.post(f"/api/projects/{project['id']}/github/sync")
+    assert second.status_code == 429
 
 
 def test_issues_for_unknown_project_returns_404(client):

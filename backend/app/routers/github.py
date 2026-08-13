@@ -1,7 +1,10 @@
+from datetime import datetime, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app import crud, github_client, github_sync, schemas
+from app.config import settings
 from app.database import get_db
 
 router = APIRouter(prefix="/api/projects/{project_id}/github", tags=["github"])
@@ -39,6 +42,19 @@ async def sync_repo(project_id: int, db: Session = Depends(get_db)):
     db_project = _get_project_or_404(project_id, db)
     if not db_project.github_repo:
         raise HTTPException(status_code=400, detail="Aucun dépôt GitHub n'est lié à ce projet.")
+
+    min_interval = timedelta(minutes=settings.github_sync_interval_minutes)
+    if db_project.github_last_synced_at is not None:
+        elapsed = datetime.utcnow() - db_project.github_last_synced_at
+        if elapsed < min_interval:
+            retry_in_minutes = int((min_interval - elapsed).total_seconds() // 60) + 1
+            raise HTTPException(
+                status_code=429,
+                detail=(
+                    "Une synchronisation a déjà été effectuée récemment. "
+                    f"Réessayez dans {retry_in_minutes} minute(s)."
+                ),
+            )
 
     try:
         issues = await github_sync.sync_project(db, db_project)
