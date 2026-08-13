@@ -35,3 +35,9 @@ export function createMember(projectId: number | string, input: MemberInput): Pr
     body: JSON.stringify(input),
   }).then((res) => handleResponse<Member>(res));
 }
+
+export function deleteMember(projectId: number | string, memberId: number): Promise<void> {
+  return fetch(`${API_URL}/api/projects/${projectId}/members/${memberId}`, { method: "DELETE" }).then((res) => {
+    if (!res.ok) throw new ApiError(res.status, "Impossible de retirer ce membre.");
+  });
+}

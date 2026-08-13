@@ -27,3 +27,15 @@ def create_member(project_id: int, member: schemas.MemberCreate, db: Session = D
         raise HTTPException(status_code=409, detail="Un membre porte déjà ce nom sur ce projet.")
 
     return crud.create_member(db, project_id, schemas.MemberCreate(name=name, pin=member.pin))
+
+
+@router.delete("/{member_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_member(project_id: int, member_id: int, db: Session = Depends(get_db)):
+    if crud.get_project(db, project_id) is None:
+        raise HTTPException(status_code=404, detail="Projet introuvable.")
+
+    db_member = crud.get_member(db, project_id, member_id)
+    if db_member is None:
+        raise HTTPException(status_code=404, detail="Membre introuvable.")
+
+    crud.delete_member(db, db_member)

@@ -37,6 +37,11 @@ def update_project(db: Session, db_project: models.Project, project: schemas.Pro
     return db_project
 
 
+def delete_project(db: Session, db_project: models.Project) -> None:
+    db.delete(db_project)
+    db.commit()
+
+
 def list_members(db: Session, project_id: int) -> list[models.Member]:
     return (
         db.query(models.Member)
@@ -72,6 +77,11 @@ def create_member(db: Session, project_id: int, member: schemas.MemberCreate) ->
     db.commit()
     db.refresh(db_member)
     return db_member
+
+
+def delete_member(db: Session, db_member: models.Member) -> None:
+    db.delete(db_member)
+    db.commit()
 
 
 def list_time_entries_for_project(db: Session, project_id: int) -> list[models.TimeEntry]:

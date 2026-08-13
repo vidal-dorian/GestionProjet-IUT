@@ -219,6 +219,42 @@ h1 {
   cursor: not-allowed;
 }
 
+.danger-zone {
+  margin-top: 2rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid #f3c2c2;
+  border-radius: 8px;
+  background: #fff5f5;
+}
+
+.danger-zone h2 {
+  font-size: 1.1rem;
+  margin: 0 0 0.5rem;
+  color: #c53030;
+}
+
+.button-danger {
+  margin-top: 0.75rem;
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: 6px;
+  background: #c53030;
+  color: #fff;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.button-danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.member-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .time-entries-section {
   margin-top: 2rem;
 }

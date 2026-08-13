@@ -57,3 +57,9 @@ export function updateProject(id: number | string, input: ProjectInput): Promise
     body: JSON.stringify(input),
   }).then((res) => handleResponse<Project>(res));
 }
+
+export function deleteProject(id: number | string): Promise<void> {
+  return fetch(`${API_URL}/api/projects/${id}`, { method: "DELETE" }).then((res) => {
+    if (!res.ok) throw new ApiError(res.status, "Impossible de supprimer ce projet.");
+  });
+}

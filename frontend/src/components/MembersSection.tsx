@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { ApiError } from "../api/projects";
-import { createMember, listMembers, type Member } from "../api/members";
+import { createMember, deleteMember, listMembers, type Member } from "../api/members";
 
 interface Props {
   projectId: number;
@@ -53,6 +53,24 @@ export default function MembersSection({ projectId }: Props) {
     }
   }
 
+  async function handleRemove(member: Member) {
+    const hoursNotice =
+      member.total_hours > 0
+        ? ` Les ${formatHours(member.total_hours)} qu'il/elle a saisies seront aussi définitivement supprimées.`
+        : "";
+    const confirmed = window.confirm(
+      `Retirer ${member.name} du projet ? Cette action est irréversible.${hoursNotice}`,
+    );
+    if (!confirmed) return;
+
+    try {
+      await deleteMember(projectId, member.id);
+      await loadMembers();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Impossible de retirer ce membre pour le moment.");
+    }
+  }
+
   return (
     <section className="members-section">
       <h2>Membres</h2>
@@ -64,7 +82,12 @@ export default function MembersSection({ projectId }: Props) {
           {members.map((member) => (
             <li key={member.id}>
               <span className="member-name">{member.name}</span>
-              <span className="member-hours">{formatHours(member.total_hours)}</span>
+              <span className="member-actions">
+                <span className="member-hours">{formatHours(member.total_hours)}</span>
+                <button type="button" className="link-button" onClick={() => handleRemove(member)}>
+                  Retirer
+                </button>
+              </span>
             </li>
           ))}
         </ul>
