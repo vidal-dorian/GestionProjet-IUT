@@ -60,19 +60,86 @@ def recent_entries(project_id: int, db: Session = Depends(get_db)):
     return crud.list_recent_time_entries_for_project(db, project_id, RECENT_ENTRIES_LIMIT)
 
 
+@router.get("/hours-by-issue", response_model=schemas.HoursByIssue)
+def hours_by_issue(project_id: int, db: Session = Depends(get_db)):
+    if crud.get_project(db, project_id) is None:
+        raise HTTPException(status_code=404, detail="Projet introuvable.")
+
+    rows = crud.sum_hours_by_github_issue(db, project_id)
+    items = [
+        schemas.HoursByIssueItem(
+            issue_number=issue.number, issue_title=issue.title, issue_url=issue.url, hours=round(hours, 2)
+        )
+        for issue, hours in rows
+    ]
+    items.sort(key=lambda item: item.hours, reverse=True)
+
+    return schemas.HoursByIssue(items=items, unattached_hours=round(crud.sum_unattached_hours(db, project_id), 2))
+
+
+@router.get("/hours-by-category", response_model=schemas.HoursByCategory)
+def hours_by_category(project_id: int, db: Session = Depends(get_db)):
+    if crud.get_project(db, project_id) is None:
+        raise HTTPException(status_code=404, detail="Projet introuvable.")
+
+    rows = crud.sum_hours_by_category(db, project_id)
+    items = [
+        schemas.HoursByCategoryItem(category_id=category.id, category_name=category.name, hours=round(hours, 2))
+        for category, hours in rows
+    ]
+    items.sort(key=lambda item: item.hours, reverse=True)
+
+    return schemas.HoursByCategory(
+        items=items, unattached_hours=round(crud.sum_unattached_category_hours(db, project_id), 2)
+    )
+
+
+@router.get("/sprints/{sprint_id}/stats", response_model=schemas.SprintStats)
+def sprint_stats(project_id: int, sprint_id: int, db: Session = Depends(get_db)):
+    if crud.get_project(db, project_id) is None:
+        raise HTTPException(status_code=404, detail="Projet introuvable.")
+
+    db_sprint = crud.get_sprint(db, project_id, sprint_id)
+    if db_sprint is None:
+        raise HTTPException(status_code=404, detail="Sprint introuvable.")
+
+    hours_by_account = [
+        schemas.AccountHours(account_id=account.id, account_email=account.email, hours=round(hours, 2))
+        for account, hours in crud.sum_hours_by_account_for_sprint(db, project_id, sprint_id)
+    ]
+    hours_by_account.sort(key=lambda item: item.hours, reverse=True)
+
+    issue_items = [
+        schemas.HoursByIssueItem(
+            issue_number=issue.number, issue_title=issue.title, issue_url=issue.url, hours=round(hours, 2)
+        )
+        for issue, hours in crud.sum_hours_by_github_issue_for_sprint(db, project_id, sprint_id)
+    ]
+    issue_items.sort(key=lambda item: item.hours, reverse=True)
+
+    return schemas.SprintStats(
+        sprint=db_sprint,
+        total_hours=round(crud.sum_hours_for_sprint(db, project_id, sprint_id), 2),
+        hours_by_account=hours_by_account,
+        hours_by_issue=schemas.HoursByIssue(
+            items=issue_items,
+            unattached_hours=round(crud.sum_unattached_hours_for_sprint(db, project_id, sprint_id), 2),
+        ),
+    )
+
+
 @router.get("/stats", response_model=schemas.ProjectStats)
 def project_stats(project_id: int, db: Session = Depends(get_db)):
     if crud.get_project(db, project_id) is None:
         raise HTTPException(status_code=404, detail="Projet introuvable.")
 
-    member_count = crud.count_members(db, project_id)
+    contributor_count = crud.count_contributors(db, project_id)
     total_hours = crud.sum_project_hours(db, project_id)
-    average = round(total_hours / member_count, 2) if member_count else 0.0
+    average = round(total_hours / contributor_count, 2) if contributor_count else 0.0
 
     return schemas.ProjectStats(
         total_hours=round(total_hours, 2),
-        member_count=member_count,
-        active_member_count=crud.count_active_members(db, project_id),
+        contributor_count=contributor_count,
         entry_count=crud.count_time_entries(db, project_id),
-        average_hours_per_member=average,
+        average_hours_per_contributor=average,
     )

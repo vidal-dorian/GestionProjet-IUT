@@ -1,13 +1,27 @@
+import asyncio
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app import github_sync
 from app.config import settings
 from app.database import Base, engine
-from app.routers import auth, dashboard, members, projects, time_entries
+from app.routers import auth, categories, dashboard, exports, github, projects, sprints, time_entries
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="GestionProjet-IUT API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    task = asyncio.create_task(github_sync.periodic_sync_loop())
+    try:
+        yield
+    finally:
+        task.cancel()
+
+
+app = FastAPI(title="GestionProjet-IUT API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -18,10 +32,13 @@ app.add_middleware(
 )
 
 app.include_router(projects.router)
-app.include_router(members.router)
 app.include_router(auth.router)
 app.include_router(time_entries.router)
 app.include_router(dashboard.router)
+app.include_router(github.router)
+app.include_router(sprints.router)
+app.include_router(categories.router)
+app.include_router(exports.router)
 
 
 @app.get("/api/health")

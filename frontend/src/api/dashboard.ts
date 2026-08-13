@@ -14,8 +14,8 @@ export interface HoursOverTime {
 
 export interface RecentTimeEntry {
   id: number;
-  member_id: number;
-  member_name: string;
+  account_id: number;
+  account_email: string;
   date: string;
   duration_hours: number;
   description: string;
@@ -23,10 +23,45 @@ export interface RecentTimeEntry {
 
 export interface ProjectStats {
   total_hours: number;
-  member_count: number;
-  active_member_count: number;
+  contributor_count: number;
   entry_count: number;
-  average_hours_per_member: number;
+  average_hours_per_contributor: number;
+}
+
+export interface HoursByIssueItem {
+  issue_number: number;
+  issue_title: string;
+  issue_url: string;
+  hours: number;
+}
+
+export interface HoursByIssue {
+  items: HoursByIssueItem[];
+  unattached_hours: number;
+}
+
+export interface AccountHours {
+  account_id: number;
+  account_email: string;
+  hours: number;
+}
+
+export interface SprintStats {
+  sprint: { id: number; name: string; start_date: string; end_date: string };
+  total_hours: number;
+  hours_by_account: AccountHours[];
+  hours_by_issue: HoursByIssue;
+}
+
+export interface HoursByCategoryItem {
+  category_id: number;
+  category_name: string;
+  hours: number;
+}
+
+export interface HoursByCategory {
+  items: HoursByCategoryItem[];
+  unattached_hours: number;
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
@@ -53,5 +88,23 @@ export function getRecentEntries(projectId: number | string): Promise<RecentTime
 export function getProjectStats(projectId: number | string): Promise<ProjectStats> {
   return fetch(`${API_URL}/api/projects/${projectId}/dashboard/stats`).then((res) =>
     handleResponse<ProjectStats>(res),
+  );
+}
+
+export function getHoursByIssue(projectId: number | string): Promise<HoursByIssue> {
+  return fetch(`${API_URL}/api/projects/${projectId}/dashboard/hours-by-issue`).then((res) =>
+    handleResponse<HoursByIssue>(res),
+  );
+}
+
+export function getSprintStats(projectId: number | string, sprintId: number | string): Promise<SprintStats> {
+  return fetch(`${API_URL}/api/projects/${projectId}/dashboard/sprints/${sprintId}/stats`).then((res) =>
+    handleResponse<SprintStats>(res),
+  );
+}
+
+export function getHoursByCategory(projectId: number | string): Promise<HoursByCategory> {
+  return fetch(`${API_URL}/api/projects/${projectId}/dashboard/hours-by-category`).then((res) =>
+    handleResponse<HoursByCategory>(res),
   );
 }

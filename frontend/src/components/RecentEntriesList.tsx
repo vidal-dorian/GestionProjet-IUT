@@ -15,7 +15,7 @@ export default function RecentEntriesList({ entries }: Props) {
         <li key={entry.id}>
           <div className="entry-main">
             <span>
-              <span className="entry-author">{entry.member_name}</span> — {formatDate(entry.date)}
+              <span className="entry-author">{entry.account_email}</span> — {formatDate(entry.date)}
             </span>
             <span className="entry-duration">{entry.duration_hours} h</span>
           </div>

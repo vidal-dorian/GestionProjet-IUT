@@ -14,7 +14,7 @@ def list_projects(db: Session = Depends(get_db)):
             id=p.id,
             name=p.name,
             description=p.description,
-            member_count=crud.count_members(db, p.id),
+            contributor_count=crud.count_contributors(db, p.id),
         )
         for p in crud.list_projects(db)
     ]
@@ -36,6 +36,16 @@ def _validate_name(db: Session, name: str, *, exclude_project_id: int | None = N
 def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)):
     name = _validate_name(db, project.name)
     return crud.create_project(db, schemas.ProjectCreate(name=name, description=project.description))
+
+
+@router.get("/{project_id}/contributors", response_model=list[schemas.AccountHours])
+def list_contributors(project_id: int, db: Session = Depends(get_db)):
+    if crud.get_project(db, project_id) is None:
+        raise HTTPException(status_code=404, detail="Projet introuvable.")
+    return [
+        schemas.AccountHours(account_id=account.id, account_email=account.email, hours=round(hours, 2))
+        for account, hours in crud.list_project_contributors(db, project_id)
+    ]
 
 
 @router.get("/{project_id}", response_model=schemas.ProjectRead)

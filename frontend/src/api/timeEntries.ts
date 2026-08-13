@@ -1,21 +1,35 @@
-import { ApiError } from "./projects";
+import type { Account } from "./auth";
+import { devAuthHeaders } from "./authHeaders";
+import type { Category } from "./categories";
+import { ApiError, type GithubIssue } from "./projects";
+import type { Sprint } from "./sprints";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 export interface TimeEntry {
   id: number;
   project_id: number;
-  member_id: number;
+  account_id: number;
+  account: Account;
   date: string;
   duration_hours: number;
   description: string;
   created_at: string;
+  github_issue_id: number | null;
+  github_issue: GithubIssue | null;
+  sprint_id: number | null;
+  sprint: Sprint | null;
+  category_id: number | null;
+  category: Category | null;
 }
 
 export interface TimeEntryInput {
   date: string;
   duration_hours: number;
   description: string;
+  github_issue_id?: number | null;
+  sprint_id?: number | null;
+  category_id?: number | null;
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
@@ -28,15 +42,16 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export function listMyTimeEntries(projectId: number | string): Promise<TimeEntry[]> {
-  return fetch(`${API_URL}/api/projects/${projectId}/time-entries`, { credentials: "include" }).then((res) =>
-    handleResponse<TimeEntry[]>(res),
-  );
+  return fetch(`${API_URL}/api/projects/${projectId}/time-entries`, {
+    credentials: "include",
+    headers: devAuthHeaders(),
+  }).then((res) => handleResponse<TimeEntry[]>(res));
 }
 
 export function createTimeEntry(projectId: number | string, input: TimeEntryInput): Promise<TimeEntry> {
   return fetch(`${API_URL}/api/projects/${projectId}/time-entries`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...devAuthHeaders() },
     credentials: "include",
     body: JSON.stringify(input),
   }).then((res) => handleResponse<TimeEntry>(res));
@@ -49,7 +64,7 @@ export function updateTimeEntry(
 ): Promise<TimeEntry> {
   return fetch(`${API_URL}/api/projects/${projectId}/time-entries/${entryId}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...devAuthHeaders() },
     credentials: "include",
     body: JSON.stringify(input),
   }).then((res) => handleResponse<TimeEntry>(res));
@@ -59,6 +74,7 @@ export function deleteTimeEntry(projectId: number | string, entryId: number): Pr
   return fetch(`${API_URL}/api/projects/${projectId}/time-entries/${entryId}`, {
     method: "DELETE",
     credentials: "include",
+    headers: devAuthHeaders(),
   }).then((res) => {
     if (!res.ok) throw new ApiError(res.status, "Impossible de supprimer cette entrée.");
   });

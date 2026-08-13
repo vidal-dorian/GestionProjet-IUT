@@ -5,13 +5,36 @@ export interface Project {
   name: string;
   description: string | null;
   created_at: string;
+  github_repo: string | null;
+  github_last_synced_at: string | null;
+  github_label_filter: string[];
+}
+
+export interface GithubIssue {
+  id: number;
+  number: number;
+  title: string;
+  state: string;
+  labels: string[];
+  url: string;
+}
+
+export interface GithubSyncResult {
+  synced_at: string;
+  issue_count: number;
 }
 
 export interface ProjectSummary {
   id: number;
   name: string;
   description: string | null;
-  member_count: number;
+  contributor_count: number;
+}
+
+export interface Contributor {
+  account_id: number;
+  account_email: string;
+  hours: number;
 }
 
 export interface ProjectInput {
@@ -65,4 +88,34 @@ export function deleteProject(id: number | string): Promise<void> {
   return fetch(`${API_URL}/api/projects/${id}`, { method: "DELETE" }).then((res) => {
     if (!res.ok) throw new ApiError(res.status, "Impossible de supprimer ce projet.");
   });
+}
+
+export function linkGithubRepo(id: number | string, repo: string): Promise<Project> {
+  return fetch(`${API_URL}/api/projects/${id}/github`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ repo }),
+  }).then((res) => handleResponse<Project>(res));
+}
+
+export function syncGithubIssues(id: number | string): Promise<GithubSyncResult> {
+  return fetch(`${API_URL}/api/projects/${id}/github/sync`, { method: "POST" }).then((res) =>
+    handleResponse<GithubSyncResult>(res),
+  );
+}
+
+export function listGithubIssues(id: number | string): Promise<GithubIssue[]> {
+  return fetch(`${API_URL}/api/projects/${id}/github/issues`).then((res) => handleResponse<GithubIssue[]>(res));
+}
+
+export function setGithubLabelFilter(id: number | string, labels: string[]): Promise<Project> {
+  return fetch(`${API_URL}/api/projects/${id}/github/label-filter`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ labels }),
+  }).then((res) => handleResponse<Project>(res));
+}
+
+export function listContributors(id: number | string): Promise<Contributor[]> {
+  return fetch(`${API_URL}/api/projects/${id}/contributors`).then((res) => handleResponse<Contributor[]>(res));
 }

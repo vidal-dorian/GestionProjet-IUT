@@ -1,5 +1,8 @@
 import { type FormEvent, useEffect, useState } from "react";
-import { ApiError } from "../api/projects";
+import { listCategories, type Category } from "../api/categories";
+import { downloadMyTimeEntriesExport } from "../api/exports";
+import { ApiError, type GithubIssue, listGithubIssues } from "../api/projects";
+import { listSprints, type Sprint } from "../api/sprints";
 import { createTimeEntry, deleteTimeEntry, listMyTimeEntries, updateTimeEntry, type TimeEntry } from "../api/timeEntries";
 
 interface Props {
@@ -14,6 +17,10 @@ function formatDate(isoDate: string): string {
   return new Date(isoDate).toLocaleDateString("fr-FR", { timeZone: "UTC" });
 }
 
+function formatIssueLabel(issue: { number: number; title: string }): string {
+  return `#${issue.number} ${issue.title}`;
+}
+
 function formatTotalHours(entries: TimeEntry[]): number {
   const total = entries.reduce((sum, entry) => sum + entry.duration_hours, 0);
   return Math.round(total * 100) / 100;
@@ -25,8 +32,16 @@ export default function TimeEntriesSection({ projectId }: Props) {
   const [date, setDate] = useState(today());
   const [duration, setDuration] = useState("");
   const [description, setDescription] = useState("");
+  const [issueSearch, setIssueSearch] = useState("");
+  const [issues, setIssues] = useState<GithubIssue[]>([]);
+  const [sprints, setSprints] = useState<Sprint[]>([]);
+  const [sprintId, setSprintId] = useState<number | "">("");
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryId, setCategoryId] = useState<number | "">("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   function loadEntries() {
     return listMyTimeEntries(projectId).then(setEntries);
@@ -34,14 +49,39 @@ export default function TimeEntriesSection({ projectId }: Props) {
 
   useEffect(() => {
     loadEntries().catch(() => setError("Impossible de charger l'historique pour le moment."));
+    listGithubIssues(projectId)
+      .then(setIssues)
+      .catch(() => setIssues([]));
+    listSprints(projectId)
+      .then((loadedSprints) => {
+        setSprints(loadedSprints);
+        setSprintId(suggestSprintForDate(today(), loadedSprints));
+      })
+      .catch(() => setSprints([]));
+    listCategories(projectId)
+      .then(setCategories)
+      .catch(() => setCategories([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
+
+  function suggestSprintForDate(isoDate: string, sprintList: Sprint[]): number | "" {
+    const found = sprintList.find((sprint) => sprint.start_date <= isoDate && isoDate <= sprint.end_date);
+    return found ? found.id : "";
+  }
+
+  function handleDateChange(newDate: string) {
+    setDate(newDate);
+    setSprintId(suggestSprintForDate(newDate, sprints));
+  }
 
   function resetForm() {
     setEditingId(null);
     setDate(today());
     setDuration("");
     setDescription("");
+    setIssueSearch("");
+    setSprintId(suggestSprintForDate(today(), sprints));
+    setCategoryId("");
   }
 
   function startEditing(entry: TimeEntry) {
@@ -50,6 +90,21 @@ export default function TimeEntriesSection({ projectId }: Props) {
     setDate(entry.date);
     setDuration(String(entry.duration_hours));
     setDescription(entry.description);
+    setIssueSearch(entry.github_issue ? formatIssueLabel(entry.github_issue) : "");
+    setSprintId(entry.sprint_id ?? "");
+    setCategoryId(entry.category_id ?? "");
+  }
+
+  async function handleExport() {
+    setExportError(null);
+    setExporting(true);
+    try {
+      await downloadMyTimeEntriesExport(projectId);
+    } catch (err) {
+      setExportError(err instanceof ApiError ? err.message : "Impossible d'exporter vos données pour le moment.");
+    } finally {
+      setExporting(false);
+    }
   }
 
   async function handleDelete(entryId: number) {
@@ -81,7 +136,15 @@ export default function TimeEntriesSection({ projectId }: Props) {
       return;
     }
 
-    const payload = { date, duration_hours: durationHours, description: description.trim() };
+    const matchedIssue = issues.find((issue) => formatIssueLabel(issue) === issueSearch.trim());
+    const payload = {
+      date,
+      duration_hours: durationHours,
+      description: description.trim(),
+      github_issue_id: matchedIssue ? matchedIssue.id : null,
+      sprint_id: sprintId === "" ? null : sprintId,
+      category_id: categoryId === "" ? null : categoryId,
+    };
 
     setSubmitting(true);
     try {
@@ -105,7 +168,7 @@ export default function TimeEntriesSection({ projectId }: Props) {
 
       <form onSubmit={handleSubmit} className="form form-inline">
         <label htmlFor="entry-date">Date</label>
-        <input id="entry-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        <input id="entry-date" type="date" value={date} onChange={(e) => handleDateChange(e.target.value)} />
 
         <label htmlFor="entry-duration">Durée (heures)</label>
         <input
@@ -125,6 +188,61 @@ export default function TimeEntriesSection({ projectId }: Props) {
           rows={3}
         />
 
+        {sprints.length > 0 && (
+          <>
+            <label htmlFor="entry-sprint">Sprint (facultatif)</label>
+            <select
+              id="entry-sprint"
+              value={sprintId}
+              onChange={(e) => setSprintId(e.target.value ? Number(e.target.value) : "")}
+            >
+              <option value="">Aucun</option>
+              {sprints.map((sprint) => (
+                <option key={sprint.id} value={sprint.id}>
+                  {sprint.name}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
+
+        {categories.length > 0 && (
+          <>
+            <label htmlFor="entry-category">Catégorie (facultatif)</label>
+            <select
+              id="entry-category"
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : "")}
+            >
+              <option value="">Aucune</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
+
+        {issues.length > 0 && (
+          <>
+            <label htmlFor="entry-issue">Issue GitHub (facultatif)</label>
+            <input
+              id="entry-issue"
+              type="text"
+              list="entry-issue-options"
+              value={issueSearch}
+              onChange={(e) => setIssueSearch(e.target.value)}
+              placeholder="Rechercher par numéro ou titre..."
+            />
+            <datalist id="entry-issue-options">
+              {issues.map((issue) => (
+                <option key={issue.id} value={formatIssueLabel(issue)} />
+              ))}
+            </datalist>
+          </>
+        )}
+
         {error && <p className="error">{error}</p>}
 
         <div className="form-actions">
@@ -141,10 +259,19 @@ export default function TimeEntriesSection({ projectId }: Props) {
 
       <div className="page-header">
         <h2>Mes entrées</h2>
-        {entries && (
-          <span className="meta">Total : {formatTotalHours(entries)} h sur ce projet</span>
-        )}
+        <div className="page-header-actions">
+          {entries && (
+            <span className="meta">Total : {formatTotalHours(entries)} h sur ce projet</span>
+          )}
+          {entries && entries.length > 0 && (
+            <button type="button" className="button-secondary" onClick={handleExport} disabled={exporting}>
+              {exporting ? "Export..." : "Exporter (Excel)"}
+            </button>
+          )}
+        </div>
       </div>
+
+      {exportError && <p className="error">{exportError}</p>}
 
       {entries && entries.length === 0 && <p>Aucune entrée pour l'instant.</p>}
 
@@ -157,6 +284,16 @@ export default function TimeEntriesSection({ projectId }: Props) {
                 <span className="entry-duration">{entry.duration_hours} h</span>
               </div>
               <p className="entry-description">{entry.description}</p>
+              {entry.github_issue && (
+                <p className="meta">
+                  Issue :{" "}
+                  <a href={entry.github_issue.url} target="_blank" rel="noreferrer">
+                    {formatIssueLabel(entry.github_issue)}
+                  </a>
+                </p>
+              )}
+              {entry.sprint && <p className="meta">Sprint : {entry.sprint.name}</p>}
+              {entry.category && <p className="meta">Catégorie : {entry.category.name}</p>}
               <div className="entry-actions">
                 <button type="button" className="link-button" onClick={() => startEditing(entry)}>
                   Modifier

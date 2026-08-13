@@ -4,6 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.config import settings
 from app.database import Base, get_db
 from app.main import app
 
@@ -13,6 +14,16 @@ engine = create_engine(
     poolclass=StaticPool,
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+@pytest.fixture(autouse=True)
+def _disable_github_sync_rate_limit(monkeypatch):
+    monkeypatch.setattr(settings, "github_sync_interval_minutes", 0)
+
+
+@pytest.fixture(autouse=True)
+def _enable_dev_bypass_auth(monkeypatch):
+    monkeypatch.setattr(settings, "dev_bypass_auth_enabled", True)
 
 
 @pytest.fixture()
