@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { ApiError } from "../api/projects";
 import { createMember, deleteMember, listMembers, type Member } from "../api/members";
 
