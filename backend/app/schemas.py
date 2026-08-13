@@ -46,3 +46,15 @@ class MemberRead(BaseModel):
     project_id: int
     created_at: datetime
     total_hours: float
+
+
+class MemberLogin(BaseModel):
+    pin: str
+
+
+class SessionMember(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    project_id: int
