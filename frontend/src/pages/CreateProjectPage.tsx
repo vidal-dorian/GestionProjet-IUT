@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ApiError, createProject } from "../api/projects";
 
 export default function CreateProjectPage() {
@@ -38,6 +38,9 @@ export default function CreateProjectPage() {
 
   return (
     <div className="page">
+      <Link to="/" className="back-link">
+        ← Retour aux projets
+      </Link>
       <h1>Créer un projet</h1>
       <form onSubmit={handleSubmit} className="form">
         <label htmlFor="name">Nom du projet *</label>

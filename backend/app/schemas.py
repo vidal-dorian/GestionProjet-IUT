@@ -15,3 +15,12 @@ class ProjectRead(BaseModel):
     name: str
     description: str | None
     created_at: datetime
+
+
+class ProjectSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    description: str | None
+    member_count: int

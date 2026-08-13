@@ -33,6 +33,9 @@ export default function ProjectPage() {
 
   return (
     <div className="page">
+      <Link to="/" className="back-link">
+        ← Retour aux projets
+      </Link>
       <h1>{project.name}</h1>
       {project.description && <p className="description">{project.description}</p>}
       <p className="meta">
