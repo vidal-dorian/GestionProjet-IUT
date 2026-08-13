@@ -66,6 +66,10 @@ def create_member(db: Session, project_id: int, member: schemas.MemberCreate) ->
     return db_member
 
 
+def list_time_entries_for_project(db: Session, project_id: int) -> list[models.TimeEntry]:
+    return db.query(models.TimeEntry).filter(models.TimeEntry.project_id == project_id).all()
+
+
 def list_time_entries_for_member(db: Session, project_id: int, member_id: int) -> list[models.TimeEntry]:
     return (
         db.query(models.TimeEntry)
