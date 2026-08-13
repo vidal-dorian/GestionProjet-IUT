@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     cloudflare_team_domain: str | None = None
     cloudflare_access_aud: str | None = None
     dev_bypass_auth_enabled: bool = False
+    auto_create_schema: bool = True
 
 
 settings = Settings()

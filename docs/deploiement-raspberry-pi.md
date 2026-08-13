@@ -264,7 +264,82 @@ politique de l'étape 4 doit ensuite donner accès normal à l'application ; un
 compte non autorisé doit être bloqué par Cloudflare lui-même, avant même
 d'atteindre le serveur.
 
+## 7. Mettre en place le déploiement continu (CI/CD)
+
+Une fois les étapes 1 à 6 terminées et l'application vérifiée en
+production, l'étape suivante rend les mises à jour automatiques : chaque
+`git push` sur `main` (typiquement le merge d'une pull request) redéploie
+l'application sur le Pi sans intervention manuelle.
+
+### Comment ça marche
+
+Le workflow `.github/workflows/ci-cd.yml` définit trois jobs :
+
+1. **`backend-tests`** et **`frontend-build`** tournent sur les runners
+   GitHub (cloud) à chaque push et pull request : tests `pytest` côté
+   backend, `npm run build` + `npm run lint` côté frontend. Ils ne
+   touchent jamais au Raspberry Pi.
+2. **`deploy`** ne se déclenche que sur un push sur `main`, uniquement si
+   les deux jobs précédents ont réussi. Il tourne sur un **runner
+   self-hosted** — c'est-à-dire un agent GitHub Actions installé et
+   exécuté directement sur le Raspberry Pi — qui récupère le code puis
+   lance `docker compose up -d --build`.
+
+Ce découpage évite de déployer du code cassé : si les tests ou le build
+échouent, le job `deploy` ne se lance pas et l'application en production
+n'est pas touchée.
+
+### Installer le runner self-hosted sur le Pi
+
+1. Sur GitHub : **Settings** du dépôt → **Actions** → **Runners** → **New
+   self-hosted runner**, choisir **Linux** / **ARM64**. GitHub affiche une
+   série de commandes à copier-coller (téléchargement, configuration avec
+   un jeton d'enregistrement propre à ce dépôt).
+2. Exécuter ces commandes **sur le Raspberry Pi**, dans un dossier dédié
+   (ex. `~/actions-runner`), avec l'utilisateur qui possède déjà l'accès
+   Docker (membre du groupe `docker`, cf. prérequis en haut de ce
+   document).
+3. Installer le runner comme service système pour qu'il survive aux
+   redémarrages :
+   ```bash
+   sudo ./svc.sh install
+   sudo ./svc.sh start
+   sudo ./svc.sh status   # doit afficher le service actif
+   ```
+4. **Étape à ne pas oublier** : le job `deploy` fait un `actions/checkout`
+   dans le dossier de travail du runner (par défaut
+   `~/actions-runner/_work/GestionProjet-IUT/GestionProjet-IUT`), qui ne
+   contient donc **pas** de fichier `.env` (il n'est jamais versionné). Il
+   faut le créer une seule fois manuellement dans ce dossier exact, avec
+   les mêmes valeurs que celles utilisées aux étapes 2 et 6 (copier le
+   `.env` déjà en place, ou refaire `cp .env.example .env` puis le
+   remplir). Le `.env` n'est ensuite plus jamais écrasé par les déploiements
+   suivants (`clean: false` dans le workflow protège ce fichier).
+5. Si l'application avait été déployée manuellement avant la mise en place
+   du runner (étapes 1 à 6 ci-dessus, dans un dossier `~/GestionProjet-IUT`
+   séparé) : arrêter cette pile-là (`docker compose down`, **sans** `-v`)
+   pour éviter que deux piles se disputent le port 8080. Le nom du dossier
+   de travail du runner étant identique (`GestionProjet-IUT`), Docker
+   Compose retrouve automatiquement le même volume nommé `mysql_data` —
+   les données ne sont pas perdues dans la bascule.
+6. Déclencher un premier déploiement pour valider l'installation : soit en
+   poussant un commit sur `main`, soit manuellement via **Actions** → *CI/CD*
+   → **Run workflow** (déclenchement `workflow_dispatch`).
+
+### Vérifier
+
+Dans l'onglet **Actions** du dépôt, le run du workflow doit afficher les
+trois jobs en vert, `deploy` compris. Le job `deploy` inclut une vérification
+`curl` sur `/api/health` après le redémarrage des conteneurs : s'il échoue,
+le run passe en rouge sans qu'il soit nécessaire de se connecter au Pi pour
+s'en apercevoir.
+
 ## Mettre à jour l'application
+
+**Avec le CI/CD en place (étape 7)** : rien à faire, chaque merge sur `main`
+redéploie automatiquement.
+
+**Sans CI/CD, ou en secours si le runner est indisponible** :
 
 ```bash
 cd GestionProjet-IUT
@@ -332,6 +407,13 @@ usage prolongé.
   dans l'application Access qui ne correspondent pas exactement** (schéma
   `https://` inclus dans `CORS_ORIGINS`, sans slash final) empêche
   l'application de fonctionner correctement même si le tunnel répond.
+- **Le job `deploy` reste bloqué en "queued" dans Actions** : le runner
+  self-hosted n'est pas démarré ou n'est pas connecté — sur le Pi,
+  `sudo ./svc.sh status` dans le dossier du runner (voir étape 7).
+- **Le job `deploy` échoue sur `required variable ... is missing a
+  value`** : le `.env` du dossier de travail du runner n'a pas été créé ou
+  est incomplet (c'est un fichier différent de celui utilisé lors d'un
+  déploiement manuel précédent) — revoir le point 4 de l'étape 7.
 - **Repartir de zéro sans perdre les données** : `docker compose down` puis
   `docker compose up -d --build` (le volume `mysql_data` n'est pas supprimé
   par `down` sans l'option `-v`). Ne jamais lancer `docker compose down -v`
