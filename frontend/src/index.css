@@ -140,3 +140,32 @@ h1 {
 .description {
   white-space: pre-wrap;
 }
+
+.members-section {
+  margin-top: 2rem;
+}
+
+.members-section h2 {
+  font-size: 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.member-list {
+  list-style: none;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.member-list li {
+  background: #fff;
+  padding: 0.6rem 0.9rem;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.form-inline {
+  max-width: 320px;
+}
