@@ -29,6 +29,18 @@ export interface ProjectStats {
   average_hours_per_member: number;
 }
 
+export interface HoursByIssueItem {
+  issue_number: number;
+  issue_title: string;
+  issue_url: string;
+  hours: number;
+}
+
+export interface HoursByIssue {
+  items: HoursByIssueItem[];
+  unattached_hours: number;
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const body = await response.json().catch(() => null);
@@ -53,5 +65,11 @@ export function getRecentEntries(projectId: number | string): Promise<RecentTime
 export function getProjectStats(projectId: number | string): Promise<ProjectStats> {
   return fetch(`${API_URL}/api/projects/${projectId}/dashboard/stats`).then((res) =>
     handleResponse<ProjectStats>(res),
+  );
+}
+
+export function getHoursByIssue(projectId: number | string): Promise<HoursByIssue> {
+  return fetch(`${API_URL}/api/projects/${projectId}/dashboard/hours-by-issue`).then((res) =>
+    handleResponse<HoursByIssue>(res),
   );
 }

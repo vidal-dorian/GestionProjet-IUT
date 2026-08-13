@@ -176,6 +176,25 @@ def sum_project_hours(db: Session, project_id: int) -> float:
     )
 
 
+def sum_hours_by_github_issue(db: Session, project_id: int) -> list[tuple[models.GithubIssue, float]]:
+    return (
+        db.query(models.GithubIssue, func.coalesce(func.sum(models.TimeEntry.duration_hours), 0.0))
+        .join(models.TimeEntry, models.TimeEntry.github_issue_id == models.GithubIssue.id)
+        .filter(models.TimeEntry.project_id == project_id)
+        .group_by(models.GithubIssue.id)
+        .all()
+    )
+
+
+def sum_unattached_hours(db: Session, project_id: int) -> float:
+    return (
+        db.query(func.coalesce(func.sum(models.TimeEntry.duration_hours), 0.0))
+        .filter(models.TimeEntry.project_id == project_id, models.TimeEntry.github_issue_id.is_(None))
+        .scalar()
+        or 0.0
+    )
+
+
 def count_active_members(db: Session, project_id: int) -> int:
     return (
         db.query(func.count(func.distinct(models.TimeEntry.member_id)))

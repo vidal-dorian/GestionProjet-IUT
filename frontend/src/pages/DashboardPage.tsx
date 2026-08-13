@@ -3,13 +3,16 @@ import { Link, useParams } from "react-router-dom";
 import { getProject, type Project } from "../api/projects";
 import { listMembers, type Member } from "../api/members";
 import {
+  getHoursByIssue,
   getHoursOverTime,
   getProjectStats,
   getRecentEntries,
+  type HoursByIssue,
   type HoursOverTime,
   type ProjectStats,
   type RecentTimeEntry,
 } from "../api/dashboard";
+import HoursByIssueChart from "../components/HoursByIssueChart";
 import HoursByMemberChart from "../components/HoursByMemberChart";
 import HoursOverTimeChart from "../components/HoursOverTimeChart";
 import ProjectStatsTiles from "../components/ProjectStatsTiles";
@@ -22,6 +25,7 @@ export default function DashboardPage() {
   const [hoursOverTime, setHoursOverTime] = useState<HoursOverTime | null>(null);
   const [recentEntries, setRecentEntries] = useState<RecentTimeEntry[] | null>(null);
   const [stats, setStats] = useState<ProjectStats | null>(null);
+  const [hoursByIssue, setHoursByIssue] = useState<HoursByIssue | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -32,13 +36,15 @@ export default function DashboardPage() {
       getHoursOverTime(projectId),
       getRecentEntries(projectId),
       getProjectStats(projectId),
+      getHoursByIssue(projectId),
     ])
-      .then(([projectData, membersData, hoursOverTimeData, recentEntriesData, statsData]) => {
+      .then(([projectData, membersData, hoursOverTimeData, recentEntriesData, statsData, hoursByIssueData]) => {
         setProject(projectData);
         setMembers(membersData);
         setHoursOverTime(hoursOverTimeData);
         setRecentEntries(recentEntriesData);
         setStats(statsData);
+        setHoursByIssue(hoursByIssueData);
       })
       .catch(() => setError("Impossible de charger le dashboard pour le moment."));
   }, [projectId]);
@@ -52,7 +58,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (!project || !members || !hoursOverTime || !recentEntries || !stats) {
+  if (!project || !members || !hoursOverTime || !recentEntries || !stats || !hoursByIssue) {
     return (
       <div className="page">
         <p>Chargement...</p>
@@ -87,6 +93,15 @@ export default function DashboardPage() {
           <p>Aucune heure saisie sur ce projet pour l'instant.</p>
         ) : (
           <HoursOverTimeChart data={hoursOverTime} />
+        )}
+      </section>
+
+      <section className="chart-section">
+        <h2>Heures par User Story</h2>
+        {hoursByIssue.items.length === 0 && hoursByIssue.unattached_hours === 0 ? (
+          <p>Aucune heure saisie sur ce projet pour l'instant.</p>
+        ) : (
+          <HoursByIssueChart data={hoursByIssue} />
         )}
       </section>
 

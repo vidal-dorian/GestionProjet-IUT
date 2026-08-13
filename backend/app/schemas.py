@@ -143,3 +143,15 @@ class ProjectStats(BaseModel):
     active_member_count: int
     entry_count: int
     average_hours_per_member: float
+
+
+class HoursByIssueItem(BaseModel):
+    issue_number: int
+    issue_title: str
+    issue_url: str
+    hours: float
+
+
+class HoursByIssue(BaseModel):
+    items: list[HoursByIssueItem]
+    unattached_hours: float

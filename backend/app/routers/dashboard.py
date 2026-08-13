@@ -60,6 +60,23 @@ def recent_entries(project_id: int, db: Session = Depends(get_db)):
     return crud.list_recent_time_entries_for_project(db, project_id, RECENT_ENTRIES_LIMIT)
 
 
+@router.get("/hours-by-issue", response_model=schemas.HoursByIssue)
+def hours_by_issue(project_id: int, db: Session = Depends(get_db)):
+    if crud.get_project(db, project_id) is None:
+        raise HTTPException(status_code=404, detail="Projet introuvable.")
+
+    rows = crud.sum_hours_by_github_issue(db, project_id)
+    items = [
+        schemas.HoursByIssueItem(
+            issue_number=issue.number, issue_title=issue.title, issue_url=issue.url, hours=round(hours, 2)
+        )
+        for issue, hours in rows
+    ]
+    items.sort(key=lambda item: item.hours, reverse=True)
+
+    return schemas.HoursByIssue(items=items, unattached_hours=round(crud.sum_unattached_hours(db, project_id), 2))
+
+
 @router.get("/stats", response_model=schemas.ProjectStats)
 def project_stats(project_id: int, db: Session = Depends(get_db)):
     if crud.get_project(db, project_id) is None:

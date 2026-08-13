@@ -1,8 +1,20 @@
+from unittest.mock import AsyncMock, patch
+
+
 def setup_logged_in_member(client, project_name="Projet Dashboard", pin="1234"):
     project = client.post("/api/projects", json={"name": project_name}).json()
     member = client.post(f"/api/projects/{project['id']}/members", json={"name": "Alice", "pin": pin}).json()
     client.post(f"/api/projects/{project['id']}/members/{member['id']}/login", json={"pin": pin})
     return project, member
+
+
+def link_repo_and_sync_issues(client, project_id, issues):
+    with patch("app.routers.github.github_client.verify_repo", new_callable=AsyncMock):
+        client.put(f"/api/projects/{project_id}/github", json={"repo": "owner/repo"})
+    with patch("app.github_sync.github_client.list_issues", new_callable=AsyncMock) as mock_list_issues:
+        mock_list_issues.return_value = issues
+        client.post(f"/api/projects/{project_id}/github/sync")
+    return {issue["number"]: issue for issue in client.get(f"/api/projects/{project_id}/github/issues").json()}
 
 
 def test_hours_over_time_for_unknown_project_returns_404(client):
@@ -145,6 +157,56 @@ def test_stats_for_project_without_members_or_entries(client):
         "entry_count": 0,
         "average_hours_per_member": 0.0,
     }
+
+
+def test_hours_by_issue_for_unknown_project_returns_404(client):
+    response = client.get("/api/projects/999/dashboard/hours-by-issue")
+    assert response.status_code == 404
+
+
+def test_hours_by_issue_with_no_entries_returns_empty(client):
+    project = client.post("/api/projects", json={"name": "Projet Sans Issues"}).json()
+    response = client.get(f"/api/projects/{project['id']}/dashboard/hours-by-issue")
+    assert response.status_code == 200
+    assert response.json() == {"items": [], "unattached_hours": 0.0}
+
+
+def test_hours_by_issue_groups_by_issue_and_separates_unattached(client):
+    project, _ = setup_logged_in_member(client, project_name="Projet Hours By Issue")
+    issues = link_repo_and_sync_issues(
+        client,
+        project["id"],
+        [
+            {"number": 1, "title": "US-01", "state": "open", "labels": [], "html_url": "https://x/1"},
+            {"number": 2, "title": "US-02", "state": "open", "labels": [], "html_url": "https://x/2"},
+        ],
+    )
+
+    client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-01", "duration_hours": 3, "description": "A", "github_issue_id": issues[1]["id"]},
+    )
+    client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-02", "duration_hours": 2, "description": "B", "github_issue_id": issues[1]["id"]},
+    )
+    client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-03", "duration_hours": 1, "description": "C", "github_issue_id": issues[2]["id"]},
+    )
+    client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-04", "duration_hours": 4, "description": "Sans issue"},
+    )
+
+    response = client.get(f"/api/projects/{project['id']}/dashboard/hours-by-issue")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["unattached_hours"] == 4.0
+    assert body["items"] == [
+        {"issue_number": 1, "issue_title": "US-01", "issue_url": "https://x/1", "hours": 5.0},
+        {"issue_number": 2, "issue_title": "US-02", "issue_url": "https://x/2", "hours": 1.0},
+    ]
 
 
 def test_stats_reflect_members_and_entries(client):
