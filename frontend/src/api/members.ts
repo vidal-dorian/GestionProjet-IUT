@@ -7,6 +7,7 @@ export interface Member {
   name: string;
   project_id: number;
   created_at: string;
+  total_hours: number;
 }
 
 export interface MemberInput {

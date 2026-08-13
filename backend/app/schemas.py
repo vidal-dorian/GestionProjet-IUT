@@ -45,3 +45,4 @@ class MemberRead(BaseModel):
     name: str
     project_id: int
     created_at: datetime
+    total_hours: float
