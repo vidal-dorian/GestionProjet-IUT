@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { listCategories, type Category } from "../api/categories";
+import { downloadMyTimeEntriesExport } from "../api/exports";
 import { ApiError, type GithubIssue, listGithubIssues } from "../api/projects";
 import { listSprints, type Sprint } from "../api/sprints";
 import { createTimeEntry, deleteTimeEntry, listMyTimeEntries, updateTimeEntry, type TimeEntry } from "../api/timeEntries";
@@ -39,6 +40,8 @@ export default function TimeEntriesSection({ projectId }: Props) {
   const [categoryId, setCategoryId] = useState<number | "">("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   function loadEntries() {
     return listMyTimeEntries(projectId).then(setEntries);
@@ -90,6 +93,18 @@ export default function TimeEntriesSection({ projectId }: Props) {
     setIssueSearch(entry.github_issue ? formatIssueLabel(entry.github_issue) : "");
     setSprintId(entry.sprint_id ?? "");
     setCategoryId(entry.category_id ?? "");
+  }
+
+  async function handleExport() {
+    setExportError(null);
+    setExporting(true);
+    try {
+      await downloadMyTimeEntriesExport(projectId);
+    } catch (err) {
+      setExportError(err instanceof ApiError ? err.message : "Impossible d'exporter vos données pour le moment.");
+    } finally {
+      setExporting(false);
+    }
   }
 
   async function handleDelete(entryId: number) {
@@ -244,10 +259,19 @@ export default function TimeEntriesSection({ projectId }: Props) {
 
       <div className="page-header">
         <h2>Mes entrées</h2>
-        {entries && (
-          <span className="meta">Total : {formatTotalHours(entries)} h sur ce projet</span>
-        )}
+        <div className="page-header-actions">
+          {entries && (
+            <span className="meta">Total : {formatTotalHours(entries)} h sur ce projet</span>
+          )}
+          {entries && entries.length > 0 && (
+            <button type="button" className="button-secondary" onClick={handleExport} disabled={exporting}>
+              {exporting ? "Export..." : "Exporter (Excel)"}
+            </button>
+          )}
+        </div>
       </div>
+
+      {exportError && <p className="error">{exportError}</p>}
 
       {entries && entries.length === 0 && <p>Aucune entrée pour l'instant.</p>}
 

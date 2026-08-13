@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getProject, type Project } from "../api/projects";
+import { downloadProjectExport } from "../api/exports";
+import { ApiError, getProject, type Project } from "../api/projects";
 import { listMembers, type Member } from "../api/members";
 import { listSprints, type Sprint } from "../api/sprints";
 import {
@@ -42,6 +43,8 @@ export default function DashboardPage() {
   const [sprintStats, setSprintStats] = useState<SprintStats | null>(null);
   const [sprintStatsError, setSprintStatsError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!projectId) return;
@@ -90,6 +93,19 @@ export default function DashboardPage() {
       .catch(() => setSprintStatsError("Impossible de charger le détail de ce sprint pour le moment."));
   }, [projectId, selectedSprintId]);
 
+  async function handleExport() {
+    if (!projectId) return;
+    setExportError(null);
+    setExporting(true);
+    try {
+      await downloadProjectExport(projectId);
+    } catch (err) {
+      setExportError(err instanceof ApiError ? err.message : "Impossible d'exporter le projet pour le moment.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   if (error) {
     return (
       <div className="page">
@@ -109,9 +125,15 @@ export default function DashboardPage() {
 
   return (
     <div className="page">
-      <Link to={`/projects/${projectId}`} className="back-link">
-        ← Retour au projet
-      </Link>
+      <div className="page-header">
+        <Link to={`/projects/${projectId}`} className="back-link">
+          ← Retour au projet
+        </Link>
+        <button type="button" className="button-secondary" onClick={handleExport} disabled={exporting}>
+          {exporting ? "Export..." : "Exporter le projet (Excel)"}
+        </button>
+      </div>
+      {exportError && <p className="error">{exportError}</p>}
       <h1>Dashboard — {project.name}</h1>
 
       <section className="chart-section">
