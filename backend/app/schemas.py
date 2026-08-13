@@ -84,3 +84,13 @@ class TimeEntryRead(BaseModel):
     duration_hours: float
     description: str
     created_at: datetime
+
+
+class HoursOverTimePoint(BaseModel):
+    period: date_type
+    hours: float
+
+
+class HoursOverTime(BaseModel):
+    granularity: str
+    points: list[HoursOverTimePoint]

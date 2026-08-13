@@ -306,3 +306,53 @@ h1 {
   text-align: right;
   white-space: nowrap;
 }
+
+.line-chart {
+  position: relative;
+}
+
+.line-chart svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.line-chart-grid {
+  stroke: #e1e0d9;
+  stroke-width: 1;
+}
+
+.line-chart-axis-label {
+  fill: #898781;
+  font-size: 10px;
+}
+
+.line-chart-line {
+  stroke: #2a78d6;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.line-chart-end-label {
+  fill: #1a1a1a;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.line-chart-crosshair {
+  stroke: #c3c2b7;
+  stroke-width: 1;
+}
+
+.line-chart-dot {
+  fill: #2a78d6;
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+.line-chart-tooltip {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: #444;
+}
