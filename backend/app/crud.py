@@ -70,6 +70,38 @@ def list_time_entries_for_project(db: Session, project_id: int) -> list[models.T
     return db.query(models.TimeEntry).filter(models.TimeEntry.project_id == project_id).all()
 
 
+def list_recent_time_entries_for_project(db: Session, project_id: int, limit: int) -> list[models.TimeEntry]:
+    return (
+        db.query(models.TimeEntry)
+        .filter(models.TimeEntry.project_id == project_id)
+        .order_by(models.TimeEntry.date.desc(), models.TimeEntry.id.desc())
+        .limit(limit)
+        .all()
+    )
+
+
+def count_time_entries(db: Session, project_id: int) -> int:
+    return db.query(func.count(models.TimeEntry.id)).filter(models.TimeEntry.project_id == project_id).scalar() or 0
+
+
+def sum_project_hours(db: Session, project_id: int) -> float:
+    return (
+        db.query(func.coalesce(func.sum(models.TimeEntry.duration_hours), 0.0))
+        .filter(models.TimeEntry.project_id == project_id)
+        .scalar()
+        or 0.0
+    )
+
+
+def count_active_members(db: Session, project_id: int) -> int:
+    return (
+        db.query(func.count(func.distinct(models.TimeEntry.member_id)))
+        .filter(models.TimeEntry.project_id == project_id)
+        .scalar()
+        or 0
+    )
+
+
 def list_time_entries_for_member(db: Session, project_id: int, member_id: int) -> list[models.TimeEntry]:
     return (
         db.query(models.TimeEntry)

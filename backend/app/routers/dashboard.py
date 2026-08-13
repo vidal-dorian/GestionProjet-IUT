@@ -13,6 +13,8 @@ router = APIRouter(prefix="/api/projects/{project_id}/dashboard", tags=["dashboa
 # illisible : on bascule sur des points hebdomadaires (US-15).
 DAILY_GRANULARITY_MAX_SPAN_DAYS = 31
 
+RECENT_ENTRIES_LIMIT = 10
+
 
 def _week_start(day: date) -> date:
     return day - timedelta(days=day.weekday())
@@ -48,3 +50,29 @@ def hours_over_time(project_id: int, db: Session = Depends(get_db)):
         cursor += step
 
     return schemas.HoursOverTime(granularity=granularity, points=points)
+
+
+@router.get("/recent-entries", response_model=list[schemas.RecentTimeEntry])
+def recent_entries(project_id: int, db: Session = Depends(get_db)):
+    if crud.get_project(db, project_id) is None:
+        raise HTTPException(status_code=404, detail="Projet introuvable.")
+
+    return crud.list_recent_time_entries_for_project(db, project_id, RECENT_ENTRIES_LIMIT)
+
+
+@router.get("/stats", response_model=schemas.ProjectStats)
+def project_stats(project_id: int, db: Session = Depends(get_db)):
+    if crud.get_project(db, project_id) is None:
+        raise HTTPException(status_code=404, detail="Projet introuvable.")
+
+    member_count = crud.count_members(db, project_id)
+    total_hours = crud.sum_project_hours(db, project_id)
+    average = round(total_hours / member_count, 2) if member_count else 0.0
+
+    return schemas.ProjectStats(
+        total_hours=round(total_hours, 2),
+        member_count=member_count,
+        active_member_count=crud.count_active_members(db, project_id),
+        entry_count=crud.count_time_entries(db, project_id),
+        average_hours_per_member=average,
+    )
