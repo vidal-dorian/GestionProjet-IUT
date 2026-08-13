@@ -3,6 +3,10 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 
 
+def list_projects(db: Session) -> list[models.Project]:
+    return db.query(models.Project).order_by(models.Project.created_at.desc()).all()
+
+
 def get_project(db: Session, project_id: int) -> models.Project | None:
     return db.get(models.Project, project_id)
 

@@ -45,3 +45,7 @@ npm run dev
 ```
 
 L'application est disponible sur `http://localhost:5173`.
+
+## Releases
+
+Les releases sont gérées automatiquement par [release-please](https://github.com/googleapis/release-please) à partir des [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`, …) poussés sur `main`. Un push met à jour une pull request de release ; la fusionner met à jour `CHANGELOG.md`, le numéro de version et publie un tag/release GitHub.

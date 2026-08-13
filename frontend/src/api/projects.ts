@@ -7,6 +7,13 @@ export interface Project {
   created_at: string;
 }
 
+export interface ProjectSummary {
+  id: number;
+  name: string;
+  description: string | null;
+  member_count: number;
+}
+
 export interface ProjectInput {
   name: string;
   description?: string;
@@ -25,6 +32,10 @@ async function handleResponse<T>(response: Response): Promise<T> {
     throw new ApiError(response.status, message);
   }
   return response.json() as Promise<T>;
+}
+
+export function listProjects(): Promise<ProjectSummary[]> {
+  return fetch(`${API_URL}/api/projects`).then((res) => handleResponse<ProjectSummary[]>(res));
 }
 
 export function createProject(input: ProjectInput): Promise<Project> {
