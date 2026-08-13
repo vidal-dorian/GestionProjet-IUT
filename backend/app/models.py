@@ -13,6 +13,7 @@ class Project(Base):
     name: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    github_repo: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     members: Mapped[list["Member"]] = relationship(back_populates="project", cascade="all, delete-orphan")
 

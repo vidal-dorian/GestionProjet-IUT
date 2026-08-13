@@ -42,6 +42,13 @@ def delete_project(db: Session, db_project: models.Project) -> None:
     db.commit()
 
 
+def link_github_repo(db: Session, db_project: models.Project, repo: str) -> models.Project:
+    db_project.github_repo = repo
+    db.commit()
+    db.refresh(db_project)
+    return db_project
+
+
 def list_members(db: Session, project_id: int) -> list[models.Member]:
     return (
         db.query(models.Member)

@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
     secret_key: str = "dev-secret-change-me"
     cookie_secure: bool = False
+    github_token: str | None = None
 
 
 settings = Settings()

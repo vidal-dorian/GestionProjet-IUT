@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ApiError, deleteProject, getProject, updateProject } from "../api/projects";
+import { ApiError, deleteProject, getProject, linkGithubRepo, updateProject } from "../api/projects";
 
 export default function EditProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -8,10 +8,14 @@ export default function EditProjectPage() {
   const [projectName, setProjectName] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [githubRepo, setGithubRepo] = useState("");
+  const [linkedRepo, setLinkedRepo] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [githubError, setGithubError] = useState<string | null>(null);
+  const [linkingGithub, setLinkingGithub] = useState(false);
 
   useEffect(() => {
     if (!projectId) return;
@@ -20,10 +24,32 @@ export default function EditProjectPage() {
         setProjectName(project.name);
         setName(project.name);
         setDescription(project.description ?? "");
+        setGithubRepo(project.github_repo ?? "");
+        setLinkedRepo(project.github_repo);
       })
       .catch(() => setError("Ce projet est introuvable."))
       .finally(() => setLoading(false));
   }, [projectId]);
+
+  async function handleLinkGithub(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setGithubError(null);
+
+    if (!githubRepo.trim()) {
+      setGithubError("Le dépôt est obligatoire (format owner/repo).");
+      return;
+    }
+
+    setLinkingGithub(true);
+    try {
+      const updated = await linkGithubRepo(projectId!, githubRepo.trim());
+      setLinkedRepo(updated.github_repo);
+    } catch (err) {
+      setGithubError(err instanceof ApiError ? err.message : "Impossible de lier ce dépôt pour le moment.");
+    } finally {
+      setLinkingGithub(false);
+    }
+  }
 
   async function handleDelete() {
     const confirmed = window.confirm(
@@ -103,6 +129,34 @@ export default function EditProjectPage() {
           {submitting ? "Enregistrement..." : "Enregistrer"}
         </button>
       </form>
+
+      <section className="chart-section">
+        <h2>Intégration GitHub</h2>
+        {linkedRepo && (
+          <p className="meta">
+            Dépôt lié :{" "}
+            <a href={`https://github.com/${linkedRepo}`} target="_blank" rel="noreferrer">
+              {linkedRepo}
+            </a>
+          </p>
+        )}
+        <form onSubmit={handleLinkGithub} className="form form-inline">
+          <label htmlFor="github-repo">Dépôt GitHub (owner/repo)</label>
+          <input
+            id="github-repo"
+            type="text"
+            value={githubRepo}
+            onChange={(e) => setGithubRepo(e.target.value)}
+            placeholder="owner/repo"
+          />
+
+          {githubError && <p className="error">{githubError}</p>}
+
+          <button type="submit" disabled={linkingGithub}>
+            {linkingGithub ? "Vérification..." : linkedRepo ? "Mettre à jour" : "Lier le dépôt"}
+          </button>
+        </form>
+      </section>
 
       <section className="danger-zone">
         <h2>Zone dangereuse</h2>

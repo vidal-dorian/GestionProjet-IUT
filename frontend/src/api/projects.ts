@@ -5,6 +5,7 @@ export interface Project {
   name: string;
   description: string | null;
   created_at: string;
+  github_repo: string | null;
 }
 
 export interface ProjectSummary {
@@ -65,4 +66,12 @@ export function deleteProject(id: number | string): Promise<void> {
   return fetch(`${API_URL}/api/projects/${id}`, { method: "DELETE" }).then((res) => {
     if (!res.ok) throw new ApiError(res.status, "Impossible de supprimer ce projet.");
   });
+}
+
+export function linkGithubRepo(id: number | string, repo: string): Promise<Project> {
+  return fetch(`${API_URL}/api/projects/${id}/github`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ repo }),
+  }).then((res) => handleResponse<Project>(res));
 }

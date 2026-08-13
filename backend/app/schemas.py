@@ -16,6 +16,11 @@ class ProjectRead(BaseModel):
     name: str
     description: str | None
     created_at: datetime
+    github_repo: str | None
+
+
+class GithubRepoLink(BaseModel):
+    repo: str = Field(min_length=1, max_length=255)
 
 
 class ProjectSummary(BaseModel):
