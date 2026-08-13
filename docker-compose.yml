@@ -3,19 +3,40 @@ services:
     image: mysql:8.4
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: gestionprojet
-      MYSQL_USER: gestionprojet
-      MYSQL_PASSWORD: gestionprojet
-      MYSQL_ROOT_PASSWORD: root
-    ports:
-      - "3306:3306"
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-gestionprojet}
+      MYSQL_USER: ${MYSQL_USER:-gestionprojet}
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD:?Renseigne MYSQL_PASSWORD dans .env}"
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:?Renseigne MYSQL_ROOT_PASSWORD dans .env}"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 5s
       timeout: 5s
       retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-gestionprojet}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE:-gestionprojet}
+      CORS_ORIGINS: "${CORS_ORIGINS:?Renseigne CORS_ORIGINS dans .env}"
+      SECRET_KEY: "${SECRET_KEY:?Renseigne SECRET_KEY dans .env}"
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-}
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      - backend
 
 volumes:
   mysql_data:

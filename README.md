@@ -46,6 +46,19 @@ npm run dev
 
 L'application est disponible sur `http://localhost:5173`.
 
+## Déploiement en production
+
+L'application se déploie entièrement via Docker Compose (MySQL + backend +
+frontend/nginx en reverse-proxy same-origin) :
+
+```bash
+cp .env.example .env   # renseigner les valeurs, voir le fichier pour le détail
+docker compose up -d --build
+```
+
+Guide pas à pas pour un déploiement sur Raspberry Pi exposé via Cloudflare
+Tunnel : [`docs/deploiement-raspberry-pi.md`](docs/deploiement-raspberry-pi.md).
+
 ## Releases
 
 Les releases sont gérées automatiquement par [release-please](https://github.com/googleapis/release-please) à partir des [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`, …) poussés sur `main`. Un push met à jour une pull request de release ; la fusionner met à jour `CHANGELOG.md`, le numéro de version et publie un tag/release GitHub.
