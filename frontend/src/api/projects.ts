@@ -7,6 +7,7 @@ export interface Project {
   created_at: string;
   github_repo: string | null;
   github_last_synced_at: string | null;
+  github_label_filter: string[];
 }
 
 export interface GithubIssue {
@@ -99,4 +100,12 @@ export function syncGithubIssues(id: number | string): Promise<GithubSyncResult>
 
 export function listGithubIssues(id: number | string): Promise<GithubIssue[]> {
   return fetch(`${API_URL}/api/projects/${id}/github/issues`).then((res) => handleResponse<GithubIssue[]>(res));
+}
+
+export function setGithubLabelFilter(id: number | string, labels: string[]): Promise<Project> {
+  return fetch(`${API_URL}/api/projects/${id}/github/label-filter`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ labels }),
+  }).then((res) => handleResponse<Project>(res));
 }

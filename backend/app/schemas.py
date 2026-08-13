@@ -18,10 +18,15 @@ class ProjectRead(BaseModel):
     created_at: datetime
     github_repo: str | None
     github_last_synced_at: datetime | None
+    github_label_filter: list[str]
 
 
 class GithubRepoLink(BaseModel):
     repo: str = Field(min_length=1, max_length=255)
+
+
+class GithubLabelFilterUpdate(BaseModel):
+    labels: list[str] = Field(default_factory=list)
 
 
 class GithubIssueRead(BaseModel):

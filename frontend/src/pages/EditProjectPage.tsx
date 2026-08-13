@@ -7,6 +7,7 @@ import {
   type GithubIssue,
   linkGithubRepo,
   listGithubIssues,
+  setGithubLabelFilter,
   syncGithubIssues,
   updateProject,
 } from "../api/projects";
@@ -29,6 +30,9 @@ export default function EditProjectPage() {
   const [linkingGithub, setLinkingGithub] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [labelFilterInput, setLabelFilterInput] = useState("");
+  const [savingLabelFilter, setSavingLabelFilter] = useState(false);
+  const [labelFilterError, setLabelFilterError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!projectId) return;
@@ -40,6 +44,7 @@ export default function EditProjectPage() {
         setGithubRepo(project.github_repo ?? "");
         setLinkedRepo(project.github_repo);
         setLastSyncedAt(project.github_last_synced_at);
+        setLabelFilterInput(project.github_label_filter.join(", "));
         if (project.github_repo) {
           listGithubIssues(projectId).then(setIssues).catch(() => {});
         }
@@ -82,6 +87,26 @@ export default function EditProjectPage() {
       setSyncError(err instanceof ApiError ? err.message : "Impossible de synchroniser les issues pour le moment.");
     } finally {
       setSyncing(false);
+    }
+  }
+
+  async function handleLabelFilterSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setLabelFilterError(null);
+    setSavingLabelFilter(true);
+    try {
+      const labels = labelFilterInput
+        .split(",")
+        .map((label) => label.trim())
+        .filter(Boolean);
+      const updated = await setGithubLabelFilter(projectId!, labels);
+      setLabelFilterInput(updated.github_label_filter.join(", "));
+      const fetchedIssues = await listGithubIssues(projectId!);
+      setIssues(fetchedIssues);
+    } catch (err) {
+      setLabelFilterError(err instanceof ApiError ? err.message : "Impossible d'enregistrer ce filtre.");
+    } finally {
+      setSavingLabelFilter(false);
     }
   }
 
@@ -203,6 +228,24 @@ export default function EditProjectPage() {
             </button>
 
             {syncError && <p className="error">{syncError}</p>}
+
+            <form onSubmit={handleLabelFilterSubmit} className="form form-inline">
+              <label htmlFor="github-label-filter">Filtrer par labels (séparés par des virgules)</label>
+              <input
+                id="github-label-filter"
+                type="text"
+                value={labelFilterInput}
+                onChange={(e) => setLabelFilterInput(e.target.value)}
+                placeholder="user-story, epic-7"
+              />
+              <p className="meta">Sans filtre, seules les issues ouvertes sont affichées.</p>
+
+              {labelFilterError && <p className="error">{labelFilterError}</p>}
+
+              <button type="submit" disabled={savingLabelFilter}>
+                {savingLabelFilter ? "Enregistrement..." : "Appliquer le filtre"}
+              </button>
+            </form>
 
             {issues.length > 0 && (
               <ul className="github-issues-list">

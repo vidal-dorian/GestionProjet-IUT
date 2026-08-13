@@ -64,6 +64,22 @@ def list_github_issues(db: Session, project_id: int) -> list[models.GithubIssue]
     )
 
 
+def list_visible_github_issues(db: Session, db_project: models.Project) -> list[models.GithubIssue]:
+    issues = list_github_issues(db, db_project.id)
+    label_filter = set(db_project.github_label_filter)
+    if label_filter:
+        return [issue for issue in issues if label_filter & set(issue.labels)]
+    return [issue for issue in issues if issue.state == "open"]
+
+
+def set_github_label_filter(db: Session, db_project: models.Project, labels: list[str]) -> models.Project:
+    cleaned = [label.strip() for label in labels if label.strip()]
+    db_project.github_label_filter_raw = ",".join(cleaned)
+    db.commit()
+    db.refresh(db_project)
+    return db_project
+
+
 def replace_github_issues(db: Session, db_project: models.Project, issues: list[dict]) -> None:
     existing = {
         issue.number: issue

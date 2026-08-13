@@ -54,5 +54,13 @@ async def sync_repo(project_id: int, db: Session = Depends(get_db)):
 
 @router.get("/issues", response_model=list[schemas.GithubIssueRead])
 async def list_issues(project_id: int, db: Session = Depends(get_db)):
-    _get_project_or_404(project_id, db)
-    return crud.list_github_issues(db, project_id)
+    db_project = _get_project_or_404(project_id, db)
+    return crud.list_visible_github_issues(db, db_project)
+
+
+@router.put("/label-filter", response_model=schemas.ProjectRead)
+async def update_label_filter(
+    project_id: int, filter_update: schemas.GithubLabelFilterUpdate, db: Session = Depends(get_db)
+):
+    db_project = _get_project_or_404(project_id, db)
+    return crud.set_github_label_filter(db, db_project, filter_update.labels)

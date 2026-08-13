@@ -15,11 +15,16 @@ class Project(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
     github_repo: Mapped[str | None] = mapped_column(String(255), nullable=True)
     github_last_synced_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    github_label_filter_raw: Mapped[str] = mapped_column(String(500), nullable=False, default="")
 
     members: Mapped[list["Member"]] = relationship(back_populates="project", cascade="all, delete-orphan")
     github_issues: Mapped[list["GithubIssue"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
+
+    @property
+    def github_label_filter(self) -> list[str]:
+        return [label for label in self.github_label_filter_raw.split(",") if label]
 
 
 class Member(Base):
