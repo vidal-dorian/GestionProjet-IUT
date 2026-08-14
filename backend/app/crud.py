@@ -179,6 +179,47 @@ def create_category(db: Session, project_id: int, category: schemas.CategoryCrea
     return db_category
 
 
+def add_project_member(db: Session, project_id: int, account_id: int) -> models.ProjectMembership:
+    membership = (
+        db.query(models.ProjectMembership)
+        .filter(
+            models.ProjectMembership.project_id == project_id,
+            models.ProjectMembership.account_id == account_id,
+        )
+        .first()
+    )
+    if membership is not None:
+        return membership
+
+    membership = models.ProjectMembership(project_id=project_id, account_id=account_id)
+    db.add(membership)
+    db.commit()
+    db.refresh(membership)
+    return membership
+
+
+def list_projects_for_account(db: Session, account_id: int) -> list[models.Project]:
+    member_project_ids = db.query(models.ProjectMembership.project_id).filter(
+        models.ProjectMembership.account_id == account_id
+    )
+    # Un compte ayant déjà saisi des heures sur un projet en est aussi
+    # considéré membre, pour ne pas perdre l'accès des contributeurs existants
+    # créés avant l'introduction du rattachement explicite.
+    contributor_project_ids = db.query(models.TimeEntry.project_id).filter(
+        models.TimeEntry.account_id == account_id
+    )
+    project_ids = {row[0] for row in member_project_ids.union(contributor_project_ids).all()}
+    if not project_ids:
+        return []
+
+    return (
+        db.query(models.Project)
+        .filter(models.Project.id.in_(project_ids))
+        .order_by(models.Project.name)
+        .all()
+    )
+
+
 def get_account(db: Session, account_id: int) -> models.Account | None:
     return db.get(models.Account, account_id)
 

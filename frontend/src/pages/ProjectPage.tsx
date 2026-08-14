@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getProject, type Project } from "../api/projects";
 import ContributorsSection from "../components/ContributorsSection";
+import ProjectSwitcher from "../components/ProjectSwitcher";
 
 export default function ProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -39,6 +40,7 @@ export default function ProjectPage() {
           ← Retour aux projets
         </Link>
         <div className="page-header-actions">
+          <ProjectSwitcher currentProjectId={project.id} />
           <Link to={`/projects/${project.id}/edit`} className="button-secondary">
             Modifier
           </Link>

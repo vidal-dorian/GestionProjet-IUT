@@ -23,6 +23,9 @@ class Project(Base):
     )
     sprints: Mapped[list["Sprint"]] = relationship(back_populates="project", cascade="all, delete-orphan")
     categories: Mapped[list["Category"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    memberships: Mapped[list["ProjectMembership"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
 
     @property
     def github_label_filter(self) -> list[str]:
@@ -36,6 +39,21 @@ class Account(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+
+
+class ProjectMembership(Base):
+    """Rattache un compte à un projet, pour qu'il apparaisse dans sa liste "Mes projets"."""
+
+    __tablename__ = "project_memberships"
+    __table_args__ = (UniqueConstraint("project_id", "account_id", name="uq_project_membership_project_account"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+
+    project: Mapped[Project] = relationship(back_populates="memberships")
+    account: Mapped["Account"] = relationship()
 
 
 class TimeEntry(Base):

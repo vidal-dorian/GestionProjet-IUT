@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { me, type Account } from "../api/auth";
+import ProjectSwitcher from "../components/ProjectSwitcher";
 import TimeEntriesSection from "../components/TimeEntriesSection";
 
 export default function MyPage() {
@@ -39,9 +40,12 @@ export default function MyPage() {
         <Link to={`/projects/${projectId}`} className="back-link">
           ← Retour au projet
         </Link>
-        <a href="/cdn-cgi/access/logout" className="button-secondary">
-          Se déconnecter
-        </a>
+        <div className="page-header-actions">
+          <ProjectSwitcher currentProjectId={projectId ? Number(projectId) : undefined} />
+          <a href="/cdn-cgi/access/logout" className="button-secondary">
+            Se déconnecter
+          </a>
+        </div>
       </div>
       <h1>Bonjour, {account.email}</h1>
 

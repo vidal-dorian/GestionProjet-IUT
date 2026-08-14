@@ -1,20 +1,26 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app import crud, schemas
+from app import crud, models, schemas
 from app.database import get_db
+from app.deps import get_current_account, get_current_account_optional
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
 
 @router.get("", response_model=list[schemas.ProjectSummary])
-def list_projects(db: Session = Depends(get_db)):
+def list_projects(
+    account: models.Account | None = Depends(get_current_account_optional),
+    db: Session = Depends(get_db),
+):
+    member_project_ids = {p.id for p in crud.list_projects_for_account(db, account.id)} if account else set()
     return [
         schemas.ProjectSummary(
             id=p.id,
             name=p.name,
             description=p.description,
             contributor_count=crud.count_contributors(db, p.id),
+            is_member=p.id in member_project_ids,
         )
         for p in crud.list_projects(db)
     ]
@@ -33,9 +39,29 @@ def _validate_name(db: Session, name: str, *, exclude_project_id: int | None = N
 
 
 @router.post("", response_model=schemas.ProjectRead, status_code=status.HTTP_201_CREATED)
-def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)):
+def create_project(
+    project: schemas.ProjectCreate,
+    account: models.Account | None = Depends(get_current_account_optional),
+    db: Session = Depends(get_db),
+):
     name = _validate_name(db, project.name)
-    return crud.create_project(db, schemas.ProjectCreate(name=name, description=project.description))
+    db_project = crud.create_project(db, schemas.ProjectCreate(name=name, description=project.description))
+    if account is not None:
+        crud.add_project_member(db, db_project.id, account.id)
+    return db_project
+
+
+@router.post("/{project_id}/join", response_model=schemas.ProjectRead)
+def join_project(
+    project_id: int,
+    account: models.Account = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    db_project = crud.get_project(db, project_id)
+    if db_project is None:
+        raise HTTPException(status_code=404, detail="Projet introuvable.")
+    crud.add_project_member(db, project_id, account.id)
+    return db_project
 
 
 @router.get("/{project_id}/contributors", response_model=list[schemas.AccountHours])
