@@ -1,13 +1,13 @@
 import re
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app import crud, excel_export, models
 from app.database import get_db
-from app.deps import get_current_account
+from app.deps import require_project_member
 
 router = APIRouter(prefix="/api/projects/{project_id}", tags=["exports"])
 
@@ -30,11 +30,9 @@ def _xlsx_response(buffer, filename: str) -> StreamingResponse:
 
 @router.get("/time-entries/export")
 def export_my_time_entries(
-    project_id: int, account: models.Account = Depends(get_current_account), db: Session = Depends(get_db)
+    project_id: int, account: models.Account = Depends(require_project_member), db: Session = Depends(get_db)
 ):
     db_project = crud.get_project(db, project_id)
-    if db_project is None:
-        raise HTTPException(status_code=404, detail="Projet introuvable.")
 
     entries = crud.list_time_entries_for_account(db, project_id, account.id)
     buffer = excel_export.build_account_export(db_project, account, entries)
@@ -45,10 +43,10 @@ def export_my_time_entries(
 
 
 @router.get("/export")
-def export_project(project_id: int, db: Session = Depends(get_db)):
+def export_project(
+    project_id: int, account: models.Account = Depends(require_project_member), db: Session = Depends(get_db)
+):
     db_project = crud.get_project(db, project_id)
-    if db_project is None:
-        raise HTTPException(status_code=404, detail="Projet introuvable.")
 
     entries = crud.list_time_entries_for_project(db, project_id)
     contributors = [account for account, _ in crud.list_project_contributors(db, project_id)]

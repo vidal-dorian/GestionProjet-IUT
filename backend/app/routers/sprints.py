@@ -1,17 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app import crud, models, schemas
 from app.database import get_db
+from app.deps import require_project_member
 
 router = APIRouter(prefix="/api/projects/{project_id}/sprints", tags=["sprints"])
-
-
-def _get_project_or_404(project_id: int, db: Session):
-    db_project = crud.get_project(db, project_id)
-    if db_project is None:
-        raise HTTPException(status_code=404, detail="Projet introuvable.")
-    return db_project
 
 
 def _overlap_warning(db: Session, project_id: int, sprint: models.Sprint, exclude_id: int | None) -> str | None:
@@ -22,15 +16,19 @@ def _overlap_warning(db: Session, project_id: int, sprint: models.Sprint, exclud
 
 
 @router.get("", response_model=list[schemas.SprintRead])
-def list_sprints(project_id: int, db: Session = Depends(get_db)):
-    _get_project_or_404(project_id, db)
+def list_sprints(
+    project_id: int, account: models.Account = Depends(require_project_member), db: Session = Depends(get_db)
+):
     return crud.list_sprints(db, project_id)
 
 
 @router.post("", response_model=schemas.SprintWriteResult, status_code=status.HTTP_201_CREATED)
-def create_sprint(project_id: int, sprint: schemas.SprintCreate, db: Session = Depends(get_db)):
-    _get_project_or_404(project_id, db)
-
+def create_sprint(
+    project_id: int,
+    sprint: schemas.SprintCreate,
+    account: models.Account = Depends(require_project_member),
+    db: Session = Depends(get_db),
+):
     db_sprint = crud.create_sprint(db, project_id, sprint)
     warning = _overlap_warning(db, project_id, db_sprint, exclude_id=db_sprint.id)
     return schemas.SprintWriteResult(sprint=db_sprint, overlap_warning=warning)

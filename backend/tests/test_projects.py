@@ -41,6 +41,7 @@ def test_get_unknown_project_returns_404(client):
 
 
 def test_update_project_name_and_description(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     created = client.post("/api/projects", json={"name": "Ancien nom", "description": "Ancienne description"}).json()
 
     response = client.put(
@@ -57,11 +58,13 @@ def test_update_project_name_and_description(client):
 
 
 def test_update_unknown_project_returns_404(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     response = client.put("/api/projects/999", json={"name": "Peu importe"})
     assert response.status_code == 404
 
 
 def test_update_project_keeping_its_own_name_is_allowed(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     created = client.post("/api/projects", json={"name": "Nom stable"}).json()
 
     response = client.put(f"/api/projects/{created['id']}", json={"name": "Nom stable", "description": "Maj"})
@@ -70,6 +73,7 @@ def test_update_project_keeping_its_own_name_is_allowed(client):
 
 
 def test_update_project_name_must_stay_unique(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     client.post("/api/projects", json={"name": "Projet A"})
     project_b = client.post("/api/projects", json={"name": "Projet B"}).json()
 
@@ -78,6 +82,7 @@ def test_update_project_name_must_stay_unique(client):
 
 
 def test_delete_project_succeeds(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     created = client.post("/api/projects", json={"name": "À supprimer"}).json()
 
     response = client.delete(f"/api/projects/{created['id']}")
@@ -87,13 +92,14 @@ def test_delete_project_succeeds(client):
 
 
 def test_delete_unknown_project_returns_404(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     response = client.delete("/api/projects/999")
     assert response.status_code == 404
 
 
 def test_delete_project_cascades_to_time_entries(client):
-    project = client.post("/api/projects", json={"name": "Projet Cascade"}).json()
     client.headers["X-Dev-Email"] = "alice@test.local"
+    project = client.post("/api/projects", json={"name": "Projet Cascade"}).json()
     client.post(
         f"/api/projects/{project['id']}/time-entries",
         json={"date": "2026-08-13", "duration_hours": 2, "description": "Dev"},

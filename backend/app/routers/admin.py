@@ -52,3 +52,27 @@ def reject_membership_request(
         raise HTTPException(status_code=404, detail="Demande introuvable.")
     membership = crud.decide_membership_request(db, membership, approve=False)
     return _to_membership_request_read(membership)
+
+
+@router.get("/projects/{project_id}/members", response_model=list[schemas.AccountRead])
+def list_project_members(
+    project_id: int,
+    admin: models.Account = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    if crud.get_project(db, project_id) is None:
+        raise HTTPException(status_code=404, detail="Projet introuvable.")
+    return crud.list_approved_members(db, project_id)
+
+
+@router.delete("/projects/{project_id}/members/{account_id}", status_code=204)
+def remove_project_member(
+    project_id: int,
+    account_id: int,
+    admin: models.Account = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    membership = crud.get_approved_membership(db, project_id, account_id)
+    if membership is None:
+        raise HTTPException(status_code=404, detail="Ce compte n'est pas membre approuvé de ce projet.")
+    crud.remove_project_member(db, membership)

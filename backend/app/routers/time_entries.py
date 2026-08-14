@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app import crud, models, schemas
 from app.database import get_db
-from app.deps import get_current_account
+from app.deps import require_project_member
 
 router = APIRouter(prefix="/api/projects/{project_id}/time-entries", tags=["time-entries"])
 
@@ -36,7 +36,7 @@ def _validate_category(db: Session, project_id: int, entry: schemas.TimeEntryCre
 
 @router.get("", response_model=list[schemas.TimeEntryRead])
 def list_my_time_entries(
-    project_id: int, account: models.Account = Depends(get_current_account), db: Session = Depends(get_db)
+    project_id: int, account: models.Account = Depends(require_project_member), db: Session = Depends(get_db)
 ):
     return crud.list_time_entries_for_account(db, project_id, account.id)
 
@@ -45,7 +45,7 @@ def list_my_time_entries(
 def create_time_entry(
     project_id: int,
     entry: schemas.TimeEntryCreate,
-    account: models.Account = Depends(get_current_account),
+    account: models.Account = Depends(require_project_member),
     db: Session = Depends(get_db),
 ):
     _validate_github_issue(db, project_id, entry)
@@ -59,7 +59,7 @@ def update_time_entry(
     project_id: int,
     entry_id: int,
     entry: schemas.TimeEntryCreate,
-    account: models.Account = Depends(get_current_account),
+    account: models.Account = Depends(require_project_member),
     db: Session = Depends(get_db),
 ):
     db_entry = _get_owned_entry(db, project_id, entry_id, account)
@@ -73,7 +73,7 @@ def update_time_entry(
 def delete_time_entry(
     project_id: int,
     entry_id: int,
-    account: models.Account = Depends(get_current_account),
+    account: models.Account = Depends(require_project_member),
     db: Session = Depends(get_db),
 ):
     db_entry = _get_owned_entry(db, project_id, entry_id, account)

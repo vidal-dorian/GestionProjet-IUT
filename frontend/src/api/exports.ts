@@ -33,7 +33,10 @@ export async function downloadMyTimeEntriesExport(projectId: number | string): P
 }
 
 export async function downloadProjectExport(projectId: number | string): Promise<void> {
-  const response = await fetch(`${API_URL}/api/projects/${projectId}/export`);
+  const response = await fetch(`${API_URL}/api/projects/${projectId}/export`, {
+    credentials: "include",
+    headers: devAuthHeaders(),
+  });
   if (!response.ok) {
     throw new ApiError(response.status, "Impossible d'exporter les données du projet pour le moment.");
   }

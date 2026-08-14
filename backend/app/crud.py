@@ -226,6 +226,46 @@ def request_project_membership(db: Session, project_id: int, account_id: int) ->
     return membership
 
 
+def is_approved_member(db: Session, project_id: int, account_id: int) -> bool:
+    membership = _get_membership(db, project_id, account_id)
+    if membership is not None:
+        return membership.status == "approved"
+    # Mêmes règles de compatibilité que list_membership_statuses_for_account : un
+    # compte ayant déjà saisi des heures sur ce projet avant l'introduction du
+    # rattachement explicite en est considéré membre.
+    return (
+        db.query(models.TimeEntry)
+        .filter(models.TimeEntry.project_id == project_id, models.TimeEntry.account_id == account_id)
+        .first()
+        is not None
+    )
+
+
+def list_approved_members(db: Session, project_id: int) -> list[models.Account]:
+    return (
+        db.query(models.Account)
+        .join(models.ProjectMembership, models.ProjectMembership.account_id == models.Account.id)
+        .filter(
+            models.ProjectMembership.project_id == project_id,
+            models.ProjectMembership.status == "approved",
+        )
+        .order_by(models.Account.email)
+        .all()
+    )
+
+
+def get_approved_membership(db: Session, project_id: int, account_id: int) -> models.ProjectMembership | None:
+    membership = _get_membership(db, project_id, account_id)
+    if membership is not None and membership.status == "approved":
+        return membership
+    return None
+
+
+def remove_project_member(db: Session, membership: models.ProjectMembership) -> None:
+    db.delete(membership)
+    db.commit()
+
+
 def list_pending_membership_requests(db: Session) -> list[models.ProjectMembership]:
     return (
         db.query(models.ProjectMembership)

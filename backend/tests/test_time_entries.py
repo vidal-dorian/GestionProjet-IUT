@@ -2,8 +2,8 @@ from unittest.mock import AsyncMock, patch
 
 
 def setup_authenticated_account(client, email="alice@test.local"):
-    project = client.post("/api/projects", json={"name": "Projet Heures"}).json()
     client.headers["X-Dev-Email"] = email
+    project = client.post("/api/projects", json={"name": "Projet Heures"}).json()
     return project, email
 
 

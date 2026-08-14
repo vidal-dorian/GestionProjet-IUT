@@ -1,8 +1,10 @@
-def create_test_project(client, name="Projet Catégories"):
+def create_test_project(client, name="Projet Catégories", email="alice@test.local"):
+    client.headers["X-Dev-Email"] = email
     return client.post("/api/projects", json={"name": name}).json()
 
 
 def test_list_categories_for_unknown_project_returns_404(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     response = client.get("/api/projects/999/categories")
     assert response.status_code == 404
 
@@ -15,6 +17,7 @@ def test_list_categories_empty_by_default(client):
 
 
 def test_create_category_for_unknown_project_returns_404(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     response = client.post("/api/projects/999/categories", json={"name": "Dev"})
     assert response.status_code == 404
 

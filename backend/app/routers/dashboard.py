@@ -4,8 +4,9 @@ from datetime import date, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app import crud, schemas
+from app import crud, models, schemas
 from app.database import get_db
+from app.deps import require_project_member
 
 router = APIRouter(prefix="/api/projects/{project_id}/dashboard", tags=["dashboard"])
 
@@ -21,10 +22,9 @@ def _week_start(day: date) -> date:
 
 
 @router.get("/hours-over-time", response_model=schemas.HoursOverTime)
-def hours_over_time(project_id: int, db: Session = Depends(get_db)):
-    if crud.get_project(db, project_id) is None:
-        raise HTTPException(status_code=404, detail="Projet introuvable.")
-
+def hours_over_time(
+    project_id: int, account: models.Account = Depends(require_project_member), db: Session = Depends(get_db)
+):
     entries = crud.list_time_entries_for_project(db, project_id)
     if not entries:
         return schemas.HoursOverTime(granularity="day", points=[])
@@ -53,18 +53,16 @@ def hours_over_time(project_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/recent-entries", response_model=list[schemas.RecentTimeEntry])
-def recent_entries(project_id: int, db: Session = Depends(get_db)):
-    if crud.get_project(db, project_id) is None:
-        raise HTTPException(status_code=404, detail="Projet introuvable.")
-
+def recent_entries(
+    project_id: int, account: models.Account = Depends(require_project_member), db: Session = Depends(get_db)
+):
     return crud.list_recent_time_entries_for_project(db, project_id, RECENT_ENTRIES_LIMIT)
 
 
 @router.get("/hours-by-issue", response_model=schemas.HoursByIssue)
-def hours_by_issue(project_id: int, db: Session = Depends(get_db)):
-    if crud.get_project(db, project_id) is None:
-        raise HTTPException(status_code=404, detail="Projet introuvable.")
-
+def hours_by_issue(
+    project_id: int, account: models.Account = Depends(require_project_member), db: Session = Depends(get_db)
+):
     rows = crud.sum_hours_by_github_issue(db, project_id)
     items = [
         schemas.HoursByIssueItem(
@@ -78,10 +76,9 @@ def hours_by_issue(project_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/hours-by-category", response_model=schemas.HoursByCategory)
-def hours_by_category(project_id: int, db: Session = Depends(get_db)):
-    if crud.get_project(db, project_id) is None:
-        raise HTTPException(status_code=404, detail="Projet introuvable.")
-
+def hours_by_category(
+    project_id: int, account: models.Account = Depends(require_project_member), db: Session = Depends(get_db)
+):
     rows = crud.sum_hours_by_category(db, project_id)
     items = [
         schemas.HoursByCategoryItem(category_id=category.id, category_name=category.name, hours=round(hours, 2))
@@ -95,10 +92,12 @@ def hours_by_category(project_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/sprints/{sprint_id}/stats", response_model=schemas.SprintStats)
-def sprint_stats(project_id: int, sprint_id: int, db: Session = Depends(get_db)):
-    if crud.get_project(db, project_id) is None:
-        raise HTTPException(status_code=404, detail="Projet introuvable.")
-
+def sprint_stats(
+    project_id: int,
+    sprint_id: int,
+    account: models.Account = Depends(require_project_member),
+    db: Session = Depends(get_db),
+):
     db_sprint = crud.get_sprint(db, project_id, sprint_id)
     if db_sprint is None:
         raise HTTPException(status_code=404, detail="Sprint introuvable.")
@@ -129,10 +128,9 @@ def sprint_stats(project_id: int, sprint_id: int, db: Session = Depends(get_db))
 
 
 @router.get("/stats", response_model=schemas.ProjectStats)
-def project_stats(project_id: int, db: Session = Depends(get_db)):
-    if crud.get_project(db, project_id) is None:
-        raise HTTPException(status_code=404, detail="Projet introuvable.")
-
+def project_stats(
+    project_id: int, account: models.Account = Depends(require_project_member), db: Session = Depends(get_db)
+):
     contributor_count = crud.count_contributors(db, project_id)
     total_hours = crud.sum_project_hours(db, project_id)
     average = round(total_hours / contributor_count, 2) if contributor_count else 0.0

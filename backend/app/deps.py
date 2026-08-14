@@ -55,3 +55,24 @@ def get_current_admin(account: models.Account = Depends(get_current_account)) ->
     if not account.is_admin:
         raise HTTPException(status_code=403, detail="Réservé aux administrateurs.")
     return account
+
+
+def get_project_or_404(project_id: int, db: Session = Depends(get_db)) -> models.Project:
+    db_project = crud.get_project(db, project_id)
+    if db_project is None:
+        raise HTTPException(status_code=404, detail="Projet introuvable.")
+    return db_project
+
+
+def require_project_member(
+    project_id: int,
+    account: models.Account = Depends(get_current_account),
+    db: Session = Depends(get_db),
+) -> models.Account:
+    """Un compte doit être membre approuvé du projet (ou administrateur) pour accéder à
+    son contenu (saisies, dashboard, sprints, catégories, configuration GitHub, exports).
+    """
+    get_project_or_404(project_id, db)
+    if not account.is_admin and not crud.is_approved_member(db, project_id, account.id):
+        raise HTTPException(status_code=403, detail="Vous devez être membre de ce projet pour effectuer cette action.")
+    return account

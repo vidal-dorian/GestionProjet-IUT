@@ -1,3 +1,4 @@
+import { devAuthHeaders } from "./authHeaders";
 import { ApiError } from "./projects";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
@@ -32,13 +33,17 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export function listSprints(projectId: number | string): Promise<Sprint[]> {
-  return fetch(`${API_URL}/api/projects/${projectId}/sprints`).then((res) => handleResponse<Sprint[]>(res));
+  return fetch(`${API_URL}/api/projects/${projectId}/sprints`, {
+    credentials: "include",
+    headers: devAuthHeaders(),
+  }).then((res) => handleResponse<Sprint[]>(res));
 }
 
 export function createSprint(projectId: number | string, input: SprintInput): Promise<SprintWriteResult> {
   return fetch(`${API_URL}/api/projects/${projectId}/sprints`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...devAuthHeaders() },
     body: JSON.stringify(input),
   }).then((res) => handleResponse<SprintWriteResult>(res));
 }

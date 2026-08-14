@@ -1,3 +1,4 @@
+import type { Account } from "./auth";
 import { devAuthHeaders } from "./authHeaders";
 import { ApiError, type MembershipStatus } from "./projects";
 
@@ -43,4 +44,21 @@ export function rejectMembershipRequest(id: number): Promise<MembershipRequest> 
     credentials: "include",
     headers: devAuthHeaders(),
   }).then((res) => handleResponse<MembershipRequest>(res));
+}
+
+export function listProjectMembers(projectId: number | string): Promise<Account[]> {
+  return fetch(`${API_URL}/api/admin/projects/${projectId}/members`, {
+    credentials: "include",
+    headers: devAuthHeaders(),
+  }).then((res) => handleResponse<Account[]>(res));
+}
+
+export function removeProjectMember(projectId: number | string, accountId: number): Promise<void> {
+  return fetch(`${API_URL}/api/admin/projects/${projectId}/members/${accountId}`, {
+    method: "DELETE",
+    credentials: "include",
+    headers: devAuthHeaders(),
+  }).then((res) => {
+    if (!res.ok) throw new ApiError(res.status, "Impossible de retirer ce membre pour le moment.");
+  });
 }
