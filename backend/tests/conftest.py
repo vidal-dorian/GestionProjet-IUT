@@ -35,6 +35,13 @@ def _disable_auto_create_schema(monkeypatch):
     monkeypatch.setattr(settings, "auto_create_schema", False)
 
 
+@pytest.fixture(autouse=True)
+def _disable_background_sync(monkeypatch):
+    # Même raison que ci-dessus : la boucle périodique de synchronisation
+    # GitHub utilise le moteur de production, pas la session de test.
+    monkeypatch.setattr(settings, "enable_background_sync", False)
+
+
 @pytest.fixture()
 def client():
     Base.metadata.create_all(bind=engine)

@@ -116,6 +116,13 @@ def sprint_stats(
     ]
     issue_items.sort(key=lambda item: item.hours, reverse=True)
 
+    role_assignments = [
+        schemas.SprintRoleAssignmentRead(
+            role_id=a.role_id, role_name=a.role.name, account_id=a.account_id, account_email=a.account.email
+        )
+        for a in crud.list_sprint_role_assignments(db, sprint_id)
+    ]
+
     return schemas.SprintStats(
         sprint=db_sprint,
         total_hours=round(crud.sum_hours_for_sprint(db, project_id, sprint_id), 2),
@@ -124,6 +131,7 @@ def sprint_stats(
             items=issue_items,
             unattached_hours=round(crud.sum_unattached_hours_for_sprint(db, project_id, sprint_id), 2),
         ),
+        role_assignments=role_assignments,
     )
 
 

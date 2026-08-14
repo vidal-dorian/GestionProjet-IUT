@@ -1,5 +1,6 @@
 import { devAuthHeaders } from "./authHeaders";
 import { ApiError } from "./projects";
+import type { SprintRoleAssignment } from "./sprints";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
@@ -52,6 +53,7 @@ export interface SprintStats {
   total_hours: number;
   hours_by_account: AccountHours[];
   hours_by_issue: HoursByIssue;
+  role_assignments: SprintRoleAssignment[];
 }
 
 export interface HoursByCategoryItem {

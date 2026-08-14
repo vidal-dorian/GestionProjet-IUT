@@ -12,6 +12,7 @@ import {
   updateProject,
 } from "../api/projects";
 import CategoriesSection from "../components/CategoriesSection";
+import RolesSection from "../components/RolesSection";
 import SprintsSection from "../components/SprintsSection";
 
 export default function EditProjectPage() {
@@ -272,6 +273,7 @@ export default function EditProjectPage() {
 
       {projectId && <SprintsSection projectId={Number(projectId)} />}
       {projectId && <CategoriesSection projectId={Number(projectId)} />}
+      {projectId && <RolesSection projectId={Number(projectId)} />}
 
       <section className="danger-zone">
         <h2>Zone dangereuse</h2>

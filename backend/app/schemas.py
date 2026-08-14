@@ -73,6 +73,35 @@ class SprintWriteResult(BaseModel):
     overlap_warning: str | None = None
 
 
+class TeamRoleCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+
+
+class TeamRoleRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    project_id: int
+    name: str
+    created_at: datetime
+
+
+class SprintRoleAssignmentInput(BaseModel):
+    role_id: int
+    account_id: int
+
+
+class SprintRoleAssignmentRead(BaseModel):
+    role_id: int
+    role_name: str
+    account_id: int
+    account_email: str
+
+
+class SprintRoleAssignmentsUpdate(BaseModel):
+    assignments: list[SprintRoleAssignmentInput]
+
+
 class CategoryCreate(BaseModel):
     name: str = Field(min_length=1, max_length=80)
 
@@ -207,6 +236,7 @@ class SprintStats(BaseModel):
     total_hours: float
     hours_by_account: list[AccountHours]
     hours_by_issue: HoursByIssue
+    role_assignments: list[SprintRoleAssignmentRead] = Field(default_factory=list)
 
 
 class HoursByCategoryItem(BaseModel):

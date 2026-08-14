@@ -71,6 +71,13 @@ def join_project(
     return schemas.MembershipRead(project_id=project_id, status=membership.status)
 
 
+@router.get("/{project_id}/members", response_model=list[schemas.AccountRead])
+def list_members(
+    project_id: int, account: models.Account = Depends(require_project_member), db: Session = Depends(get_db)
+):
+    return crud.list_approved_members(db, project_id)
+
+
 @router.get("/{project_id}/contributors", response_model=list[schemas.AccountHours])
 def list_contributors(project_id: int, db: Session = Depends(get_db)):
     if crud.get_project(db, project_id) is None:
