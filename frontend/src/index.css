@@ -78,7 +78,9 @@ h1 {
 }
 
 .project-card-item {
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .project-card-header {
@@ -104,10 +106,14 @@ h1 {
   color: #1e7e34;
 }
 
+.badge-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
 .project-card-join {
-  position: absolute;
-  top: 1.25rem;
-  right: 1.25rem;
+  align-self: flex-end;
+  margin: 0;
 }
 
 .project-switcher {
@@ -289,6 +295,11 @@ h1 {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+}
+
+.member-actions .button-danger,
+.member-actions .button-secondary {
+  margin-top: 0;
 }
 
 .time-entries-section {

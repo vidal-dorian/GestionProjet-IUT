@@ -42,7 +42,12 @@ class Account(Base):
 
 
 class ProjectMembership(Base):
-    """Rattache un compte à un projet, pour qu'il apparaisse dans sa liste "Mes projets"."""
+    """Rattache un compte à un projet, pour qu'il apparaisse dans sa liste "Mes projets".
+
+    `status` vaut "pending" (demande en attente), "approved" (accès accordé,
+    y compris le créateur du projet et les administrateurs qui rejoignent) ou
+    "rejected" (refusée par un administrateur — peut être redemandée).
+    """
 
     __tablename__ = "project_memberships"
     __table_args__ = (UniqueConstraint("project_id", "account_id", name="uq_project_membership_project_account"),)
@@ -50,7 +55,9 @@ class ProjectMembership(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="approved")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     project: Mapped[Project] = relationship(back_populates="memberships")
     account: Mapped["Account"] = relationship()
