@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.1.0](https://github.com/vidal-dorian/GestionProjet-IUT/compare/v1.0.0...v1.1.0) (2026-08-14)
+
+
+### Features
+
+* US-35 — appartenir à plusieurs projets ([4a7583a](https://github.com/vidal-dorian/GestionProjet-IUT/commit/4a7583af715a13d2113cc35e50405b80b6056141))
+* US-36 — distinguer les rôles sur un projet ([793d0f4](https://github.com/vidal-dorian/GestionProjet-IUT/commit/793d0f458e38fc183c866ef8cf0996b607a47434))
+* US-39 — refonte de l'interface graphique ([7f36052](https://github.com/vidal-dorian/GestionProjet-IUT/commit/7f36052683fb98239d83977f0955dcea3dcd83f3))
+* US-39 — refonte de l'UX et de la navigation ([1ffcd4c](https://github.com/vidal-dorian/GestionProjet-IUT/commit/1ffcd4c279ca5795fddabe421889ff8e2db452fa))
+* US-40 — imposer l'appartenance à un projet et retrait de membre par un admin ([a4ebec4](https://github.com/vidal-dorian/GestionProjet-IUT/commit/a4ebec42049e29830fa715f8c22ef734447941a1))
+* US-42 — faire valider mon adhésion à un projet par un administrateur ([09ff47f](https://github.com/vidal-dorian/GestionProjet-IUT/commit/09ff47f63c1661a3b7010e959893665b9201e1b4))
+* US-43 — rôles d'équipe par projet, assignables par sprint ([05c76e6](https://github.com/vidal-dorian/GestionProjet-IUT/commit/05c76e676cb44ce926c3f2131c53d8096c6dd303))
+
 ## [1.0.0](https://github.com/vidal-dorian/GestionProjet-IUT/compare/v0.2.0...v1.0.0) (2026-08-13)
 
 
