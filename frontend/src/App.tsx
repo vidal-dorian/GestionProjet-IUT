@@ -1,4 +1,5 @@
 import { Route, Routes } from "react-router-dom";
+import AdminMembershipRequestsPage from "./pages/AdminMembershipRequestsPage";
 import CreateProjectPage from "./pages/CreateProjectPage";
 import DashboardPage from "./pages/DashboardPage";
 import EditProjectPage from "./pages/EditProjectPage";
@@ -15,6 +16,7 @@ export default function App() {
       <Route path="/projects/:projectId/edit" element={<EditProjectPage />} />
       <Route path="/projects/:projectId/me" element={<MyPage />} />
       <Route path="/projects/:projectId/dashboard" element={<DashboardPage />} />
+      <Route path="/admin/demandes" element={<AdminMembershipRequestsPage />} />
     </Routes>
   );
 }

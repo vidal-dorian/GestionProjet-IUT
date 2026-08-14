@@ -49,3 +49,9 @@ def get_current_account_optional(request: Request, db: Session = Depends(get_db)
     if not email:
         return None
     return crud.get_or_create_account(db, email)
+
+
+def get_current_admin(account: models.Account = Depends(get_current_account)) -> models.Account:
+    if not account.is_admin:
+        raise HTTPException(status_code=403, detail="Réservé aux administrateurs.")
+    return account

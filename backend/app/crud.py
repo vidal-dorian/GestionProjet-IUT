@@ -179,8 +179,8 @@ def create_category(db: Session, project_id: int, category: schemas.CategoryCrea
     return db_category
 
 
-def add_project_member(db: Session, project_id: int, account_id: int) -> models.ProjectMembership:
-    membership = (
+def _get_membership(db: Session, project_id: int, account_id: int) -> models.ProjectMembership | None:
+    return (
         db.query(models.ProjectMembership)
         .filter(
             models.ProjectMembership.project_id == project_id,
@@ -188,27 +188,89 @@ def add_project_member(db: Session, project_id: int, account_id: int) -> models.
         )
         .first()
     )
+
+
+def add_project_member(db: Session, project_id: int, account_id: int) -> models.ProjectMembership:
+    """Accorde un accès immédiat (créateur du projet, ou administrateur qui rejoint)."""
+    membership = _get_membership(db, project_id, account_id)
     if membership is not None:
+        if membership.status != "approved":
+            membership.status = "approved"
+            membership.decided_at = datetime.utcnow()
+            db.commit()
+            db.refresh(membership)
         return membership
 
-    membership = models.ProjectMembership(project_id=project_id, account_id=account_id)
+    membership = models.ProjectMembership(project_id=project_id, account_id=account_id, status="approved")
     db.add(membership)
     db.commit()
     db.refresh(membership)
     return membership
 
 
-def list_projects_for_account(db: Session, account_id: int) -> list[models.Project]:
-    member_project_ids = db.query(models.ProjectMembership.project_id).filter(
-        models.ProjectMembership.account_id == account_id
+def request_project_membership(db: Session, project_id: int, account_id: int) -> models.ProjectMembership:
+    """Soumet une demande d'adhésion en attente de validation par un administrateur."""
+    membership = _get_membership(db, project_id, account_id)
+    if membership is not None:
+        if membership.status == "rejected":
+            membership.status = "pending"
+            membership.decided_at = None
+            db.commit()
+            db.refresh(membership)
+        return membership
+
+    membership = models.ProjectMembership(project_id=project_id, account_id=account_id, status="pending")
+    db.add(membership)
+    db.commit()
+    db.refresh(membership)
+    return membership
+
+
+def list_pending_membership_requests(db: Session) -> list[models.ProjectMembership]:
+    return (
+        db.query(models.ProjectMembership)
+        .filter(models.ProjectMembership.status == "pending")
+        .order_by(models.ProjectMembership.created_at)
+        .all()
     )
+
+
+def get_membership_request(db: Session, request_id: int) -> models.ProjectMembership | None:
+    return db.get(models.ProjectMembership, request_id)
+
+
+def decide_membership_request(
+    db: Session, membership: models.ProjectMembership, *, approve: bool
+) -> models.ProjectMembership:
+    membership.status = "approved" if approve else "rejected"
+    membership.decided_at = datetime.utcnow()
+    db.commit()
+    db.refresh(membership)
+    return membership
+
+
+def list_membership_statuses_for_account(db: Session, account_id: int) -> dict[int, str]:
+    statuses = {
+        m.project_id: m.status
+        for m in db.query(models.ProjectMembership).filter(models.ProjectMembership.account_id == account_id)
+    }
     # Un compte ayant déjà saisi des heures sur un projet en est aussi
-    # considéré membre, pour ne pas perdre l'accès des contributeurs existants
-    # créés avant l'introduction du rattachement explicite.
-    contributor_project_ids = db.query(models.TimeEntry.project_id).filter(
-        models.TimeEntry.account_id == account_id
-    )
-    project_ids = {row[0] for row in member_project_ids.union(contributor_project_ids).all()}
+    # considéré membre approuvé, pour ne pas perdre l'accès des contributeurs
+    # existants créés avant l'introduction du rattachement explicite.
+    contributor_project_ids = {
+        row[0]
+        for row in db.query(models.TimeEntry.project_id)
+        .filter(models.TimeEntry.account_id == account_id)
+        .distinct()
+    }
+    for project_id in contributor_project_ids:
+        statuses.setdefault(project_id, "approved")
+    return statuses
+
+
+def list_projects_for_account(db: Session, account_id: int) -> list[models.Project]:
+    statuses = list_membership_statuses_for_account(db, account_id)
+    project_ids = [project_id for project_id, status in statuses.items() if status == "approved"]
     if not project_ids:
         return []
 

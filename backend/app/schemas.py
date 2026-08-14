@@ -103,6 +103,22 @@ class ProjectSummary(BaseModel):
     description: str | None
     contributor_count: int
     is_member: bool = False
+    membership_status: str | None = None
+
+
+class MembershipRead(BaseModel):
+    project_id: int
+    status: str
+
+
+class MembershipRequestRead(BaseModel):
+    id: int
+    project_id: int
+    project_name: str
+    account_id: int
+    account_email: str
+    status: str
+    created_at: datetime
 
 
 class TimeEntryCreate(BaseModel):

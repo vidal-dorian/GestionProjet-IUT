@@ -26,12 +26,20 @@ export interface GithubSyncResult {
   issue_count: number;
 }
 
+export type MembershipStatus = "pending" | "approved" | "rejected";
+
 export interface ProjectSummary {
   id: number;
   name: string;
   description: string | null;
   contributor_count: number;
   is_member: boolean;
+  membership_status: MembershipStatus | null;
+}
+
+export interface Membership {
+  project_id: number;
+  status: MembershipStatus;
 }
 
 export interface Contributor {
@@ -75,12 +83,12 @@ export function listMyProjects(): Promise<ProjectSummary[]> {
   );
 }
 
-export function joinProject(id: number | string): Promise<Project> {
+export function joinProject(id: number | string): Promise<Membership> {
   return fetch(`${API_URL}/api/projects/${id}/join`, {
     method: "POST",
     credentials: "include",
     headers: devAuthHeaders(),
-  }).then((res) => handleResponse<Project>(res));
+  }).then((res) => handleResponse<Membership>(res));
 }
 
 export function createProject(input: ProjectInput): Promise<Project> {
