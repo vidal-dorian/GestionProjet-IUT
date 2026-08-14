@@ -134,6 +134,86 @@ h2 {
   gap: 0.6rem;
 }
 
+/* ==========================================================================
+   Navigation persistante d'un projet (Saisie / Dashboard / Paramètres)
+   ========================================================================== */
+
+.project-nav {
+  border-bottom: 1px solid var(--hairline);
+  background: var(--page-bg);
+}
+
+.project-nav-inner {
+  max-width: 660px;
+  margin: 0 auto;
+  padding: 1.1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+}
+
+.project-nav-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.project-nav-name {
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.project-nav-link {
+  color: var(--ink-muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding-bottom: 0.2rem;
+  border-bottom: 2px solid transparent;
+}
+
+.project-nav-link:hover {
+  color: var(--ink);
+}
+
+.project-nav-link.is-active {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+
+.project-nav-account {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.8rem;
+}
+
+.project-nav-browse,
+.project-nav-logout {
+  color: var(--ink-muted);
+  text-decoration: none;
+}
+
+.project-nav-browse:hover,
+.project-nav-logout:hover {
+  color: var(--ink);
+}
+
 .meta {
   color: var(--ink-muted);
   font-size: 0.82rem;
@@ -448,12 +528,10 @@ h2 {
   border-radius: var(--radius-md);
 }
 
-.members-section,
 .time-entries-section {
   margin-top: 2rem;
 }
 
-.members-section h2,
 .time-entries-section h2 {
   font-size: 1.05rem;
   margin-bottom: 0.75rem;

@@ -2,19 +2,19 @@ import { Route, Routes } from "react-router-dom";
 import AdminMembershipRequestsPage from "./pages/AdminMembershipRequestsPage";
 import CreateProjectPage from "./pages/CreateProjectPage";
 import DashboardPage from "./pages/DashboardPage";
-import EditProjectPage from "./pages/EditProjectPage";
-import MyPage from "./pages/MyPage";
+import HomePage from "./pages/HomePage";
+import ProjectHomePage from "./pages/ProjectHomePage";
 import ProjectListPage from "./pages/ProjectListPage";
-import ProjectPage from "./pages/ProjectPage";
+import ProjectSettingsPage from "./pages/ProjectSettingsPage";
 
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<ProjectListPage />} />
+      <Route path="/" element={<HomePage />} />
+      <Route path="/projects" element={<ProjectListPage />} />
       <Route path="/projects/new" element={<CreateProjectPage />} />
-      <Route path="/projects/:projectId" element={<ProjectPage />} />
-      <Route path="/projects/:projectId/edit" element={<EditProjectPage />} />
-      <Route path="/projects/:projectId/me" element={<MyPage />} />
+      <Route path="/projects/:projectId" element={<ProjectHomePage />} />
+      <Route path="/projects/:projectId/settings" element={<ProjectSettingsPage />} />
       <Route path="/projects/:projectId/dashboard" element={<DashboardPage />} />
       <Route path="/admin/demandes" element={<AdminMembershipRequestsPage />} />
     </Routes>

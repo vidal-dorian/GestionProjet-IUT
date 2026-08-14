@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { type Account, me } from "../api/auth";
 import { downloadProjectExport } from "../api/exports";
+import ProjectNav from "../components/ProjectNav";
 import {
   ApiError,
   getProject,
@@ -65,6 +67,13 @@ export default function DashboardPage() {
   const [assignmentSaving, setAssignmentSaving] = useState(false);
   const [newRoleId, setNewRoleId] = useState<number | "">("");
   const [newMemberId, setNewMemberId] = useState<number | "">("");
+  const [account, setAccount] = useState<Account | null>(null);
+
+  useEffect(() => {
+    me()
+      .then(setAccount)
+      .catch(() => setAccount(null));
+  }, []);
 
   useEffect(() => {
     if (!projectId) return;
@@ -192,23 +201,24 @@ export default function DashboardPage() {
     );
   }
 
-  return (
-    <div className="page">
-      <div className="page-header">
-        <Link to={`/projects/${projectId}`} className="back-link">
-          ← Retour au projet
-        </Link>
-        <button type="button" className="button-secondary" onClick={handleExport} disabled={exporting}>
-          {exporting ? "Export..." : "Exporter le projet (Excel)"}
-        </button>
-      </div>
-      {exportError && <p className="error">{exportError}</p>}
-      <h1>Dashboard — {project.name}</h1>
+  const canManage = !!account && (account.is_admin || project.created_by_account_id === account.id);
 
-      <section className="chart-section">
-        <h2>Indicateurs clés</h2>
-        <ProjectStatsTiles stats={stats} />
-      </section>
+  return (
+    <>
+      <ProjectNav projectId={project.id} projectName={project.name} active="dashboard" canManage={canManage} />
+      <div className="page">
+        <div className="page-header">
+          <h1>Dashboard</h1>
+          <button type="button" className="button-secondary" onClick={handleExport} disabled={exporting}>
+            {exporting ? "Export..." : "Exporter le projet (Excel)"}
+          </button>
+        </div>
+        {exportError && <p className="error">{exportError}</p>}
+
+        <section className="chart-section">
+          <h2>Indicateurs clés</h2>
+          <ProjectStatsTiles stats={stats} />
+        </section>
 
       <section className="chart-section">
         <h2>Heures par contributeur</h2>
@@ -369,14 +379,15 @@ export default function DashboardPage() {
         </section>
       )}
 
-      <section className="chart-section">
-        <h2>Dernières entrées</h2>
-        {recentEntries.length === 0 ? (
-          <p>Aucune entrée sur ce projet pour l'instant.</p>
-        ) : (
-          <RecentEntriesList entries={recentEntries} />
-        )}
-      </section>
-    </div>
+        <section className="chart-section">
+          <h2>Dernières entrées</h2>
+          {recentEntries.length === 0 ? (
+            <p>Aucune entrée sur ce projet pour l'instant.</p>
+          ) : (
+            <RecentEntriesList entries={recentEntries} />
+          )}
+        </section>
+      </div>
+    </>
   );
 }
