@@ -1,4 +1,6 @@
+import { devAuthHeaders } from "./authHeaders";
 import { ApiError } from "./projects";
+import type { SprintRoleAssignment } from "./sprints";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
@@ -51,6 +53,7 @@ export interface SprintStats {
   total_hours: number;
   hours_by_account: AccountHours[];
   hours_by_issue: HoursByIssue;
+  role_assignments: SprintRoleAssignment[];
 }
 
 export interface HoursByCategoryItem {
@@ -74,37 +77,37 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export function getHoursOverTime(projectId: number | string): Promise<HoursOverTime> {
-  return fetch(`${API_URL}/api/projects/${projectId}/dashboard/hours-over-time`).then((res) =>
+  return fetch(`${API_URL}/api/projects/${projectId}/dashboard/hours-over-time`, { credentials: "include", headers: devAuthHeaders() }).then((res) =>
     handleResponse<HoursOverTime>(res),
   );
 }
 
 export function getRecentEntries(projectId: number | string): Promise<RecentTimeEntry[]> {
-  return fetch(`${API_URL}/api/projects/${projectId}/dashboard/recent-entries`).then((res) =>
+  return fetch(`${API_URL}/api/projects/${projectId}/dashboard/recent-entries`, { credentials: "include", headers: devAuthHeaders() }).then((res) =>
     handleResponse<RecentTimeEntry[]>(res),
   );
 }
 
 export function getProjectStats(projectId: number | string): Promise<ProjectStats> {
-  return fetch(`${API_URL}/api/projects/${projectId}/dashboard/stats`).then((res) =>
+  return fetch(`${API_URL}/api/projects/${projectId}/dashboard/stats`, { credentials: "include", headers: devAuthHeaders() }).then((res) =>
     handleResponse<ProjectStats>(res),
   );
 }
 
 export function getHoursByIssue(projectId: number | string): Promise<HoursByIssue> {
-  return fetch(`${API_URL}/api/projects/${projectId}/dashboard/hours-by-issue`).then((res) =>
+  return fetch(`${API_URL}/api/projects/${projectId}/dashboard/hours-by-issue`, { credentials: "include", headers: devAuthHeaders() }).then((res) =>
     handleResponse<HoursByIssue>(res),
   );
 }
 
 export function getSprintStats(projectId: number | string, sprintId: number | string): Promise<SprintStats> {
-  return fetch(`${API_URL}/api/projects/${projectId}/dashboard/sprints/${sprintId}/stats`).then((res) =>
+  return fetch(`${API_URL}/api/projects/${projectId}/dashboard/sprints/${sprintId}/stats`, { credentials: "include", headers: devAuthHeaders() }).then((res) =>
     handleResponse<SprintStats>(res),
   );
 }
 
 export function getHoursByCategory(projectId: number | string): Promise<HoursByCategory> {
-  return fetch(`${API_URL}/api/projects/${projectId}/dashboard/hours-by-category`).then((res) =>
+  return fetch(`${API_URL}/api/projects/${projectId}/dashboard/hours-by-category`, { credentials: "include", headers: devAuthHeaders() }).then((res) =>
     handleResponse<HoursByCategory>(res),
   );
 }

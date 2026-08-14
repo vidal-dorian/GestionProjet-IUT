@@ -27,9 +27,15 @@ def get_project_by_name(db: Session, name: str) -> models.Project | None:
     return db.query(models.Project).filter(models.Project.name == name).first()
 
 
+DEFAULT_TEAM_ROLES = ["Product Owner", "Gestion de projet", "Développeur"]
+
+
 def create_project(db: Session, project: schemas.ProjectCreate) -> models.Project:
     db_project = models.Project(name=project.name.strip(), description=project.description)
     db.add(db_project)
+    db.flush()
+    for role_name in DEFAULT_TEAM_ROLES:
+        db.add(models.TeamRole(project_id=db_project.id, name=role_name))
     db.commit()
     db.refresh(db_project)
     return db_project
@@ -179,6 +185,69 @@ def create_category(db: Session, project_id: int, category: schemas.CategoryCrea
     return db_category
 
 
+def list_team_roles(db: Session, project_id: int) -> list[models.TeamRole]:
+    return (
+        db.query(models.TeamRole)
+        .filter(models.TeamRole.project_id == project_id)
+        .order_by(models.TeamRole.id)
+        .all()
+    )
+
+
+def get_team_role(db: Session, project_id: int, role_id: int) -> models.TeamRole | None:
+    return (
+        db.query(models.TeamRole)
+        .filter(models.TeamRole.project_id == project_id, models.TeamRole.id == role_id)
+        .first()
+    )
+
+
+def create_team_role(db: Session, project_id: int, name: str) -> models.TeamRole:
+    db_role = models.TeamRole(project_id=project_id, name=name)
+    db.add(db_role)
+    db.commit()
+    db.refresh(db_role)
+    return db_role
+
+
+def rename_team_role(db: Session, db_role: models.TeamRole, name: str) -> models.TeamRole:
+    db_role.name = name
+    db.commit()
+    db.refresh(db_role)
+    return db_role
+
+
+def delete_team_role(db: Session, db_role: models.TeamRole) -> None:
+    db.delete(db_role)
+    db.commit()
+
+
+def list_sprint_role_assignments(db: Session, sprint_id: int) -> list[models.SprintRoleAssignment]:
+    return (
+        db.query(models.SprintRoleAssignment)
+        .filter(models.SprintRoleAssignment.sprint_id == sprint_id)
+        .order_by(models.SprintRoleAssignment.id)
+        .all()
+    )
+
+
+def replace_sprint_role_assignments(
+    db: Session, sprint_id: int, assignments: list[tuple[int, int]]
+) -> list[models.SprintRoleAssignment]:
+    """Remplace l'intégralité des assignations de rôles d'un sprint par la
+    liste (role_id, account_id) fournie."""
+    db.query(models.SprintRoleAssignment).filter(models.SprintRoleAssignment.sprint_id == sprint_id).delete()
+    seen: set[tuple[int, int]] = set()
+    for role_id, account_id in assignments:
+        pair = (role_id, account_id)
+        if pair in seen:
+            continue
+        seen.add(pair)
+        db.add(models.SprintRoleAssignment(sprint_id=sprint_id, role_id=role_id, account_id=account_id))
+    db.commit()
+    return list_sprint_role_assignments(db, sprint_id)
+
+
 def _get_membership(db: Session, project_id: int, account_id: int) -> models.ProjectMembership | None:
     return (
         db.query(models.ProjectMembership)
@@ -224,6 +293,46 @@ def request_project_membership(db: Session, project_id: int, account_id: int) ->
     db.commit()
     db.refresh(membership)
     return membership
+
+
+def is_approved_member(db: Session, project_id: int, account_id: int) -> bool:
+    membership = _get_membership(db, project_id, account_id)
+    if membership is not None:
+        return membership.status == "approved"
+    # Mêmes règles de compatibilité que list_membership_statuses_for_account : un
+    # compte ayant déjà saisi des heures sur ce projet avant l'introduction du
+    # rattachement explicite en est considéré membre.
+    return (
+        db.query(models.TimeEntry)
+        .filter(models.TimeEntry.project_id == project_id, models.TimeEntry.account_id == account_id)
+        .first()
+        is not None
+    )
+
+
+def list_approved_members(db: Session, project_id: int) -> list[models.Account]:
+    return (
+        db.query(models.Account)
+        .join(models.ProjectMembership, models.ProjectMembership.account_id == models.Account.id)
+        .filter(
+            models.ProjectMembership.project_id == project_id,
+            models.ProjectMembership.status == "approved",
+        )
+        .order_by(models.Account.email)
+        .all()
+    )
+
+
+def get_approved_membership(db: Session, project_id: int, account_id: int) -> models.ProjectMembership | None:
+    membership = _get_membership(db, project_id, account_id)
+    if membership is not None and membership.status == "approved":
+        return membership
+    return None
+
+
+def remove_project_member(db: Session, membership: models.ProjectMembership) -> None:
+    db.delete(membership)
+    db.commit()
 
 
 def list_pending_membership_requests(db: Session) -> list[models.ProjectMembership]:

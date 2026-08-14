@@ -1,3 +1,6 @@
+from tests.helpers import add_approved_member
+
+
 def test_list_projects_empty(client):
     response = client.get("/api/projects")
     assert response.status_code == 200
@@ -33,12 +36,13 @@ def test_list_contributors_empty_by_default(client):
 
 
 def test_list_contributors_reflects_hours_logged(client):
-    project = client.post("/api/projects", json={"name": "Projet Contributeurs"}).json()
     client.headers["X-Dev-Email"] = "alice@test.local"
+    project = client.post("/api/projects", json={"name": "Projet Contributeurs"}).json()
     client.post(
         f"/api/projects/{project['id']}/time-entries",
         json={"date": "2026-08-13", "duration_hours": 2, "description": "Dev"},
     )
+    add_approved_member(project["id"], "bob@test.local")
     client.headers["X-Dev-Email"] = "bob@test.local"
     client.post(
         f"/api/projects/{project['id']}/time-entries",

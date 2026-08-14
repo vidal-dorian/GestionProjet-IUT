@@ -1,9 +1,11 @@
 from unittest.mock import AsyncMock, patch
 
+from tests.helpers import add_approved_member
+
 
 def setup_authenticated_account(client, project_name="Projet Dashboard", email="alice@test.local"):
-    project = client.post("/api/projects", json={"name": project_name}).json()
     client.headers["X-Dev-Email"] = email
+    project = client.post("/api/projects", json={"name": project_name}).json()
     return project, email
 
 
@@ -17,11 +19,13 @@ def link_repo_and_sync_issues(client, project_id, issues):
 
 
 def test_hours_over_time_for_unknown_project_returns_404(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     response = client.get("/api/projects/999/dashboard/hours-over-time")
     assert response.status_code == 404
 
 
 def test_hours_over_time_with_no_entries_returns_empty_series(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     project = client.post("/api/projects", json={"name": "Projet Vide"}).json()
     response = client.get(f"/api/projects/{project['id']}/dashboard/hours-over-time")
     assert response.status_code == 200
@@ -59,6 +63,7 @@ def test_hours_over_time_sums_entries_from_all_accounts(client):
         f"/api/projects/{project['id']}/time-entries",
         json={"date": "2026-08-01", "duration_hours": 2, "description": "Alice"},
     )
+    add_approved_member(project["id"], "bob@test.local")
     client.headers["X-Dev-Email"] = "bob@test.local"
     client.post(
         f"/api/projects/{project['id']}/time-entries",
@@ -91,11 +96,13 @@ def test_hours_over_time_uses_weekly_granularity_for_long_span(client):
 
 
 def test_recent_entries_for_unknown_project_returns_404(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     response = client.get("/api/projects/999/dashboard/recent-entries")
     assert response.status_code == 404
 
 
 def test_recent_entries_empty_project_returns_empty_list(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     project = client.post("/api/projects", json={"name": "Projet Sans Entrées"}).json()
     response = client.get(f"/api/projects/{project['id']}/dashboard/recent-entries")
     assert response.status_code == 200
@@ -109,6 +116,7 @@ def test_recent_entries_includes_author_across_all_accounts_sorted_by_date_desc(
         f"/api/projects/{project['id']}/time-entries",
         json={"date": "2026-08-01", "duration_hours": 2, "description": "Entrée d'Alice"},
     )
+    add_approved_member(project["id"], "bob@test.local")
     client.headers["X-Dev-Email"] = "bob@test.local"
     client.post(
         f"/api/projects/{project['id']}/time-entries",
@@ -142,11 +150,13 @@ def test_recent_entries_limited_to_ten(client):
 
 
 def test_stats_for_unknown_project_returns_404(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     response = client.get("/api/projects/999/dashboard/stats")
     assert response.status_code == 404
 
 
 def test_stats_for_project_without_entries(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     project = client.post("/api/projects", json={"name": "Projet Stats Vide"}).json()
     response = client.get(f"/api/projects/{project['id']}/dashboard/stats")
     assert response.status_code == 200
@@ -159,11 +169,13 @@ def test_stats_for_project_without_entries(client):
 
 
 def test_hours_by_issue_for_unknown_project_returns_404(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     response = client.get("/api/projects/999/dashboard/hours-by-issue")
     assert response.status_code == 404
 
 
 def test_hours_by_issue_with_no_entries_returns_empty(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     project = client.post("/api/projects", json={"name": "Projet Sans Issues"}).json()
     response = client.get(f"/api/projects/{project['id']}/dashboard/hours-by-issue")
     assert response.status_code == 200
@@ -215,11 +227,13 @@ def create_sprint(client, project_id, name="Sprint 1", start="2026-08-01", end="
 
 
 def test_sprint_stats_for_unknown_project_returns_404(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     response = client.get("/api/projects/999/dashboard/sprints/1/stats")
     assert response.status_code == 404
 
 
 def test_sprint_stats_for_unknown_sprint_returns_404(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     project = client.post("/api/projects", json={"name": "Projet Sprint Stats"}).json()
     response = client.get(f"/api/projects/{project['id']}/dashboard/sprints/999/stats")
     assert response.status_code == 404
@@ -251,6 +265,7 @@ def test_sprint_stats_aggregates_hours_by_account_and_issue(client):
         f"/api/projects/{project['id']}/time-entries",
         json={"date": "2026-08-06", "duration_hours": 1, "description": "Alice sans issue", "sprint_id": sprint["id"]},
     )
+    add_approved_member(project["id"], "bob@test.local")
     client.headers["X-Dev-Email"] = "bob@test.local"
     client.post(
         f"/api/projects/{project['id']}/time-entries",
@@ -282,11 +297,13 @@ def create_category(client, project_id, name="Dev"):
 
 
 def test_hours_by_category_for_unknown_project_returns_404(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     response = client.get("/api/projects/999/dashboard/hours-by-category")
     assert response.status_code == 404
 
 
 def test_hours_by_category_with_no_entries_returns_empty(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     project = client.post("/api/projects", json={"name": "Projet Sans Catégories"}).json()
     response = client.get(f"/api/projects/{project['id']}/dashboard/hours-by-category")
     assert response.status_code == 200
@@ -336,6 +353,7 @@ def test_stats_reflect_contributors_and_entries(client):
         f"/api/projects/{project['id']}/time-entries",
         json={"date": "2026-08-02", "duration_hours": 2, "description": "Alice 2"},
     )
+    add_approved_member(project["id"], "bob@test.local")
     client.headers["X-Dev-Email"] = "bob@test.local"
     client.post(
         f"/api/projects/{project['id']}/time-entries",

@@ -107,13 +107,18 @@ export function getProject(id: number | string): Promise<Project> {
 export function updateProject(id: number | string, input: ProjectInput): Promise<Project> {
   return fetch(`${API_URL}/api/projects/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...devAuthHeaders() },
     body: JSON.stringify(input),
   }).then((res) => handleResponse<Project>(res));
 }
 
 export function deleteProject(id: number | string): Promise<void> {
-  return fetch(`${API_URL}/api/projects/${id}`, { method: "DELETE" }).then((res) => {
+  return fetch(`${API_URL}/api/projects/${id}`, {
+    method: "DELETE",
+    credentials: "include",
+    headers: devAuthHeaders(),
+  }).then((res) => {
     if (!res.ok) throw new ApiError(res.status, "Impossible de supprimer ce projet.");
   });
 }
@@ -121,29 +126,50 @@ export function deleteProject(id: number | string): Promise<void> {
 export function linkGithubRepo(id: number | string, repo: string): Promise<Project> {
   return fetch(`${API_URL}/api/projects/${id}/github`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...devAuthHeaders() },
     body: JSON.stringify({ repo }),
   }).then((res) => handleResponse<Project>(res));
 }
 
 export function syncGithubIssues(id: number | string): Promise<GithubSyncResult> {
-  return fetch(`${API_URL}/api/projects/${id}/github/sync`, { method: "POST" }).then((res) =>
-    handleResponse<GithubSyncResult>(res),
-  );
+  return fetch(`${API_URL}/api/projects/${id}/github/sync`, {
+    method: "POST",
+    credentials: "include",
+    headers: devAuthHeaders(),
+  }).then((res) => handleResponse<GithubSyncResult>(res));
 }
 
 export function listGithubIssues(id: number | string): Promise<GithubIssue[]> {
-  return fetch(`${API_URL}/api/projects/${id}/github/issues`).then((res) => handleResponse<GithubIssue[]>(res));
+  return fetch(`${API_URL}/api/projects/${id}/github/issues`, {
+    credentials: "include",
+    headers: devAuthHeaders(),
+  }).then((res) => handleResponse<GithubIssue[]>(res));
 }
 
 export function setGithubLabelFilter(id: number | string, labels: string[]): Promise<Project> {
   return fetch(`${API_URL}/api/projects/${id}/github/label-filter`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...devAuthHeaders() },
     body: JSON.stringify({ labels }),
   }).then((res) => handleResponse<Project>(res));
 }
 
 export function listContributors(id: number | string): Promise<Contributor[]> {
   return fetch(`${API_URL}/api/projects/${id}/contributors`).then((res) => handleResponse<Contributor[]>(res));
+}
+
+export interface ProjectMember {
+  id: number;
+  email: string;
+  is_admin: boolean;
+  created_at: string;
+}
+
+export function listProjectMembers(id: number | string): Promise<ProjectMember[]> {
+  return fetch(`${API_URL}/api/projects/${id}/members`, {
+    credentials: "include",
+    headers: devAuthHeaders(),
+  }).then((res) => handleResponse<ProjectMember[]>(res));
 }

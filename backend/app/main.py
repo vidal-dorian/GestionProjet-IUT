@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import github_sync
 from app.config import settings
 from app.database import Base, engine
-from app.routers import admin, auth, categories, dashboard, exports, github, projects, sprints, time_entries
+from app.routers import admin, auth, categories, dashboard, exports, github, projects, sprints, team_roles, time_entries
 
 
 @asynccontextmanager
@@ -18,11 +18,15 @@ async def lifespan(app: FastAPI):
     # (auto_create_schema=False) et gèrent leur propre schéma en mémoire.
     if settings.auto_create_schema:
         Base.metadata.create_all(bind=engine)
-    task = asyncio.create_task(github_sync.periodic_sync_loop())
+    # La boucle périodique utilise le moteur de production (SessionLocal), pas
+    # la session de test injectée par dépendance : elle doit rester désactivée
+    # pendant les tests, sous peine de tenter une vraie connexion MySQL.
+    task = asyncio.create_task(github_sync.periodic_sync_loop()) if settings.enable_background_sync else None
     try:
         yield
     finally:
-        task.cancel()
+        if task is not None:
+            task.cancel()
 
 
 app = FastAPI(title="GestionProjet-IUT API", lifespan=lifespan)
@@ -44,6 +48,7 @@ app.include_router(sprints.router)
 app.include_router(categories.router)
 app.include_router(exports.router)
 app.include_router(admin.router)
+app.include_router(team_roles.router)
 
 
 @app.get("/api/health")

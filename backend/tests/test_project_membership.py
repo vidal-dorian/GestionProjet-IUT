@@ -1,3 +1,5 @@
+from datetime import date
+
 from app import models
 from tests.conftest import TestingSessionLocal
 
@@ -108,12 +110,29 @@ def test_list_projects_without_authentication_flags_no_membership(client):
 def test_existing_contributor_without_explicit_membership_still_sees_the_project(client):
     project = client.post("/api/projects", json={"name": "Projet legacy"}).json()
 
-    client.headers["X-Dev-Email"] = "alice@test.local"
-    client.post(
-        f"/api/projects/{project['id']}/time-entries",
-        json={"date": "2026-08-13", "duration_hours": 2, "description": "Dev"},
-    )
+    # Simule une saisie créée avant l'introduction du rattachement explicite
+    # (aucune ligne ProjectMembership) : insertion directe en base, comme le
+    # ferait une donnée héritée de l'ancien système.
+    db = TestingSessionLocal()
+    try:
+        account = models.Account(email="alice@test.local")
+        db.add(account)
+        db.commit()
+        db.refresh(account)
+        db.add(
+            models.TimeEntry(
+                project_id=project["id"],
+                account_id=account.id,
+                date=date(2026, 8, 13),
+                duration_hours=2,
+                description="Dev (legacy)",
+            )
+        )
+        db.commit()
+    finally:
+        db.close()
 
+    client.headers["X-Dev-Email"] = "alice@test.local"
     my_projects = client.get("/api/me/projects").json()
     assert [p["id"] for p in my_projects] == [project["id"]]
 

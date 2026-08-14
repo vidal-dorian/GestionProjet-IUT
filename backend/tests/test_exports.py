@@ -2,10 +2,12 @@ import io
 
 from openpyxl import load_workbook
 
+from tests.helpers import add_approved_member
+
 
 def setup_authenticated_account(client, email="alice@test.local"):
-    project = client.post("/api/projects", json={"name": "Projet Export"}).json()
     client.headers["X-Dev-Email"] = email
+    project = client.post("/api/projects", json={"name": "Projet Export"}).json()
     return project, email
 
 
@@ -53,6 +55,7 @@ def test_export_my_entries_with_no_entries_has_no_chart_sheets(client):
 
 
 def test_export_project_for_unknown_project_returns_404(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     response = client.get("/api/projects/999/export")
     assert response.status_code == 404
 
@@ -64,6 +67,7 @@ def test_export_project_returns_xlsx_with_summary_and_entries(client):
         f"/api/projects/{project['id']}/time-entries",
         json={"date": "2026-08-13", "duration_hours": 2, "description": "Alice"},
     )
+    add_approved_member(project["id"], "bob@test.local")
     client.headers["X-Dev-Email"] = "bob@test.local"
     client.post(
         f"/api/projects/{project['id']}/time-entries",
@@ -94,6 +98,7 @@ def test_export_project_returns_xlsx_with_summary_and_entries(client):
 
 
 def test_export_project_with_no_entries_has_no_chart_sheets(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     project = client.post("/api/projects", json={"name": "Projet Export Vide"}).json()
 
     response = client.get(f"/api/projects/{project['id']}/export")

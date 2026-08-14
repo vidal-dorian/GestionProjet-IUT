@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     cloudflare_access_aud: str | None = None
     dev_bypass_auth_enabled: bool = False
     auto_create_schema: bool = True
+    enable_background_sync: bool = True
 
 
 settings = Settings()

@@ -1,8 +1,10 @@
-def create_test_project(client, name="Projet Sprints"):
+def create_test_project(client, name="Projet Sprints", email="alice@test.local"):
+    client.headers["X-Dev-Email"] = email
     return client.post("/api/projects", json={"name": name}).json()
 
 
 def test_list_sprints_for_unknown_project_returns_404(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     response = client.get("/api/projects/999/sprints")
     assert response.status_code == 404
 
@@ -15,6 +17,7 @@ def test_list_sprints_empty_by_default(client):
 
 
 def test_create_sprint_for_unknown_project_returns_404(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     response = client.post(
         "/api/projects/999/sprints",
         json={"name": "Sprint 1", "start_date": "2026-08-01", "end_date": "2026-08-14"},

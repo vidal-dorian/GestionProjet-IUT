@@ -1,8 +1,22 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { downloadProjectExport } from "../api/exports";
-import { ApiError, getProject, listContributors, type Contributor, type Project } from "../api/projects";
-import { listSprints, type Sprint } from "../api/sprints";
+import {
+  ApiError,
+  getProject,
+  listContributors,
+  listProjectMembers,
+  type Contributor,
+  type Project,
+  type ProjectMember,
+} from "../api/projects";
+import { listRoles, type TeamRole } from "../api/roles";
+import {
+  listSprints,
+  replaceSprintRoleAssignments,
+  type Sprint,
+  type SprintRoleAssignment,
+} from "../api/sprints";
 import {
   getHoursByCategory,
   getHoursByIssue,
@@ -44,6 +58,13 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [roles, setRoles] = useState<TeamRole[]>([]);
+  const [members, setMembers] = useState<ProjectMember[]>([]);
+  const [roleAssignments, setRoleAssignments] = useState<SprintRoleAssignment[]>([]);
+  const [assignmentError, setAssignmentError] = useState<string | null>(null);
+  const [assignmentSaving, setAssignmentSaving] = useState(false);
+  const [newRoleId, setNewRoleId] = useState<number | "">("");
+  const [newMemberId, setNewMemberId] = useState<number | "">("");
 
   useEffect(() => {
     if (!projectId) return;
@@ -56,6 +77,8 @@ export default function DashboardPage() {
       getHoursByIssue(projectId),
       listSprints(projectId),
       getHoursByCategory(projectId),
+      listRoles(projectId),
+      listProjectMembers(projectId),
     ])
       .then(
         ([
@@ -67,6 +90,8 @@ export default function DashboardPage() {
           hoursByIssueData,
           sprintsData,
           hoursByCategoryData,
+          rolesData,
+          membersData,
         ]) => {
           setProject(projectData);
           setContributors(contributorsData);
@@ -76,6 +101,8 @@ export default function DashboardPage() {
           setHoursByIssue(hoursByIssueData);
           setSprints(sprintsData);
           setHoursByCategory(hoursByCategoryData);
+          setRoles(rolesData);
+          setMembers(membersData);
         },
       )
       .catch(() => setError("Impossible de charger le dashboard pour le moment."));
@@ -87,10 +114,53 @@ export default function DashboardPage() {
       return;
     }
     setSprintStatsError(null);
+    setAssignmentError(null);
     getSprintStats(projectId, selectedSprintId)
-      .then(setSprintStats)
+      .then((stats) => {
+        setSprintStats(stats);
+        setRoleAssignments(stats.role_assignments);
+      })
       .catch(() => setSprintStatsError("Impossible de charger le détail de ce sprint pour le moment."));
   }, [projectId, selectedSprintId]);
+
+  async function persistAssignments(next: SprintRoleAssignment[]) {
+    if (!projectId || selectedSprintId === "") return;
+    setAssignmentSaving(true);
+    setAssignmentError(null);
+    try {
+      const saved = await replaceSprintRoleAssignments(
+        projectId,
+        selectedSprintId,
+        next.map((a) => ({ role_id: a.role_id, account_id: a.account_id })),
+      );
+      setRoleAssignments(saved);
+    } catch (err) {
+      setAssignmentError(err instanceof ApiError ? err.message : "Impossible d'enregistrer l'assignation.");
+    } finally {
+      setAssignmentSaving(false);
+    }
+  }
+
+  function handleAssignRole() {
+    if (newRoleId === "" || newMemberId === "") return;
+    const already = roleAssignments.some((a) => a.role_id === newRoleId && a.account_id === newMemberId);
+    if (already) return;
+    const role = roles.find((r) => r.id === newRoleId);
+    const member = members.find((m) => m.id === newMemberId);
+    if (!role || !member) return;
+    const next = [
+      ...roleAssignments,
+      { role_id: role.id, role_name: role.name, account_id: member.id, account_email: member.email },
+    ];
+    setRoleAssignments(next);
+    void persistAssignments(next);
+  }
+
+  function handleRemoveAssignment(roleId: number, accountId: number) {
+    const next = roleAssignments.filter((a) => !(a.role_id === roleId && a.account_id === accountId));
+    setRoleAssignments(next);
+    void persistAssignments(next);
+  }
 
   async function handleExport() {
     if (!projectId) return;
@@ -228,6 +298,71 @@ export default function DashboardPage() {
                     </li>
                   )}
                 </ul>
+              )}
+
+              <h3>Rôles</h3>
+              {roleAssignments.length === 0 ? (
+                <p>Aucun rôle assigné sur ce sprint.</p>
+              ) : (
+                <ul className="member-list">
+                  {roleAssignments.map((assignment) => (
+                    <li key={`${assignment.role_id}-${assignment.account_id}`}>
+                      <span>
+                        {assignment.role_name} — {assignment.account_email}
+                      </span>
+                      <button
+                        type="button"
+                        className="button-danger"
+                        disabled={assignmentSaving}
+                        onClick={() => handleRemoveAssignment(assignment.role_id, assignment.account_id)}
+                      >
+                        Retirer
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {assignmentError && <p className="error">{assignmentError}</p>}
+
+              {roles.length > 0 && members.length > 0 && (
+                <div className="form form-inline">
+                  <label htmlFor="assign-role">Rôle</label>
+                  <select
+                    id="assign-role"
+                    value={newRoleId}
+                    onChange={(e) => setNewRoleId(e.target.value ? Number(e.target.value) : "")}
+                  >
+                    <option value="">Sélectionner un rôle...</option>
+                    {roles.map((role) => (
+                      <option key={role.id} value={role.id}>
+                        {role.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  <label htmlFor="assign-member">Membre</label>
+                  <select
+                    id="assign-member"
+                    value={newMemberId}
+                    onChange={(e) => setNewMemberId(e.target.value ? Number(e.target.value) : "")}
+                  >
+                    <option value="">Sélectionner un membre...</option>
+                    {members.map((member) => (
+                      <option key={member.id} value={member.id}>
+                        {member.email}
+                      </option>
+                    ))}
+                  </select>
+
+                  <button
+                    type="button"
+                    disabled={assignmentSaving || newRoleId === "" || newMemberId === ""}
+                    onClick={handleAssignRole}
+                  >
+                    Assigner
+                  </button>
+                </div>
               )}
             </div>
           )}

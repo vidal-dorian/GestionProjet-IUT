@@ -26,6 +26,7 @@ class Project(Base):
     memberships: Mapped[list["ProjectMembership"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
+    team_roles: Mapped[list["TeamRole"]] = relationship(back_populates="project", cascade="all, delete-orphan")
 
     @property
     def github_label_filter(self) -> list[str]:
@@ -121,6 +122,46 @@ class Sprint(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
     project: Mapped[Project] = relationship(back_populates="sprints")
+    role_assignments: Mapped[list["SprintRoleAssignment"]] = relationship(
+        back_populates="sprint", cascade="all, delete-orphan"
+    )
+
+
+class TeamRole(Base):
+    """Rôle d'équipe défini librement au niveau d'un projet (Product Owner,
+    Gestion de projet, Développeur, ou tout rôle personnalisé), assignable à
+    un ou plusieurs membres pour un sprint donné (SprintRoleAssignment)."""
+
+    __tablename__ = "team_roles"
+    __table_args__ = (UniqueConstraint("project_id", "name", name="uq_team_role_project_name"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+
+    project: Mapped[Project] = relationship(back_populates="team_roles")
+
+
+class SprintRoleAssignment(Base):
+    """Attribue un rôle d'équipe à un membre pour un sprint donné. Plusieurs
+    personnes peuvent partager le même rôle sur le même sprint, et une
+    personne peut cumuler plusieurs rôles sur le même sprint."""
+
+    __tablename__ = "sprint_role_assignments"
+    __table_args__ = (
+        UniqueConstraint("sprint_id", "role_id", "account_id", name="uq_sprint_role_assignment"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    sprint_id: Mapped[int] = mapped_column(ForeignKey("sprints.id", ondelete="CASCADE"), nullable=False)
+    role_id: Mapped[int] = mapped_column(ForeignKey("team_roles.id", ondelete="CASCADE"), nullable=False)
+    account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+
+    sprint: Mapped[Sprint] = relationship(back_populates="role_assignments")
+    role: Mapped[TeamRole] = relationship()
+    account: Mapped["Account"] = relationship()
 
 
 class Category(Base):

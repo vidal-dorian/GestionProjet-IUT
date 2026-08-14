@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app import crud, models, schemas
 from app.database import get_db
-from app.deps import get_current_account, get_current_account_optional
+from app.deps import get_current_account, get_current_account_optional, require_project_member
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
@@ -71,6 +71,13 @@ def join_project(
     return schemas.MembershipRead(project_id=project_id, status=membership.status)
 
 
+@router.get("/{project_id}/members", response_model=list[schemas.AccountRead])
+def list_members(
+    project_id: int, account: models.Account = Depends(require_project_member), db: Session = Depends(get_db)
+):
+    return crud.list_approved_members(db, project_id)
+
+
 @router.get("/{project_id}/contributors", response_model=list[schemas.AccountHours])
 def list_contributors(project_id: int, db: Session = Depends(get_db)):
     if crud.get_project(db, project_id) is None:
@@ -90,18 +97,21 @@ def read_project(project_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{project_id}", response_model=schemas.ProjectRead)
-def update_project(project_id: int, project: schemas.ProjectCreate, db: Session = Depends(get_db)):
+def update_project(
+    project_id: int,
+    project: schemas.ProjectCreate,
+    account: models.Account = Depends(require_project_member),
+    db: Session = Depends(get_db),
+):
     db_project = crud.get_project(db, project_id)
-    if db_project is None:
-        raise HTTPException(status_code=404, detail="Projet introuvable.")
 
     name = _validate_name(db, project.name, exclude_project_id=project_id)
     return crud.update_project(db, db_project, schemas.ProjectCreate(name=name, description=project.description))
 
 
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_project(project_id: int, db: Session = Depends(get_db)):
+def delete_project(
+    project_id: int, account: models.Account = Depends(require_project_member), db: Session = Depends(get_db)
+):
     db_project = crud.get_project(db, project_id)
-    if db_project is None:
-        raise HTTPException(status_code=404, detail="Projet introuvable.")
     crud.delete_project(db, db_project)

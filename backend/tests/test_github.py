@@ -4,7 +4,8 @@ from app import github_client
 from app.config import settings
 
 
-def create_test_project(client, name="Projet GitHub"):
+def create_test_project(client, name="Projet GitHub", email="alice@test.local"):
+    client.headers["X-Dev-Email"] = email
     return client.post("/api/projects", json={"name": name}).json()
 
 
@@ -16,6 +17,7 @@ def test_link_repo_requires_owner_repo_format(client):
 
 
 def test_link_repo_for_unknown_project_returns_404(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     response = client.put("/api/projects/999/github", json={"repo": "owner/repo"})
     assert response.status_code == 404
 
@@ -66,6 +68,7 @@ def test_sync_without_linked_repo_returns_400(client):
 
 
 def test_sync_for_unknown_project_returns_404(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     response = client.post("/api/projects/999/github/sync")
     assert response.status_code == 404
 
@@ -136,6 +139,7 @@ def test_sync_is_rate_limited_within_configured_interval(mock_list_issues, clien
 
 
 def test_issues_for_unknown_project_returns_404(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     response = client.get("/api/projects/999/github/issues")
     assert response.status_code == 404
 
@@ -153,6 +157,7 @@ def test_project_has_empty_label_filter_by_default(client):
 
 
 def test_label_filter_for_unknown_project_returns_404(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     response = client.put("/api/projects/999/github/label-filter", json={"labels": ["user-story"]})
     assert response.status_code == 404
 
