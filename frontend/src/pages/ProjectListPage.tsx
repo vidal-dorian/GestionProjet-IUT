@@ -78,7 +78,13 @@ export default function ProjectListPage() {
                   <div className="project-card-header">
                     <h2>{project.name}</h2>
                     {project.is_member && <span className="badge badge-member">Membre</span>}
-                    {label && <span className="badge badge-pending">{label}</span>}
+                    {label && (
+                      <span
+                        className={`badge ${project.membership_status === "rejected" ? "badge-rejected" : "badge-pending"}`}
+                      >
+                        {label}
+                      </span>
+                    )}
                   </div>
                   {project.description && <p className="description">{project.description}</p>}
                   <p className="meta">
