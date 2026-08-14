@@ -3,7 +3,12 @@ from sqlalchemy.orm import Session
 
 from app import crud, models, schemas
 from app.database import get_db
-from app.deps import get_current_account, get_current_account_optional, require_project_member
+from app.deps import (
+    get_current_account,
+    get_current_account_optional,
+    require_project_member,
+    require_project_owner,
+)
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
@@ -46,7 +51,11 @@ def create_project(
     db: Session = Depends(get_db),
 ):
     name = _validate_name(db, project.name)
-    db_project = crud.create_project(db, schemas.ProjectCreate(name=name, description=project.description))
+    db_project = crud.create_project(
+        db,
+        schemas.ProjectCreate(name=name, description=project.description),
+        created_by_account_id=account.id if account else None,
+    )
     if account is not None:
         crud.add_project_member(db, db_project.id, account.id)
     return db_project
@@ -100,7 +109,7 @@ def read_project(project_id: int, db: Session = Depends(get_db)):
 def update_project(
     project_id: int,
     project: schemas.ProjectCreate,
-    account: models.Account = Depends(require_project_member),
+    account: models.Account = Depends(require_project_owner),
     db: Session = Depends(get_db),
 ):
     db_project = crud.get_project(db, project_id)
@@ -111,7 +120,7 @@ def update_project(
 
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_project(
-    project_id: int, account: models.Account = Depends(require_project_member), db: Session = Depends(get_db)
+    project_id: int, account: models.Account = Depends(require_project_owner), db: Session = Depends(get_db)
 ):
     db_project = crud.get_project(db, project_id)
     crud.delete_project(db, db_project)

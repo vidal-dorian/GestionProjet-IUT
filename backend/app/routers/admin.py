@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app import crud, models, schemas
 from app.database import get_db
-from app.deps import get_current_admin
+from app.deps import get_current_admin, require_project_owner
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -57,11 +57,9 @@ def reject_membership_request(
 @router.get("/projects/{project_id}/members", response_model=list[schemas.AccountRead])
 def list_project_members(
     project_id: int,
-    admin: models.Account = Depends(get_current_admin),
+    account: models.Account = Depends(require_project_owner),
     db: Session = Depends(get_db),
 ):
-    if crud.get_project(db, project_id) is None:
-        raise HTTPException(status_code=404, detail="Projet introuvable.")
     return crud.list_approved_members(db, project_id)
 
 
@@ -69,7 +67,7 @@ def list_project_members(
 def remove_project_member(
     project_id: int,
     account_id: int,
-    admin: models.Account = Depends(get_current_admin),
+    account: models.Account = Depends(require_project_owner),
     db: Session = Depends(get_db),
 ):
     membership = crud.get_approved_membership(db, project_id, account_id)
