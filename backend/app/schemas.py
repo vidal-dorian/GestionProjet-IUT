@@ -102,6 +102,7 @@ class ProjectSummary(BaseModel):
     name: str
     description: str | None
     contributor_count: int
+    is_member: bool = False
 
 
 class TimeEntryCreate(BaseModel):

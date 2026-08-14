@@ -1,3 +1,5 @@
+import { devAuthHeaders } from "./authHeaders";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 export interface Project {
@@ -29,6 +31,7 @@ export interface ProjectSummary {
   name: string;
   description: string | null;
   contributor_count: number;
+  is_member: boolean;
 }
 
 export interface Contributor {
@@ -61,13 +64,30 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export function listProjects(): Promise<ProjectSummary[]> {
-  return fetch(`${API_URL}/api/projects`).then((res) => handleResponse<ProjectSummary[]>(res));
+  return fetch(`${API_URL}/api/projects`, { credentials: "include", headers: devAuthHeaders() }).then((res) =>
+    handleResponse<ProjectSummary[]>(res),
+  );
+}
+
+export function listMyProjects(): Promise<ProjectSummary[]> {
+  return fetch(`${API_URL}/api/me/projects`, { credentials: "include", headers: devAuthHeaders() }).then((res) =>
+    handleResponse<ProjectSummary[]>(res),
+  );
+}
+
+export function joinProject(id: number | string): Promise<Project> {
+  return fetch(`${API_URL}/api/projects/${id}/join`, {
+    method: "POST",
+    credentials: "include",
+    headers: devAuthHeaders(),
+  }).then((res) => handleResponse<Project>(res));
 }
 
 export function createProject(input: ProjectInput): Promise<Project> {
   return fetch(`${API_URL}/api/projects`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...devAuthHeaders() },
     body: JSON.stringify(input),
   }).then((res) => handleResponse<Project>(res));
 }

@@ -42,3 +42,10 @@ def get_current_account(request: Request, db: Session = Depends(get_db)) -> mode
     if not email:
         raise HTTPException(status_code=401, detail="Authentification requise.")
     return crud.get_or_create_account(db, email)
+
+
+def get_current_account_optional(request: Request, db: Session = Depends(get_db)) -> models.Account | None:
+    email = resolve_authenticated_email(request)
+    if not email:
+        return None
+    return crud.get_or_create_account(db, email)
