@@ -38,8 +38,8 @@ export default function CreateProjectPage() {
 
   return (
     <div className="page">
-      <Link to="/" className="back-link">
-        ← Retour aux projets
+      <Link to="/projects" className="back-link">
+        ← Tous les projets
       </Link>
       <h1>Créer un projet</h1>
       <form onSubmit={handleSubmit} className="form">

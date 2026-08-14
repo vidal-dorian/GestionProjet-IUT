@@ -10,7 +10,7 @@ const HEIGHT = 240;
 const PADDING_LEFT = 44;
 const PADDING_RIGHT = 12;
 const PADDING_TOP = 20;
-const PADDING_BOTTOM = 34;
+const PADDING_BOTTOM = 40;
 const INNER_WIDTH = WIDTH - PADDING_LEFT - PADDING_RIGHT;
 const INNER_HEIGHT = HEIGHT - PADDING_TOP - PADDING_BOTTOM;
 const MAX_X_LABELS = 7;
@@ -74,7 +74,7 @@ export default function HoursOverTimeChart({ data }: Props) {
               <text
                 key={c.period}
                 x={c.x}
-                y={HEIGHT - PADDING_BOTTOM + 22}
+                y={HEIGHT - PADDING_BOTTOM + 28}
                 className="line-chart-axis-label"
                 textAnchor="middle"
               >

@@ -1,6 +1,7 @@
 import { type MouseEvent, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { me } from "../api/auth";
+import { LAST_PROJECT_STORAGE_KEY } from "../components/ProjectNav";
 import { ApiError, joinProject, listProjects, type ProjectSummary } from "../api/projects";
 
 function membershipLabel(project: ProjectSummary): string | null {
@@ -43,10 +44,21 @@ export default function ProjectListPage() {
     }
   }
 
+  const lastProjectId = localStorage.getItem(LAST_PROJECT_STORAGE_KEY);
+  const canReturnToLastProject = lastProjectId && projects?.some((p) => p.id === Number(lastProjectId) && p.is_member);
+
   return (
     <div className="page">
+      {canReturnToLastProject && (
+        <Link to={`/projects/${lastProjectId}`} className="back-link">
+          ← Retour à mon espace
+        </Link>
+      )}
       <div className="page-header">
-        <h1>Projets</h1>
+        <div>
+          <h1>Tous les projets</h1>
+          <p className="meta">Rejoignez un projet existant ou créez le vôtre.</p>
+        </div>
         <div className="page-header-actions">
           {isAdmin && (
             <Link to="/admin/demandes" className="button-secondary">
@@ -78,7 +90,13 @@ export default function ProjectListPage() {
                   <div className="project-card-header">
                     <h2>{project.name}</h2>
                     {project.is_member && <span className="badge badge-member">Membre</span>}
-                    {label && <span className="badge badge-pending">{label}</span>}
+                    {label && (
+                      <span
+                        className={`badge ${project.membership_status === "rejected" ? "badge-rejected" : "badge-pending"}`}
+                      >
+                        {label}
+                      </span>
+                    )}
                   </div>
                   {project.description && <p className="description">{project.description}</p>}
                   <p className="meta">

@@ -51,7 +51,9 @@ export default function AdminMembershipRequestsPage() {
     return (
       <div className="page">
         <p className="error">Réservé aux administrateurs.</p>
-        <Link to="/">← Retour aux projets</Link>
+        <Link to="/" className="back-link">
+          ← Retour à l'accueil
+        </Link>
       </div>
     );
   }
@@ -60,7 +62,7 @@ export default function AdminMembershipRequestsPage() {
     <div className="page">
       <div className="page-header">
         <Link to="/" className="back-link">
-          ← Retour aux projets
+          ← Retour à l'accueil
         </Link>
       </div>
       <h1>Demandes d'adhésion</h1>
