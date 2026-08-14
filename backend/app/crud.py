@@ -30,8 +30,14 @@ def get_project_by_name(db: Session, name: str) -> models.Project | None:
 DEFAULT_TEAM_ROLES = ["Product Owner", "Gestion de projet", "Développeur"]
 
 
-def create_project(db: Session, project: schemas.ProjectCreate) -> models.Project:
-    db_project = models.Project(name=project.name.strip(), description=project.description)
+def create_project(
+    db: Session, project: schemas.ProjectCreate, created_by_account_id: int | None = None
+) -> models.Project:
+    db_project = models.Project(
+        name=project.name.strip(),
+        description=project.description,
+        created_by_account_id=created_by_account_id,
+    )
     db.add(db_project)
     db.flush()
     for role_name in DEFAULT_TEAM_ROLES:

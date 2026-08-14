@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app import crud, github_client, github_sync, models, schemas
 from app.config import settings
 from app.database import get_db
-from app.deps import require_project_member
+from app.deps import require_project_member, require_project_owner
 
 router = APIRouter(prefix="/api/projects/{project_id}/github", tags=["github"])
 
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api/projects/{project_id}/github", tags=["github"])
 async def link_repo(
     project_id: int,
     link: schemas.GithubRepoLink,
-    account: models.Account = Depends(require_project_member),
+    account: models.Account = Depends(require_project_owner),
     db: Session = Depends(get_db),
 ):
     db_project = crud.get_project(db, project_id)
@@ -38,7 +38,7 @@ async def link_repo(
 
 @router.post("/sync", response_model=schemas.GithubSyncResult)
 async def sync_repo(
-    project_id: int, account: models.Account = Depends(require_project_member), db: Session = Depends(get_db)
+    project_id: int, account: models.Account = Depends(require_project_owner), db: Session = Depends(get_db)
 ):
     db_project = crud.get_project(db, project_id)
     if not db_project.github_repo:
@@ -81,7 +81,7 @@ async def list_issues(
 async def update_label_filter(
     project_id: int,
     filter_update: schemas.GithubLabelFilterUpdate,
-    account: models.Account = Depends(require_project_member),
+    account: models.Account = Depends(require_project_owner),
     db: Session = Depends(get_db),
 ):
     db_project = crud.get_project(db, project_id)

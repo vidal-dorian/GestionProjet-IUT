@@ -7,6 +7,7 @@ export interface Project {
   name: string;
   description: string | null;
   created_at: string;
+  created_by_account_id: number | null;
   github_repo: string | null;
   github_last_synced_at: string | null;
   github_label_filter: string[];

@@ -16,6 +16,7 @@ class ProjectRead(BaseModel):
     name: str
     description: str | None
     created_at: datetime
+    created_by_account_id: int | None
     github_repo: str | None
     github_last_synced_at: datetime | None
     github_label_filter: list[str]

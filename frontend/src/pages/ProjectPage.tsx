@@ -10,10 +10,13 @@ export default function ProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const [project, setProject] = useState<Project | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [account, setAccount] = useState<Account | null>(null);
   const [members, setMembers] = useState<Account[] | null>(null);
   const [removingId, setRemovingId] = useState<number | null>(null);
   const [membersError, setMembersError] = useState<string | null>(null);
+
+  const canManage =
+    !!account && (account.is_admin || (project !== null && project.created_by_account_id === account.id));
 
   useEffect(() => {
     if (!projectId) return;
@@ -25,15 +28,16 @@ export default function ProjectPage() {
   useEffect(() => {
     if (!projectId) return;
     me()
-      .then((account) => {
-        setIsAdmin(account.is_admin);
-        if (!account.is_admin) return;
-        return listProjectMembers(projectId)
-          .then(setMembers)
-          .catch(() => setMembersError("Impossible de charger les membres pour le moment."));
-      })
-      .catch(() => setIsAdmin(false));
+      .then(setAccount)
+      .catch(() => setAccount(null));
   }, [projectId]);
+
+  useEffect(() => {
+    if (!projectId || !canManage) return;
+    listProjectMembers(projectId)
+      .then(setMembers)
+      .catch(() => setMembersError("Impossible de charger les membres pour le moment."));
+  }, [projectId, canManage]);
 
   async function handleRemoveMember(accountId: number) {
     if (!projectId) return;
@@ -92,7 +96,7 @@ export default function ProjectPage() {
 
       <ContributorsSection projectId={project.id} />
 
-      {isAdmin && (
+      {canManage && (
         <section className="member-management">
           <h2>Membres du projet</h2>
           {membersError && <p className="error">{membersError}</p>}

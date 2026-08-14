@@ -13,6 +13,9 @@ class Project(Base):
     name: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    created_by_account_id: Mapped[int | None] = mapped_column(
+        ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True
+    )
     github_repo: Mapped[str | None] = mapped_column(String(255), nullable=True)
     github_last_synced_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     github_label_filter_raw: Mapped[str] = mapped_column(String(500), nullable=False, default="")
