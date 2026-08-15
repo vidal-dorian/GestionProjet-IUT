@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.0](https://github.com/vidal-dorian/GestionProjet-IUT/compare/v1.1.0...v1.2.0) (2026-08-15)
+
+
+### Features
+
+* US-29, US-32/33 — burndown chart et diagramme de Gantt ([fe9da8e](https://github.com/vidal-dorian/GestionProjet-IUT/commit/fe9da8e9959f6a3dd0d6bc5bf55cb7254a52448e))
+* US-44 — empêcher la saisie d'une heure de travail dans le futur ([592855b](https://github.com/vidal-dorian/GestionProjet-IUT/commit/592855b40fb7e9870babce57d41f1551833d0af0))
+
 ## [1.1.0](https://github.com/vidal-dorian/GestionProjet-IUT/compare/v1.0.0...v1.1.0) (2026-08-14)
 
 
