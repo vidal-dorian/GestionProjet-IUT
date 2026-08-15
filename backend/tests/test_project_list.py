@@ -23,12 +23,27 @@ def test_list_projects_returns_name_description_and_contributor_count(client):
     assert by_name["App mobile"]["contributor_count"] == 0
 
 
+def test_list_contributors_requires_authentication(client):
+    response = client.get("/api/projects/999/contributors")
+    assert response.status_code == 401
+
+
+def test_list_contributors_requires_membership(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
+    project = client.post("/api/projects", json={"name": "Projet Contributeurs Privé"}).json()
+    client.headers["X-Dev-Email"] = "bob@test.local"
+    response = client.get(f"/api/projects/{project['id']}/contributors")
+    assert response.status_code == 403
+
+
 def test_list_contributors_for_unknown_project_returns_404(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     response = client.get("/api/projects/999/contributors")
     assert response.status_code == 404
 
 
 def test_list_contributors_empty_by_default(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     project = client.post("/api/projects", json={"name": "Projet Sans Contributeur"}).json()
     response = client.get(f"/api/projects/{project['id']}/contributors")
     assert response.status_code == 200

@@ -158,7 +158,10 @@ export function setGithubLabelFilter(id: number | string, labels: string[]): Pro
 }
 
 export function listContributors(id: number | string): Promise<Contributor[]> {
-  return fetch(`${API_URL}/api/projects/${id}/contributors`).then((res) => handleResponse<Contributor[]>(res));
+  return fetch(`${API_URL}/api/projects/${id}/contributors`, {
+    credentials: "include",
+    headers: devAuthHeaders(),
+  }).then((res) => handleResponse<Contributor[]>(res));
 }
 
 export interface ProjectMember {

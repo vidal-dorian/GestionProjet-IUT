@@ -10,16 +10,34 @@ from app import models
 
 ENTRY_HEADERS = ["Date", "Durée (h)", "Description", "Sprint", "Issue", "Catégorie"]
 
+# Neutralise l'injection de formule (CSV/Excel injection) : un tableur interprète comme
+# formule toute cellule texte commençant par l'un de ces caractères. Ces valeurs (description
+# de saisie, noms de sprint/catégorie/projet...) sont fournies par n'importe quel membre du
+# projet, donc non fiables — on les préfixe d'une apostrophe pour forcer un affichage littéral.
+_FORMULA_PREFIXES = ("=", "+", "-", "@")
+
+
+def _safe_cell(value):
+    if isinstance(value, str) and value.startswith(_FORMULA_PREFIXES):
+        return "'" + value
+    return value
+
+
+def _safe_row(row: list) -> list:
+    return [_safe_cell(value) for value in row]
+
 
 def _entry_row(entry: models.TimeEntry) -> list:
-    return [
-        entry.date,
-        entry.duration_hours,
-        entry.description,
-        entry.sprint.name if entry.sprint else "",
-        f"#{entry.github_issue.number} {entry.github_issue.title}" if entry.github_issue else "",
-        entry.category.name if entry.category else "",
-    ]
+    return _safe_row(
+        [
+            entry.date,
+            entry.duration_hours,
+            entry.description,
+            entry.sprint.name if entry.sprint else "",
+            f"#{entry.github_issue.number} {entry.github_issue.title}" if entry.github_issue else "",
+            entry.category.name if entry.category else "",
+        ]
+    )
 
 
 def _write_entries_sheet(ws: Worksheet, entries: list[models.TimeEntry], *, include_account: bool) -> None:
@@ -31,7 +49,7 @@ def _write_entries_sheet(ws: Worksheet, entries: list[models.TimeEntry], *, incl
     for entry in entries:
         row = _entry_row(entry)
         if include_account:
-            row.insert(1, entry.account_email)
+            row.insert(1, _safe_cell(entry.account_email))
         ws.append(row)
 
     for col_idx, header in enumerate(headers, start=1):
@@ -42,7 +60,7 @@ def _add_bar_chart_sheet(wb: Workbook, title: str, data: list[tuple[str, float]]
     ws = wb.create_sheet(title[:31])
     ws.append(["Libellé", "Heures"])
     for label, hours in data:
-        ws.append([label, round(hours, 2)])
+        ws.append([_safe_cell(label), round(hours, 2)])
 
     chart = BarChart()
     chart.title = title
@@ -58,7 +76,7 @@ def _add_line_chart_sheet(wb: Workbook, title: str, data: list[tuple[str, float]
     ws = wb.create_sheet(title[:31])
     ws.append(["Date", "Heures"])
     for label, hours in data:
-        ws.append([label, round(hours, 2)])
+        ws.append([_safe_cell(label), round(hours, 2)])
 
     chart = LineChart()
     chart.title = title
@@ -99,7 +117,7 @@ def build_burndown_export(sprint: models.Sprint, data: dict) -> io.BytesIO:
     ws = wb.active
     ws.title = "Burndown"
 
-    ws.append(["Sprint", sprint.name])
+    ws.append(["Sprint", _safe_cell(sprint.name)])
     ws.append(["Début", sprint.start_date])
     ws.append(["Fin", sprint.end_date])
     ws.append(["Total story points", data["total_points"]])
@@ -152,7 +170,7 @@ def build_project_export(
     average = round(total_hours / contributor_count, 2) if contributor_count else 0.0
 
     ws_summary.append(["Indicateur", "Valeur"])
-    ws_summary.append(["Projet", project.name])
+    ws_summary.append(["Projet", _safe_cell(project.name)])
     ws_summary.append(["Total heures", round(total_hours, 2)])
     ws_summary.append(["Nombre de contributeurs", contributor_count])
     ws_summary.append(["Nombre d'entrées", len(entries)])

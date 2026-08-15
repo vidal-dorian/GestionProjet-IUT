@@ -97,6 +97,20 @@ def test_export_project_returns_xlsx_with_summary_and_entries(client):
     assert entries_sheet.max_row == 3  # header + 2 entries
 
 
+def test_export_my_entries_sanitizes_description_starting_with_a_formula_prefix(client):
+    project, _ = setup_authenticated_account(client)
+    client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-13", "duration_hours": 2, "description": "=cmd|'/C calc'!A0"},
+    )
+
+    response = client.get(f"/api/projects/{project['id']}/time-entries/export")
+    wb = load_workbook(io.BytesIO(response.content))
+    ws = wb["Entrées"]
+    description_cell = ws["C2"]
+    assert description_cell.value == "'=cmd|'/C calc'!A0"
+
+
 def test_export_project_with_no_entries_has_no_chart_sheets(client):
     client.headers["X-Dev-Email"] = "alice@test.local"
     project = client.post("/api/projects", json={"name": "Projet Export Vide"}).json()

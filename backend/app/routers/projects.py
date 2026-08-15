@@ -88,12 +88,14 @@ def list_members(
 
 
 @router.get("/{project_id}/contributors", response_model=list[schemas.AccountHours])
-def list_contributors(project_id: int, db: Session = Depends(get_db)):
-    if crud.get_project(db, project_id) is None:
-        raise HTTPException(status_code=404, detail="Projet introuvable.")
+def list_contributors(
+    project_id: int,
+    _account: models.Account = Depends(require_project_member),
+    db: Session = Depends(get_db),
+):
     return [
-        schemas.AccountHours(account_id=account.id, account_email=account.email, hours=round(hours, 2))
-        for account, hours in crud.list_project_contributors(db, project_id)
+        schemas.AccountHours(account_id=contributor.id, account_email=contributor.email, hours=round(hours, 2))
+        for contributor, hours in crud.list_project_contributors(db, project_id)
     ]
 
 
