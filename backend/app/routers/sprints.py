@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app import crud, models, schemas
+from app import burndown, crud, models, schemas
 from app.database import get_db
 from app.deps import require_project_member
 
@@ -41,6 +41,21 @@ def create_sprint(
     db_sprint = crud.create_sprint(db, project_id, sprint)
     warning = _overlap_warning(db, project_id, db_sprint, exclude_id=db_sprint.id)
     return schemas.SprintWriteResult(sprint=db_sprint, overlap_warning=warning)
+
+
+@router.get("/{sprint_id}/burndown", response_model=schemas.BurndownChartData)
+def get_sprint_burndown(
+    project_id: int,
+    sprint_id: int,
+    account: models.Account = Depends(require_project_member),
+    db: Session = Depends(get_db),
+):
+    db_sprint = crud.get_sprint(db, project_id, sprint_id)
+    if db_sprint is None:
+        raise HTTPException(status_code=404, detail="Sprint introuvable.")
+    issues = crud.list_github_issues(db, project_id)
+    result = burndown.compute_burndown(db_sprint, issues)
+    return schemas.BurndownChartData(sprint=db_sprint, **result)
 
 
 @router.get("/{sprint_id}/role-assignments", response_model=list[schemas.SprintRoleAssignmentRead])

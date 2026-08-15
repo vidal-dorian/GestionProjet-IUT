@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { type Account, me } from "../api/auth";
-import { downloadProjectExport } from "../api/exports";
+import { downloadProjectExport, downloadSprintBurndownExport } from "../api/exports";
 import ProjectNav from "../components/ProjectNav";
 import {
   ApiError,
@@ -14,8 +14,10 @@ import {
 } from "../api/projects";
 import { listRoles, type TeamRole } from "../api/roles";
 import {
+  getSprintBurndown,
   listSprints,
   replaceSprintRoleAssignments,
+  type BurndownChartData,
   type Sprint,
   type SprintRoleAssignment,
 } from "../api/sprints";
@@ -33,6 +35,8 @@ import {
   type RecentTimeEntry,
   type SprintStats,
 } from "../api/dashboard";
+import BurndownChart from "../components/BurndownChart";
+import GanttChart from "../components/GanttChart";
 import HoursByCategoryChart from "../components/HoursByCategoryChart";
 import HoursByContributorChart from "../components/HoursByContributorChart";
 import HoursByIssueChart from "../components/HoursByIssueChart";
@@ -68,6 +72,10 @@ export default function DashboardPage() {
   const [newRoleId, setNewRoleId] = useState<number | "">("");
   const [newMemberId, setNewMemberId] = useState<number | "">("");
   const [account, setAccount] = useState<Account | null>(null);
+  const [burndown, setBurndown] = useState<BurndownChartData | null>(null);
+  const [burndownError, setBurndownError] = useState<string | null>(null);
+  const [burndownExporting, setBurndownExporting] = useState(false);
+  const [burndownExportError, setBurndownExportError] = useState<string | null>(null);
 
   useEffect(() => {
     me()
@@ -120,6 +128,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!projectId || selectedSprintId === "") {
       setSprintStats(null);
+      setBurndown(null);
       return;
     }
     setSprintStatsError(null);
@@ -130,6 +139,11 @@ export default function DashboardPage() {
         setRoleAssignments(stats.role_assignments);
       })
       .catch(() => setSprintStatsError("Impossible de charger le détail de ce sprint pour le moment."));
+
+    setBurndownError(null);
+    getSprintBurndown(projectId, selectedSprintId)
+      .then(setBurndown)
+      .catch(() => setBurndownError("Impossible de charger le burndown pour le moment."));
   }, [projectId, selectedSprintId]);
 
   async function persistAssignments(next: SprintRoleAssignment[]) {
@@ -184,6 +198,19 @@ export default function DashboardPage() {
     }
   }
 
+  async function handleBurndownExport() {
+    if (!projectId || selectedSprintId === "") return;
+    setBurndownExportError(null);
+    setBurndownExporting(true);
+    try {
+      await downloadSprintBurndownExport(projectId, selectedSprintId);
+    } catch (err) {
+      setBurndownExportError(err instanceof ApiError ? err.message : "Impossible d'exporter le burndown pour le moment.");
+    } finally {
+      setBurndownExporting(false);
+    }
+  }
+
   if (error) {
     return (
       <div className="page">
@@ -218,6 +245,11 @@ export default function DashboardPage() {
         <section className="chart-section">
           <h2>Indicateurs clés</h2>
           <ProjectStatsTiles stats={stats} />
+        </section>
+
+        <section className="chart-section">
+          <h2>Planning des sprints</h2>
+          <GanttChart sprints={sprints} />
         </section>
 
       <section className="chart-section">
@@ -267,6 +299,38 @@ export default function DashboardPage() {
               </option>
             ))}
           </select>
+
+          {burndownError && <p className="error">{burndownError}</p>}
+
+          {burndown && (
+            <div className="sprint-stats">
+              <div className="page-header">
+                <h3>Burndown</h3>
+                <button type="button" className="button-secondary" onClick={handleBurndownExport} disabled={burndownExporting}>
+                  {burndownExporting ? "Export..." : "Exporter (Excel)"}
+                </button>
+              </div>
+              {burndownExportError && <p className="error">{burndownExportError}</p>}
+              {burndown.matched_issue_count === 0 ? (
+                <p>
+                  Aucune US GitHub n'est labellisée « {burndown.sprint.name} ». Ajoute ce label aux US
+                  correspondantes sur GitHub pour voir apparaître ce burndown.
+                </p>
+              ) : (
+                <>
+                  <p className="meta">
+                    {burndown.total_points} story point{burndown.total_points > 1 ? "s" : ""} au total sur{" "}
+                    {burndown.matched_issue_count} US
+                    {burndown.unestimated_issue_count > 0 &&
+                      ` (dont ${burndown.unestimated_issue_count} sans valorisation, comptée${
+                        burndown.unestimated_issue_count > 1 ? "s" : ""
+                      } pour 0)`}
+                  </p>
+                  <BurndownChart ideal={burndown.ideal} actual={burndown.actual} totalPoints={burndown.total_points} />
+                </>
+              )}
+            </div>
+          )}
 
           {sprintStatsError && <p className="error">{sprintStatsError}</p>}
 

@@ -777,3 +777,107 @@ h2 {
 .sprint-stats {
   margin-top: 1rem;
 }
+
+/* ==========================================================================
+   Burndown
+   ========================================================================== */
+
+.burndown-line-ideal {
+  stroke: var(--ink-muted);
+  stroke-width: 2;
+  stroke-dasharray: 6 5;
+  stroke-linecap: round;
+}
+
+.burndown-line-actual {
+  stroke: var(--ink);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.burndown-legend {
+  display: flex;
+  gap: 1.25rem;
+  margin-top: 0.75rem;
+}
+
+.burndown-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: var(--ink-secondary);
+}
+
+.burndown-legend-swatch {
+  display: inline-block;
+  width: 16px;
+  height: 2px;
+}
+
+.burndown-legend-swatch-actual {
+  background: var(--ink);
+}
+
+.burndown-legend-swatch-ideal {
+  background-image: repeating-linear-gradient(to right, var(--ink-muted) 0 4px, transparent 4px 7px);
+}
+
+/* ==========================================================================
+   Gantt
+   ========================================================================== */
+
+.gantt-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.gantt-row {
+  display: grid;
+  grid-template-columns: 6.5rem 1fr 11.5rem;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.gantt-row-label {
+  font-size: 0.9rem;
+  color: var(--ink-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gantt-row-track {
+  position: relative;
+  background: var(--hairline);
+  border-radius: 4px;
+  height: 18px;
+}
+
+.gantt-row-bar {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: var(--ink);
+  border-radius: 4px;
+}
+
+.gantt-row-dates {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .gantt-row {
+    grid-template-columns: 1fr;
+    row-gap: 0.35rem;
+  }
+
+  .gantt-row-dates {
+    text-align: right;
+  }
+}

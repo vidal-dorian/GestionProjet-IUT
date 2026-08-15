@@ -94,6 +94,52 @@ def build_account_export(
     return buffer
 
 
+def build_burndown_export(sprint: models.Sprint, data: dict) -> io.BytesIO:
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Burndown"
+
+    ws.append(["Sprint", sprint.name])
+    ws.append(["Début", sprint.start_date])
+    ws.append(["Fin", sprint.end_date])
+    ws.append(["Total story points", data["total_points"]])
+    ws.append(["US sans valorisation", data["unestimated_issue_count"]])
+    ws.append([])
+    header_row = ws.max_row + 1
+
+    total_points = data["total_points"]
+    total_days = (sprint.end_date - sprint.start_date).days or 1
+    actual_by_date = {point["date"]: point["remaining_points"] for point in data["actual"]}
+    all_dates = sorted({point["date"] for point in data["ideal"]} | set(actual_by_date))
+
+    ws.append(["Date", "Idéal (SP restants)", "Réel (SP restants)"])
+    last_actual = total_points
+    for d in all_dates:
+        fraction = max(0.0, min(1.0, (d - sprint.start_date).days / total_days))
+        ideal_value = round(total_points * (1 - fraction), 2)
+        if d in actual_by_date:
+            last_actual = actual_by_date[d]
+        ws.append([d, ideal_value, round(last_actual, 2)])
+
+    chart = LineChart()
+    chart.title = f"Burndown — {sprint.name}"
+    chart.y_axis.title = "Story points restants"
+    data_ref = Reference(ws, min_col=2, max_col=3, min_row=header_row, max_row=header_row + len(all_dates))
+    cats_ref = Reference(ws, min_col=1, min_row=header_row + 1, max_row=header_row + len(all_dates))
+    chart.add_data(data_ref, titles_from_data=True)
+    chart.set_categories(cats_ref)
+    ws.add_chart(chart, "E2")
+
+    ws.column_dimensions["A"].width = 22
+    ws.column_dimensions["B"].width = 20
+    ws.column_dimensions["C"].width = 20
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return buffer
+
+
 def build_project_export(
     project: models.Project, entries: list[models.TimeEntry], contributors: list[models.Account]
 ) -> io.BytesIO:

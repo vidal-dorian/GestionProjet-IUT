@@ -30,6 +30,20 @@ export interface SprintRoleAssignment {
   account_email: string;
 }
 
+export interface BurndownPoint {
+  date: string;
+  remaining_points: number;
+}
+
+export interface BurndownChartData {
+  sprint: Sprint;
+  total_points: number;
+  matched_issue_count: number;
+  unestimated_issue_count: number;
+  ideal: BurndownPoint[];
+  actual: BurndownPoint[];
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const body = await response.json().catch(() => null);
@@ -53,6 +67,16 @@ export function createSprint(projectId: number | string, input: SprintInput): Pr
     headers: { "Content-Type": "application/json", ...devAuthHeaders() },
     body: JSON.stringify(input),
   }).then((res) => handleResponse<SprintWriteResult>(res));
+}
+
+export function getSprintBurndown(
+  projectId: number | string,
+  sprintId: number | string,
+): Promise<BurndownChartData> {
+  return fetch(`${API_URL}/api/projects/${projectId}/sprints/${sprintId}/burndown`, {
+    credentials: "include",
+    headers: devAuthHeaders(),
+  }).then((res) => handleResponse<BurndownChartData>(res));
 }
 
 export function listSprintRoleAssignments(
