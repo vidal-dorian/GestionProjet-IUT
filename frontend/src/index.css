@@ -81,6 +81,13 @@ a {
   padding: 2.5rem 1.5rem 4rem;
 }
 
+/* Le dashboard a besoin de plus de place pour aligner ses graphiques à deux
+   colonnes sur grand écran ; les autres pages gardent la colonne de lecture
+   étroite de 660px. */
+.page-wide {
+  max-width: 1040px;
+}
+
 h1 {
   font-size: 1.7rem;
   font-weight: 700;
@@ -146,12 +153,18 @@ h2 {
 .project-nav-inner {
   max-width: 660px;
   margin: 0 auto;
-  padding: 1.1rem 1.5rem;
+  padding: 0.9rem 1.5rem 0;
+}
+
+/* Rangée 1 : nom du projet + sélecteur, puis identité/compte. Toujours en
+   deux zones qui se réarrangent librement — jamais de dépassement latéral,
+   même avec un nom de projet long ou un e-mail long. */
+.project-nav-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 0.75rem 1.25rem;
+  gap: 0.6rem 1.25rem;
 }
 
 .project-nav-identity {
@@ -159,6 +172,7 @@ h2 {
   align-items: center;
   gap: 0.75rem;
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .project-nav-name {
@@ -170,15 +184,60 @@ h2 {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
+.project-nav-account {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  font-size: 0.8rem;
+}
+
+.project-nav-account-email {
+  display: inline-flex;
+  align-items: center;
+  color: var(--ink-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 11rem;
+}
+
+.project-nav-browse,
+.project-nav-logout {
+  color: var(--ink-muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.project-nav-browse:hover,
+.project-nav-logout:hover {
+  color: var(--ink);
+}
+
+/* Rangée 2 : les onglets. Toujours sur leur propre ligne, avec défilement
+   horizontal en dernier recours plutôt qu'un retour à la ligne qui casserait
+   l'alignement — se comporte comme un ruban d'onglets sur mobile. */
 .project-nav-links {
   display: flex;
   align-items: center;
   gap: 1.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--hairline);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.project-nav-links::-webkit-scrollbar {
+  display: none;
 }
 
 .project-nav-link {
+  flex: 0 0 auto;
   color: var(--ink-muted);
   text-decoration: none;
   font-size: 0.9rem;
@@ -196,22 +255,12 @@ h2 {
   border-bottom-color: var(--ink);
 }
 
-.project-nav-account {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  font-size: 0.8rem;
-}
-
-.project-nav-browse,
-.project-nav-logout {
-  color: var(--ink-muted);
-  text-decoration: none;
-}
-
-.project-nav-browse:hover,
-.project-nav-logout:hover {
-  color: var(--ink);
+/* Petits écrans : compte tenu de la place limitée, l'e-mail cède la place
+   aux actions (rejoindre/se déconnecter restent toujours accessibles). */
+@media (max-width: 480px) {
+  .project-nav-account-email {
+    max-width: 7rem;
+  }
 }
 
 .meta {
@@ -526,6 +575,26 @@ h2 {
   padding: 1.5rem;
   border: 1px solid var(--hairline);
   border-radius: var(--radius-md);
+}
+
+/* Cartes purement graphiques du dashboard : 2 colonnes dès que la largeur le
+   permet, empilées sans y perdre en lisibilité sur mobile (voir la section
+   "Petits écrans" plus bas pour le reste des ajustements mobiles). */
+.chart-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.chart-grid .chart-section {
+  margin-top: 0;
+}
+
+@media (min-width: 900px) {
+  .chart-grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 .time-entries-section {
@@ -879,5 +948,31 @@ h2 {
 
   .gantt-row-dates {
     text-align: right;
+  }
+}
+
+/* ==========================================================================
+   Petits écrans — l'app doit rester pleinement utilisable au téléphone, pas
+   juste "ne pas casser" : moins de marge perdue, cibles tactiles conservées.
+   ========================================================================== */
+
+@media (max-width: 480px) {
+  .page,
+  .page-wide {
+    padding: 1.5rem 1rem 3rem;
+  }
+
+  .chart-section,
+  .form {
+    padding: 1.1rem;
+  }
+
+  .bar-chart-row {
+    grid-template-columns: 5rem 1fr 3rem;
+    gap: 0.5rem;
+  }
+
+  .stat-tiles {
+    grid-template-columns: repeat(2, 1fr);
   }
 }

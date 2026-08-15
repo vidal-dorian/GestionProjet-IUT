@@ -1,7 +1,8 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { type Account, me } from "../api/auth";
+import { type Account } from "../api/auth";
 import { listProjectMembers, removeProjectMember } from "../api/admin";
+import { useAuth } from "../context/AuthContext";
 import {
   ApiError,
   deleteProject,
@@ -23,7 +24,7 @@ export default function ProjectSettingsPage() {
   const navigate = useNavigate();
   const [projectName, setProjectName] = useState("");
   const [createdByAccountId, setCreatedByAccountId] = useState<number | null>(null);
-  const [account, setAccount] = useState<Account | null>(null);
+  const { account } = useAuth();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [githubRepo, setGithubRepo] = useState("");
@@ -67,12 +68,6 @@ export default function ProjectSettingsPage() {
       .catch(() => setError("Ce projet est introuvable."))
       .finally(() => setLoading(false));
   }, [projectId]);
-
-  useEffect(() => {
-    me()
-      .then(setAccount)
-      .catch(() => setAccount(null));
-  }, []);
 
   useEffect(() => {
     if (!projectId || !canManage) return;

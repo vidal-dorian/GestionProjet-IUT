@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { type Account, me } from "../api/auth";
 import { downloadProjectExport, downloadSprintBurndownExport } from "../api/exports";
+import { useAuth } from "../context/AuthContext";
 import ProjectNav from "../components/ProjectNav";
 import {
   ApiError,
@@ -71,17 +71,11 @@ export default function DashboardPage() {
   const [assignmentSaving, setAssignmentSaving] = useState(false);
   const [newRoleId, setNewRoleId] = useState<number | "">("");
   const [newMemberId, setNewMemberId] = useState<number | "">("");
-  const [account, setAccount] = useState<Account | null>(null);
+  const { account } = useAuth();
   const [burndown, setBurndown] = useState<BurndownChartData | null>(null);
   const [burndownError, setBurndownError] = useState<string | null>(null);
   const [burndownExporting, setBurndownExporting] = useState(false);
   const [burndownExportError, setBurndownExportError] = useState<string | null>(null);
-
-  useEffect(() => {
-    me()
-      .then(setAccount)
-      .catch(() => setAccount(null));
-  }, []);
 
   useEffect(() => {
     if (!projectId) return;
@@ -233,7 +227,7 @@ export default function DashboardPage() {
   return (
     <>
       <ProjectNav projectId={project.id} projectName={project.name} active="dashboard" canManage={canManage} />
-      <div className="page">
+      <div className="page page-wide">
         <div className="page-header">
           <h1>Dashboard</h1>
           <button type="button" className="button-secondary" onClick={handleExport} disabled={exporting}>
@@ -252,41 +246,43 @@ export default function DashboardPage() {
           <GanttChart sprints={sprints} />
         </section>
 
-      <section className="chart-section">
-        <h2>Heures par contributeur</h2>
-        {contributors.length === 0 ? (
-          <p>Aucune heure saisie sur ce projet pour l'instant.</p>
-        ) : (
-          <HoursByContributorChart contributors={contributors} />
-        )}
-      </section>
+      <div className="chart-grid">
+        <section className="chart-section">
+          <h2>Heures par contributeur</h2>
+          {contributors.length === 0 ? (
+            <p>Aucune heure saisie sur ce projet pour l'instant.</p>
+          ) : (
+            <HoursByContributorChart contributors={contributors} />
+          )}
+        </section>
 
-      <section className="chart-section">
-        <h2>Évolution des heures</h2>
-        {hoursOverTime.points.length === 0 ? (
-          <p>Aucune heure saisie sur ce projet pour l'instant.</p>
-        ) : (
-          <HoursOverTimeChart data={hoursOverTime} />
-        )}
-      </section>
+        <section className="chart-section">
+          <h2>Évolution des heures</h2>
+          {hoursOverTime.points.length === 0 ? (
+            <p>Aucune heure saisie sur ce projet pour l'instant.</p>
+          ) : (
+            <HoursOverTimeChart data={hoursOverTime} />
+          )}
+        </section>
 
-      <section className="chart-section">
-        <h2>Heures par User Story</h2>
-        {hoursByIssue.items.length === 0 && hoursByIssue.unattached_hours === 0 ? (
-          <p>Aucune heure saisie sur ce projet pour l'instant.</p>
-        ) : (
-          <HoursByIssueChart data={hoursByIssue} />
-        )}
-      </section>
+        <section className="chart-section">
+          <h2>Heures par User Story</h2>
+          {hoursByIssue.items.length === 0 && hoursByIssue.unattached_hours === 0 ? (
+            <p>Aucune heure saisie sur ce projet pour l'instant.</p>
+          ) : (
+            <HoursByIssueChart data={hoursByIssue} />
+          )}
+        </section>
 
-      <section className="chart-section">
-        <h2>Heures par catégorie</h2>
-        {hoursByCategory.items.length === 0 && hoursByCategory.unattached_hours === 0 ? (
-          <p>Aucune heure saisie sur ce projet pour l'instant.</p>
-        ) : (
-          <HoursByCategoryChart data={hoursByCategory} />
-        )}
-      </section>
+        <section className="chart-section">
+          <h2>Heures par catégorie</h2>
+          {hoursByCategory.items.length === 0 && hoursByCategory.unattached_hours === 0 ? (
+            <p>Aucune heure saisie sur ce projet pour l'instant.</p>
+          ) : (
+            <HoursByCategoryChart data={hoursByCategory} />
+          )}
+        </section>
+      </div>
 
       {sprints.length > 0 && (
         <section className="chart-section">

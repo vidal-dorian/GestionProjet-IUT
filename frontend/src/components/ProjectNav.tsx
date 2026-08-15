@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import ProjectSwitcher from "./ProjectSwitcher";
 
 export const LAST_PROJECT_STORAGE_KEY = "lastProjectId";
@@ -12,6 +13,8 @@ interface ProjectNavProps {
 }
 
 export default function ProjectNav({ projectId, projectName, active, canManage }: ProjectNavProps) {
+  const { account, isAdmin } = useAuth();
+
   useEffect(() => {
     localStorage.setItem(LAST_PROJECT_STORAGE_KEY, String(projectId));
   }, [projectId]);
@@ -19,11 +22,28 @@ export default function ProjectNav({ projectId, projectName, active, canManage }
   return (
     <nav className="project-nav">
       <div className="project-nav-inner">
-        <div className="project-nav-identity">
-          <Link to={`/projects/${projectId}`} className="project-nav-name">
-            {projectName}
-          </Link>
-          <ProjectSwitcher currentProjectId={projectId} />
+        <div className="project-nav-top">
+          <div className="project-nav-identity">
+            <Link to={`/projects/${projectId}`} className="project-nav-name">
+              {projectName}
+            </Link>
+            <ProjectSwitcher currentProjectId={projectId} />
+          </div>
+
+          <div className="project-nav-account">
+            {account && (
+              <span className="project-nav-account-email">
+                {account.email}
+                {isAdmin && <span className="badge">Admin</span>}
+              </span>
+            )}
+            <Link to="/projects" className="project-nav-browse">
+              Tous les projets
+            </Link>
+            <a href="/cdn-cgi/access/logout" className="project-nav-logout">
+              Se déconnecter
+            </a>
+          </div>
         </div>
 
         <div className="project-nav-links">
@@ -44,15 +64,6 @@ export default function ProjectNav({ projectId, projectName, active, canManage }
               Paramètres
             </Link>
           )}
-        </div>
-
-        <div className="project-nav-account">
-          <Link to="/projects" className="project-nav-browse">
-            Tous les projets
-          </Link>
-          <a href="/cdn-cgi/access/logout" className="project-nav-logout">
-            Se déconnecter
-          </a>
         </div>
       </div>
     </nav>

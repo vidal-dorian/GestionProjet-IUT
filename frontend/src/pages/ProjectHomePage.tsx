@@ -1,9 +1,9 @@
 import { type MouseEvent, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { type Account, me } from "../api/auth";
 import ProjectNav from "../components/ProjectNav";
 import { ApiError, getProject, joinProject, listProjects, type Project, type ProjectSummary } from "../api/projects";
 import TimeEntriesSection from "../components/TimeEntriesSection";
+import { useAuth } from "../context/AuthContext";
 
 function membershipLabel(status: ProjectSummary["membership_status"]): string | null {
   if (status === "pending") return "Demande en attente";
@@ -15,7 +15,7 @@ export default function ProjectHomePage() {
   const { projectId } = useParams<{ projectId: string }>();
   const [project, setProject] = useState<Project | null>(null);
   const [summary, setSummary] = useState<ProjectSummary | null>(null);
-  const [account, setAccount] = useState<Account | null>(null);
+  const { account, loading: accountLoading } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
@@ -28,9 +28,6 @@ export default function ProjectHomePage() {
     listProjects()
       .then((all) => setSummary(all.find((p) => p.id === Number(projectId)) ?? null))
       .catch(() => setSummary(null));
-    me()
-      .then(setAccount)
-      .catch(() => setAccount(null));
   }, [projectId]);
 
   async function handleJoin(event: MouseEvent) {
@@ -59,7 +56,7 @@ export default function ProjectHomePage() {
     );
   }
 
-  if (!project || !summary || !account) {
+  if (!project || !summary || accountLoading || !account) {
     return (
       <div className="page">
         <p>Chargement...</p>
