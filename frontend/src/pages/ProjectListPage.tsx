@@ -1,7 +1,7 @@
 import { type MouseEvent, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { me } from "../api/auth";
 import { LAST_PROJECT_STORAGE_KEY } from "../components/ProjectNav";
+import { useAuth } from "../context/AuthContext";
 import { ApiError, joinProject, listProjects, type ProjectSummary } from "../api/projects";
 
 function membershipLabel(project: ProjectSummary): string | null {
@@ -14,15 +14,12 @@ export default function ProjectListPage() {
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [joiningId, setJoiningId] = useState<number | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { isAdmin } = useAuth();
 
   useEffect(() => {
     listProjects()
       .then(setProjects)
       .catch(() => setError("Impossible de charger les projets pour le moment."));
-    me()
-      .then((account) => setIsAdmin(account.is_admin))
-      .catch(() => setIsAdmin(false));
   }, []);
 
   async function handleJoin(projectId: number, event: MouseEvent) {

@@ -6,26 +6,21 @@ import {
   rejectMembershipRequest,
   type MembershipRequest,
 } from "../api/admin";
-import { me } from "../api/auth";
 import { ApiError } from "../api/projects";
+import { useAuth } from "../context/AuthContext";
 
 export default function AdminMembershipRequestsPage() {
-  const [authorized, setAuthorized] = useState<boolean | null>(null);
+  const { isAdmin, loading: authLoading } = useAuth();
   const [requests, setRequests] = useState<MembershipRequest[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [decidingId, setDecidingId] = useState<number | null>(null);
 
   useEffect(() => {
-    me()
-      .then((account) => {
-        setAuthorized(account.is_admin);
-        if (!account.is_admin) return;
-        return listMembershipRequests()
-          .then(setRequests)
-          .catch(() => setError("Impossible de charger les demandes pour le moment."));
-      })
-      .catch(() => setAuthorized(false));
-  }, []);
+    if (!isAdmin) return;
+    listMembershipRequests()
+      .then(setRequests)
+      .catch(() => setError("Impossible de charger les demandes pour le moment."));
+  }, [isAdmin]);
 
   async function handleDecision(requestId: number, decide: (id: number) => Promise<MembershipRequest>) {
     setDecidingId(requestId);
@@ -39,7 +34,7 @@ export default function AdminMembershipRequestsPage() {
     }
   }
 
-  if (authorized === null) {
+  if (authLoading) {
     return (
       <div className="page">
         <p>Chargement...</p>
@@ -47,7 +42,7 @@ export default function AdminMembershipRequestsPage() {
     );
   }
 
-  if (!authorized) {
+  if (!isAdmin) {
     return (
       <div className="page">
         <p className="error">Réservé aux administrateurs.</p>
