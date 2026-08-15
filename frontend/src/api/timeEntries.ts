@@ -32,11 +32,23 @@ export interface TimeEntryInput {
   category_id?: number | null;
 }
 
+function extractErrorMessage(detail: unknown): string {
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    // FastAPI renvoie une liste d'erreurs de validation Pydantic ({ msg, loc, ... })
+    // plutôt qu'un message simple pour les erreurs 422.
+    const messages = detail
+      .map((item) => (typeof item?.msg === "string" ? item.msg.replace(/^Value error,\s*/, "") : null))
+      .filter((msg): msg is string => Boolean(msg));
+    if (messages.length > 0) return messages.join(" ");
+  }
+  return "Une erreur est survenue.";
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const body = await response.json().catch(() => null);
-    const message = body?.detail ?? "Une erreur est survenue.";
-    throw new ApiError(response.status, message);
+    throw new ApiError(response.status, extractErrorMessage(body?.detail));
   }
   return response.json() as Promise<T>;
 }

@@ -166,6 +166,13 @@ class TimeEntryCreate(BaseModel):
             raise ValueError("La description est obligatoire.")
         return value.strip()
 
+    @field_validator("date")
+    @classmethod
+    def date_must_not_be_in_the_future(cls, value: date_type) -> date_type:
+        if value > date_type.today():
+            raise ValueError("La date ne peut pas être dans le futur.")
+        return value
+
 
 class TimeEntryRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)

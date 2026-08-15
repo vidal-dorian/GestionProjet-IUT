@@ -168,7 +168,13 @@ export default function TimeEntriesSection({ projectId }: Props) {
 
       <form onSubmit={handleSubmit} className="form form-inline">
         <label htmlFor="entry-date">Date</label>
-        <input id="entry-date" type="date" value={date} onChange={(e) => handleDateChange(e.target.value)} />
+        <input
+          id="entry-date"
+          type="date"
+          value={date}
+          max={today()}
+          onChange={(e) => handleDateChange(e.target.value)}
+        />
 
         <label htmlFor="entry-duration">Durée (heures)</label>
         <input

@@ -1,3 +1,4 @@
+from datetime import date
 from unittest.mock import AsyncMock, patch
 
 
@@ -56,6 +57,43 @@ def test_duration_is_capped_at_24_hours(client):
     response = client.post(
         f"/api/projects/{project['id']}/time-entries",
         json={"date": "2026-08-13", "duration_hours": 25, "description": "Dev"},
+    )
+    assert response.status_code == 422
+
+
+def test_date_cannot_be_in_the_future(client):
+    project, _ = setup_authenticated_account(client)
+
+    response = client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2999-01-01", "duration_hours": 1, "description": "Dev"},
+    )
+    assert response.status_code == 422
+    assert "futur" in response.json()["detail"][0]["msg"]
+
+
+def test_date_today_is_allowed(client):
+    project, _ = setup_authenticated_account(client)
+    today = date.today().isoformat()
+
+    response = client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": today, "duration_hours": 1, "description": "Dev"},
+    )
+    assert response.status_code == 201
+    assert response.json()["date"] == today
+
+
+def test_update_time_entry_rejects_a_future_date(client):
+    project, _ = setup_authenticated_account(client)
+    entry = client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-13", "duration_hours": 1, "description": "Dev"},
+    ).json()
+
+    response = client.put(
+        f"/api/projects/{project['id']}/time-entries/{entry['id']}",
+        json={"date": "2999-01-01", "duration_hours": 1, "description": "Dev"},
     )
     assert response.status_code == 422
 
