@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/vidal-dorian/GestionProjet-IUT/compare/v1.2.0...v1.2.1) (2026-08-15)
+
+
+### Bug Fixes
+
+* ajouter automatiquement les colonnes manquantes au démarrage ([0bb2943](https://github.com/vidal-dorian/GestionProjet-IUT/commit/0bb294314315ef7d40b7ac6df1c15e78c5390baa))
+
 ## [1.2.0](https://github.com/vidal-dorian/GestionProjet-IUT/compare/v1.1.0...v1.2.0) (2026-08-15)
 
 
