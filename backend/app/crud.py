@@ -115,6 +115,9 @@ def replace_github_issues(db: Session, db_project: models.Project, issues: list[
         db_issue.labels_raw = labels_raw
         db_issue.url = payload["html_url"]
         db_issue.synced_at = synced_at
+        db_issue.story_points = payload.get("story_points")
+        closed_at_raw = payload.get("closed_at")
+        db_issue.closed_at = datetime.fromisoformat(closed_at_raw.replace("Z", "+00:00")) if closed_at_raw else None
 
     for stale_issue in existing.values():
         db.delete(stale_issue)

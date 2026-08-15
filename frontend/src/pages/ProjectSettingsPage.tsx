@@ -256,6 +256,11 @@ export default function ProjectSettingsPage() {
 
             <section className="chart-section">
               <h2>Intégration GitHub</h2>
+              <p className="meta">
+                Pour le burndown : chaque US doit porter un label reprenant exactement le nom du sprint (ex.
+                « Sprint 1 ») et être valorisée en story points via le champ « Valorisation » du GitHub Project
+                auquel elle appartient.
+              </p>
               {linkedRepo && (
                 <p className="meta">
                   Dépôt lié :{" "}

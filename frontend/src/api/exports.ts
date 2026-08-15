@@ -43,3 +43,18 @@ export async function downloadProjectExport(projectId: number | string): Promise
   const blob = await response.blob();
   triggerDownload(blob, filenameFromResponse(response, "export.xlsx"));
 }
+
+export async function downloadSprintBurndownExport(
+  projectId: number | string,
+  sprintId: number | string,
+): Promise<void> {
+  const response = await fetch(`${API_URL}/api/projects/${projectId}/sprints/${sprintId}/burndown/export`, {
+    credentials: "include",
+    headers: devAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, "Impossible d'exporter le burndown pour le moment.");
+  }
+  const blob = await response.blob();
+  triggerDownload(blob, filenameFromResponse(response, "burndown.xlsx"));
+}

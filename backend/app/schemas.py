@@ -39,6 +39,8 @@ class GithubIssueRead(BaseModel):
     state: str
     labels: list[str]
     url: str
+    story_points: float | None = None
+    closed_at: datetime | None = None
 
 
 class GithubSyncResult(BaseModel):
@@ -72,6 +74,20 @@ class SprintRead(BaseModel):
 class SprintWriteResult(BaseModel):
     sprint: SprintRead
     overlap_warning: str | None = None
+
+
+class BurndownPoint(BaseModel):
+    date: date_type
+    remaining_points: float
+
+
+class BurndownChartData(BaseModel):
+    sprint: SprintRead
+    total_points: float
+    matched_issue_count: int
+    unestimated_issue_count: int
+    ideal: list[BurndownPoint]
+    actual: list[BurndownPoint]
 
 
 class TeamRoleCreate(BaseModel):
@@ -165,6 +181,13 @@ class TimeEntryCreate(BaseModel):
         if not value.strip():
             raise ValueError("La description est obligatoire.")
         return value.strip()
+
+    @field_validator("date")
+    @classmethod
+    def date_must_not_be_in_the_future(cls, value: date_type) -> date_type:
+        if value > date_type.today():
+            raise ValueError("La date ne peut pas être dans le futur.")
+        return value
 
 
 class TimeEntryRead(BaseModel):

@@ -1,11 +1,11 @@
 import re
 from datetime import datetime
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from app import crud, excel_export, models
+from app import burndown, crud, excel_export, models
 from app.database import get_db
 from app.deps import require_project_member
 
@@ -54,4 +54,24 @@ def export_project(
 
     export_date = datetime.utcnow().strftime("%Y-%m-%d")
     filename = f"{_filename_safe(db_project.name)}_export_{export_date}.xlsx"
+    return _xlsx_response(buffer, filename)
+
+
+@router.get("/sprints/{sprint_id}/burndown/export")
+def export_sprint_burndown(
+    project_id: int,
+    sprint_id: int,
+    account: models.Account = Depends(require_project_member),
+    db: Session = Depends(get_db),
+):
+    db_sprint = crud.get_sprint(db, project_id, sprint_id)
+    if db_sprint is None:
+        raise HTTPException(status_code=404, detail="Sprint introuvable.")
+
+    issues = crud.list_github_issues(db, project_id)
+    result = burndown.compute_burndown(db_sprint, issues)
+    buffer = excel_export.build_burndown_export(db_sprint, result)
+
+    export_date = datetime.utcnow().strftime("%Y-%m-%d")
+    filename = f"burndown_{_filename_safe(db_sprint.name)}_{export_date}.xlsx"
     return _xlsx_response(buffer, filename)

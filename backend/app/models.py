@@ -106,6 +106,11 @@ class GithubIssue(Base):
     labels_raw: Mapped[str] = mapped_column(String(500), nullable=False, default="")
     url: Mapped[str] = mapped_column(String(500), nullable=False)
     synced_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    # Valeur du champ personnalisé "Valorisation" du GitHub Project (v2) auquel
+    # l'issue est rattachée, récupérée via l'API GraphQL — None si l'issue n'a
+    # pas ce champ renseigné (ou n'appartient à aucun Project).
+    story_points: Mapped[float | None] = mapped_column(Float, nullable=True)
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     project: Mapped[Project] = relationship(back_populates="github_issues")
 
