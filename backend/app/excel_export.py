@@ -2,7 +2,9 @@ import io
 from collections import defaultdict
 
 from openpyxl import Workbook
-from openpyxl.chart import BarChart, LineChart, Reference
+from openpyxl.chart import BarChart, LineChart, PieChart, Reference
+from openpyxl.chart.label import DataLabelList
+from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
@@ -72,6 +74,23 @@ def _add_bar_chart_sheet(wb: Workbook, title: str, data: list[tuple[str, float]]
     ws.add_chart(chart, "D2")
 
 
+def _add_pie_chart_sheet(wb: Workbook, title: str, data: list[tuple[str, float]]) -> None:
+    ws = wb.create_sheet(title[:31])
+    ws.append(["Libellé", "Heures"])
+    for label, hours in data:
+        ws.append([_safe_cell(label), round(hours, 2)])
+
+    chart = PieChart()
+    chart.title = title
+    data_ref = Reference(ws, min_col=2, min_row=1, max_row=len(data) + 1)
+    cats_ref = Reference(ws, min_col=1, min_row=2, max_row=len(data) + 1)
+    chart.add_data(data_ref, titles_from_data=True)
+    chart.set_categories(cats_ref)
+    chart.dataLabels = DataLabelList()
+    chart.dataLabels.showPercent = True
+    ws.add_chart(chart, "D2")
+
+
 def _add_line_chart_sheet(wb: Workbook, title: str, data: list[tuple[str, float]]) -> None:
     ws = wb.create_sheet(title[:31])
     ws.append(["Date", "Heures"])
@@ -96,6 +115,12 @@ def build_account_export(
     ws.title = "Entrées"
     _write_entries_sheet(ws, entries, include_account=False)
 
+    total_hours = sum(entry.duration_hours for entry in entries)
+    ws.append([])
+    ws.append(["Total", round(total_hours, 2)])
+    for cell in ws[ws.max_row]:
+        cell.font = Font(bold=True)
+
     hours_by_category: dict[str, float] = defaultdict(float)
     hours_by_sprint: dict[str, float] = defaultdict(float)
     for entry in entries:
@@ -103,7 +128,9 @@ def build_account_export(
         hours_by_sprint[entry.sprint.name if entry.sprint else "Sans sprint"] += entry.duration_hours
 
     if entries:
-        _add_bar_chart_sheet(wb, "Par catégorie", sorted(hours_by_category.items(), key=lambda item: -item[1]))
+        category_data = sorted(hours_by_category.items(), key=lambda item: -item[1])
+        _add_bar_chart_sheet(wb, "Par catégorie", category_data)
+        _add_pie_chart_sheet(wb, "Répartition par catégorie (%)", category_data)
         _add_bar_chart_sheet(wb, "Par sprint", sorted(hours_by_sprint.items(), key=lambda item: -item[1]))
 
     buffer = io.BytesIO()

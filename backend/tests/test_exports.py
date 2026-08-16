@@ -42,7 +42,54 @@ def test_export_my_entries_returns_xlsx_with_entries_sheet(client):
     assert "Entrées" in wb.sheetnames
     ws = wb["Entrées"]
     assert ws["A1"].value == "Date"
-    assert ws.max_row == 2  # header + 1 entry
+    assert ws.max_row == 4  # header + 1 entrée + ligne vide + total
+    assert ws.cell(row=4, column=1).value == "Total"
+    assert ws.cell(row=4, column=2).value == 2
+    assert ws.cell(row=4, column=1).font.bold is True
+
+    assert "Répartition par catégorie (%)" in wb.sheetnames
+
+
+def test_export_my_entries_total_row_sums_all_entries(client):
+    project, _ = setup_authenticated_account(client)
+    client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-13", "duration_hours": 2.5, "description": "Dev"},
+    )
+    client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-14", "duration_hours": 1.25, "description": "Revue"},
+    )
+
+    response = client.get(f"/api/projects/{project['id']}/time-entries/export")
+    wb = load_workbook(io.BytesIO(response.content))
+    ws = wb["Entrées"]
+    assert ws.max_row == 5  # header + 2 entrées + ligne vide + total
+    assert ws.cell(row=5, column=1).value == "Total"
+    assert ws.cell(row=5, column=2).value == 3.75
+
+
+def test_export_my_entries_percentage_chart_reflects_categories(client):
+    project, _ = setup_authenticated_account(client)
+    dev = client.post(f"/api/projects/{project['id']}/categories", json={"name": "Développement"}).json()
+    tests = client.post(f"/api/projects/{project['id']}/categories", json={"name": "Tests"}).json()
+    client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-13", "duration_hours": 3, "description": "Dev", "category_id": dev["id"]},
+    )
+    client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-14", "duration_hours": 1, "description": "Tests", "category_id": tests["id"]},
+    )
+
+    response = client.get(f"/api/projects/{project['id']}/time-entries/export")
+    wb = load_workbook(io.BytesIO(response.content))
+    assert "Répartition par catégorie (%)" in wb.sheetnames
+    ws = wb["Répartition par catégorie (%)"]
+    rows = {row[0].value: row[1].value for row in ws.iter_rows(min_row=2)}
+    assert rows == {"Développement": 3, "Tests": 1}
+    assert len(ws._charts) == 1
+    assert ws._charts[0].dataLabels.showPercent is True
 
 
 def test_export_my_entries_with_no_entries_has_no_chart_sheets(client):
