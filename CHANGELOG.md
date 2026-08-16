@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.4.0](https://github.com/vidal-dorian/GestionProjet-IUT/compare/v1.3.0...v1.4.0) (2026-08-16)
+
+
+### Features
+
+* refonte de l'architecture de l'interface (sidebar, pages dédiées) ([193f59f](https://github.com/vidal-dorian/GestionProjet-IUT/commit/193f59f47ec99eaaccc91fbbde534db3f5fd4117))
+* refonte de l'architecture de l'interface (sidebar, pages dédiées) ([5603bf6](https://github.com/vidal-dorian/GestionProjet-IUT/commit/5603bf601397fce5ca013f816c045ef81d7ad92f))
+* total et répartition par catégorie dans l'export personnel Excel ([446bdaa](https://github.com/vidal-dorian/GestionProjet-IUT/commit/446bdaab85fe5ed958830a1468a9c5c22c5c89ad))
+* total et répartition par catégorie dans l'export personnel Excel ([afee0db](https://github.com/vidal-dorian/GestionProjet-IUT/commit/afee0db6f1e12b2e5bed869ad61f5b91db0cbf85))
+
 ## [1.3.0](https://github.com/vidal-dorian/GestionProjet-IUT/compare/v1.2.1...v1.3.0) (2026-08-16)
 
 
