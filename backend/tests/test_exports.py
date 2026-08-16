@@ -39,7 +39,8 @@ def test_export_my_entries_returns_xlsx_with_entries_sheet(client):
     assert "alice_test_local" in response.headers["content-disposition"]
 
     wb = load_workbook(io.BytesIO(response.content))
-    assert "Entrées" in wb.sheetnames
+    # Tout tient sur une seule feuille : pas d'onglets séparés pour les graphiques.
+    assert wb.sheetnames == ["Entrées"]
     ws = wb["Entrées"]
     assert ws["A1"].value == "Date"
     assert ws.max_row == 4  # header + 1 entrée + ligne vide + total
@@ -47,7 +48,7 @@ def test_export_my_entries_returns_xlsx_with_entries_sheet(client):
     assert ws.cell(row=4, column=2).value == 2
     assert ws.cell(row=4, column=1).font.bold is True
 
-    assert "Répartition par catégorie (%)" in wb.sheetnames
+    assert len(ws._charts) == 3
 
 
 def test_export_my_entries_total_row_sums_all_entries(client):
@@ -84,12 +85,21 @@ def test_export_my_entries_percentage_chart_reflects_categories(client):
 
     response = client.get(f"/api/projects/{project['id']}/time-entries/export")
     wb = load_workbook(io.BytesIO(response.content))
-    assert "Répartition par catégorie (%)" in wb.sheetnames
-    ws = wb["Répartition par catégorie (%)"]
-    rows = {row[0].value: row[1].value for row in ws.iter_rows(min_row=2)}
+    assert wb.sheetnames == ["Entrées"]
+    ws = wb["Entrées"]
+
+    # Tableau récapitulatif par catégorie : colonnes H/I (8/9), à partir de la ligne 1.
+    rows = {
+        ws.cell(row=r, column=8).value: ws.cell(row=r, column=9).value
+        for r in range(2, ws.max_row + 1)
+        if ws.cell(row=r, column=8).value is not None
+    }
     assert rows == {"Développement": 3, "Tests": 1}
-    assert len(ws._charts) == 1
-    assert ws._charts[0].dataLabels.showPercent is True
+
+    # 3 graphiques sur la même feuille : barres par catégorie, camembert (%), barres par sprint.
+    assert len(ws._charts) == 3
+    pie_chart = ws._charts[1]
+    assert pie_chart.dataLabels.showPercent is True
 
 
 def test_export_my_entries_with_no_entries_has_no_chart_sheets(client):

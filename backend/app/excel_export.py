@@ -58,37 +58,46 @@ def _write_entries_sheet(ws: Worksheet, entries: list[models.TimeEntry], *, incl
         ws.column_dimensions[get_column_letter(col_idx)].width = max(14, len(header) + 4)
 
 
-def _add_bar_chart_sheet(wb: Workbook, title: str, data: list[tuple[str, float]]) -> None:
-    ws = wb.create_sheet(title[:31])
-    ws.append(["Libellé", "Heures"])
-    for label, hours in data:
-        ws.append([_safe_cell(label), round(hours, 2)])
+def _write_summary_table(
+    ws: Worksheet, start_col: int, start_row: int, data: list[tuple[str, float]], *, label_header: str = "Libellé"
+) -> None:
+    """Écrit un petit tableau libellé/heures à partir de (start_row, start_col)."""
+    ws.cell(row=start_row, column=start_col, value=label_header)
+    ws.cell(row=start_row, column=start_col + 1, value="Heures")
+    for offset, (label, hours) in enumerate(data, start=1):
+        ws.cell(row=start_row + offset, column=start_col, value=_safe_cell(label))
+        ws.cell(row=start_row + offset, column=start_col + 1, value=round(hours, 2))
+    ws.column_dimensions[get_column_letter(start_col)].width = 22
+    ws.column_dimensions[get_column_letter(start_col + 1)].width = 12
 
+
+def _bar_chart(title: str, ws: Worksheet, start_col: int, start_row: int, count: int) -> BarChart:
     chart = BarChart()
     chart.title = title
     chart.y_axis.title = "Heures"
-    data_ref = Reference(ws, min_col=2, min_row=1, max_row=len(data) + 1)
-    cats_ref = Reference(ws, min_col=1, min_row=2, max_row=len(data) + 1)
+    data_ref = Reference(ws, min_col=start_col + 1, min_row=start_row, max_row=start_row + count)
+    cats_ref = Reference(ws, min_col=start_col, min_row=start_row + 1, max_row=start_row + count)
     chart.add_data(data_ref, titles_from_data=True)
     chart.set_categories(cats_ref)
-    ws.add_chart(chart, "D2")
+    return chart
 
 
-def _add_pie_chart_sheet(wb: Workbook, title: str, data: list[tuple[str, float]]) -> None:
-    ws = wb.create_sheet(title[:31])
-    ws.append(["Libellé", "Heures"])
-    for label, hours in data:
-        ws.append([_safe_cell(label), round(hours, 2)])
-
+def _pie_chart(title: str, ws: Worksheet, start_col: int, start_row: int, count: int) -> PieChart:
     chart = PieChart()
     chart.title = title
-    data_ref = Reference(ws, min_col=2, min_row=1, max_row=len(data) + 1)
-    cats_ref = Reference(ws, min_col=1, min_row=2, max_row=len(data) + 1)
+    data_ref = Reference(ws, min_col=start_col + 1, min_row=start_row, max_row=start_row + count)
+    cats_ref = Reference(ws, min_col=start_col, min_row=start_row + 1, max_row=start_row + count)
     chart.add_data(data_ref, titles_from_data=True)
     chart.set_categories(cats_ref)
     chart.dataLabels = DataLabelList()
     chart.dataLabels.showPercent = True
-    ws.add_chart(chart, "D2")
+    return chart
+
+
+def _add_bar_chart_sheet(wb: Workbook, title: str, data: list[tuple[str, float]]) -> None:
+    ws = wb.create_sheet(title[:31])
+    _write_summary_table(ws, 1, 1, data)
+    ws.add_chart(_bar_chart(title, ws, 1, 1, len(data)), "D2")
 
 
 def _add_line_chart_sheet(wb: Workbook, title: str, data: list[tuple[str, float]]) -> None:
@@ -121,17 +130,28 @@ def build_account_export(
     for cell in ws[ws.max_row]:
         cell.font = Font(bold=True)
 
-    hours_by_category: dict[str, float] = defaultdict(float)
-    hours_by_sprint: dict[str, float] = defaultdict(float)
-    for entry in entries:
-        hours_by_category[entry.category.name if entry.category else "Sans catégorie"] += entry.duration_hours
-        hours_by_sprint[entry.sprint.name if entry.sprint else "Sans sprint"] += entry.duration_hours
-
     if entries:
+        hours_by_category: dict[str, float] = defaultdict(float)
+        hours_by_sprint: dict[str, float] = defaultdict(float)
+        for entry in entries:
+            hours_by_category[entry.category.name if entry.category else "Sans catégorie"] += entry.duration_hours
+            hours_by_sprint[entry.sprint.name if entry.sprint else "Sans sprint"] += entry.duration_hours
+
         category_data = sorted(hours_by_category.items(), key=lambda item: -item[1])
-        _add_bar_chart_sheet(wb, "Par catégorie", category_data)
-        _add_pie_chart_sheet(wb, "Répartition par catégorie (%)", category_data)
-        _add_bar_chart_sheet(wb, "Par sprint", sorted(hours_by_sprint.items(), key=lambda item: -item[1]))
+        sprint_data = sorted(hours_by_sprint.items(), key=lambda item: -item[1])
+
+        # Tableaux récapitulatifs et graphiques sur la même feuille que les entrées
+        # (colonnes H et au-delà), plutôt que sur des onglets séparés — tout doit
+        # être visible d'un coup d'œil.
+        CATEGORY_COL, SPRINT_COL, SUMMARY_ROW = 8, 11, 1  # H, K
+        _write_summary_table(ws, CATEGORY_COL, SUMMARY_ROW, category_data)
+        _write_summary_table(ws, SPRINT_COL, SUMMARY_ROW, sprint_data)
+
+        ws.add_chart(_bar_chart("Par catégorie", ws, CATEGORY_COL, SUMMARY_ROW, len(category_data)), "N2")
+        ws.add_chart(
+            _pie_chart("Répartition par catégorie (%)", ws, CATEGORY_COL, SUMMARY_ROW, len(category_data)), "N18"
+        )
+        ws.add_chart(_bar_chart("Par sprint", ws, SPRINT_COL, SUMMARY_ROW, len(sprint_data)), "N34")
 
     buffer = io.BytesIO()
     wb.save(buffer)
