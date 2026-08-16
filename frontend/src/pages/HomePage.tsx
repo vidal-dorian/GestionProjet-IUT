@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { LAST_PROJECT_STORAGE_KEY } from "../components/ProjectNav";
+import { LAST_PROJECT_STORAGE_KEY } from "../components/AppShell";
 import { listMyProjects } from "../api/projects";
 import ProjectListPage from "./ProjectListPage";
 

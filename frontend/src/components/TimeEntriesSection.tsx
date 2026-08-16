@@ -164,9 +164,11 @@ export default function TimeEntriesSection({ projectId }: Props) {
 
   return (
     <section className="time-entries-section">
-      <h2>{editingId ? "Modifier l'entrée" : "Saisir une entrée de temps"}</h2>
+      <div className="entry-layout">
+        <div className="entry-form-column">
+          <h2>{editingId ? "Modifier l'entrée" : "Saisir une entrée de temps"}</h2>
 
-      <form onSubmit={handleSubmit} className="form form-inline">
+      <form onSubmit={handleSubmit} className="form">
         <label htmlFor="entry-date">Date</label>
         <input
           id="entry-date"
@@ -262,7 +264,9 @@ export default function TimeEntriesSection({ projectId }: Props) {
           )}
         </div>
       </form>
+        </div>
 
+        <div className="entry-list-column">
       <div className="page-header">
         <h2>Mes entrées</h2>
         <div className="page-header-actions">
@@ -312,6 +316,8 @@ export default function TimeEntriesSection({ projectId }: Props) {
           ))}
         </ul>
       )}
+        </div>
+      </div>
     </section>
   );
 }

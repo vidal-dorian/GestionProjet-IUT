@@ -1,6 +1,7 @@
 import { type MouseEvent, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { LAST_PROJECT_STORAGE_KEY } from "../components/ProjectNav";
+import AppShell, { LAST_PROJECT_STORAGE_KEY } from "../components/AppShell";
+import PageHeader from "../components/PageHeader";
 import { useAuth } from "../context/AuthContext";
 import { ApiError, joinProject, listProjects, type ProjectSummary } from "../api/projects";
 
@@ -45,28 +46,29 @@ export default function ProjectListPage() {
   const canReturnToLastProject = lastProjectId && projects?.some((p) => p.id === Number(lastProjectId) && p.is_member);
 
   return (
-    <div className="page">
+    <AppShell title="Tous les projets">
+    <div className="page page-wide">
       {canReturnToLastProject && (
         <Link to={`/projects/${lastProjectId}`} className="back-link">
           ← Retour à mon espace
         </Link>
       )}
-      <div className="page-header">
-        <div>
-          <h1>Tous les projets</h1>
-          <p className="meta">Rejoignez un projet existant ou créez le vôtre.</p>
-        </div>
-        <div className="page-header-actions">
-          {isAdmin && (
-            <Link to="/admin/demandes" className="button-secondary">
-              Demandes d'adhésion
+      <PageHeader
+        title="Tous les projets"
+        subtitle="Rejoignez un projet existant ou créez le vôtre."
+        actions={
+          <>
+            {isAdmin && (
+              <Link to="/admin/demandes" className="button-secondary">
+                Demandes d'adhésion
+              </Link>
+            )}
+            <Link to="/projects/new" className="button-link">
+              Nouveau projet
             </Link>
-          )}
-          <Link to="/projects/new" className="button-link">
-            Nouveau projet
-          </Link>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {error && <p className="error">{error}</p>}
 
@@ -120,5 +122,6 @@ export default function ProjectListPage() {
         </ul>
       )}
     </div>
+    </AppShell>
   );
 }

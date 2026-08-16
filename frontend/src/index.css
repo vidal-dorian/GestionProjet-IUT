@@ -76,16 +76,25 @@ a {
 }
 
 .page {
-  max-width: 660px;
+  max-width: 720px;
   margin: 0 auto;
-  padding: 2.5rem 1.5rem 4rem;
+  padding: 2.25rem 1.75rem 4rem;
 }
 
-/* Le dashboard a besoin de plus de place pour aligner ses graphiques à deux
-   colonnes sur grand écran ; les autres pages gardent la colonne de lecture
-   étroite de 660px. */
+/* Le dashboard et les sprints ont besoin de plus de place pour aligner leurs
+   graphiques à deux colonnes sur grand écran ; les autres pages gardent la
+   colonne de lecture étroite. */
 .page-wide {
-  max-width: 1040px;
+  max-width: 1180px;
+}
+
+/* Sous la barre latérale permanente, la barre supérieure disparaît : on rend
+   au contenu la marge haute qu'elle occupait. */
+@media (max-width: 959px) {
+  .page,
+  .page-wide {
+    padding-top: 1.6rem;
+  }
 }
 
 h1 {
@@ -142,124 +151,339 @@ h2 {
 }
 
 /* ==========================================================================
-   Navigation persistante d'un projet (Saisie / Dashboard / Paramètres)
+   Coquille applicative — barre latérale persistante + zone de contenu.
+   Grand écran : la navigation est toujours visible à gauche. Mobile : elle
+   devient un tiroir superposé, pour ne pas manger la hauteur utile.
    ========================================================================== */
 
-.project-nav {
-  border-bottom: 1px solid var(--hairline);
-  background: var(--page-bg);
+.shell {
+  min-height: 100vh;
 }
 
-.project-nav-inner {
-  max-width: 660px;
-  margin: 0 auto;
-  padding: 0.9rem 1.5rem 0;
+.shell-main {
+  min-width: 0;
 }
 
-/* Rangée 1 : nom du projet + sélecteur, puis identité/compte. Toujours en
-   deux zones qui se réarrangent librement — jamais de dépassement latéral,
-   même avec un nom de projet long ou un e-mail long. */
-.project-nav-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.6rem 1.25rem;
+.icon {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: 0 0 auto;
 }
 
-.project-nav-identity {
+/* --- Barre supérieure (mobile uniquement) --------------------------------- */
+
+.shell-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  min-width: 0;
-  flex: 1 1 auto;
+  padding: 0.6rem 1rem;
+  background: var(--page-bg);
+  border-bottom: 1px solid var(--hairline);
 }
 
-.project-nav-name {
-  font-weight: 700;
-  font-size: 1rem;
-  letter-spacing: -0.01em;
-  text-decoration: none;
+.shell-menu-button,
+.sidebar-close-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-sm);
+  background: transparent;
   color: var(--ink);
+  cursor: pointer;
+}
+
+.shell-menu-button:hover,
+.sidebar-close-button:hover {
+  background: var(--surface);
+}
+
+.shell-topbar-title {
+  font-weight: 700;
+  font-size: 0.98rem;
+  letter-spacing: -0.01em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  min-width: 0;
 }
 
-.project-nav-account {
+.shell-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+body.has-drawer-open {
+  overflow: hidden;
+}
+
+/* --- Barre latérale ------------------------------------------------------- */
+
+.shell-sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  /* Laisse une zone de fond réellement touchable à droite pour fermer d'un
+     appui à côté, en plus du bouton de fermeture. */
+  width: min(16.5rem, 76vw);
+  background: var(--surface);
+  border-right: 1px solid var(--hairline);
+  transform: translateX(-100%);
+  transition: transform 0.18s ease;
+}
+
+.shell-sidebar.is-open {
+  transform: translateX(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell-sidebar {
+    transition: none;
+  }
+}
+
+.sidebar-head {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 0.75rem 1rem;
-  font-size: 0.8rem;
+  gap: 0.5rem;
+  padding: 0.85rem;
+  border-bottom: 1px solid var(--hairline);
 }
 
-.project-nav-account-email {
+/* Projet courant : pastille + nom, et bascule quand il y en a plusieurs. */
+.sidebar-project {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.35rem;
+  border-radius: var(--radius-sm);
+}
+
+.sidebar-project:hover {
+  background: var(--page-bg);
+}
+
+.sidebar-project-avatar {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  flex: 0 0 auto;
+  border-radius: var(--radius-sm);
+  background: var(--ink);
+  color: var(--page-bg);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.sidebar-project-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.sidebar-project-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-project-hint {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.sidebar-project-chevron {
+  color: var(--ink-muted);
+}
+
+/* Select natif superposé en transparence : présentation maison, comportement
+   système (navigation clavier, roulette native sur mobile). */
+.sidebar-project-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 1rem; /* >=16px : évite le zoom automatique iOS à l'ouverture */
+}
+
+/* --- Liens de navigation -------------------------------------------------- */
+
+.sidebar-nav {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 0.85rem 0.6rem;
+}
+
+.sidebar-group + .sidebar-group {
+  margin-top: 1.35rem;
+}
+
+.sidebar-group-label {
+  margin: 0 0 0.4rem 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--radius-sm);
+  color: var(--ink-secondary);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.sidebar-link + .sidebar-link {
+  margin-top: 0.1rem;
+}
+
+.sidebar-link:hover {
+  background: var(--page-bg);
+  color: var(--ink);
+}
+
+.sidebar-link.is-active {
+  background: var(--ink);
+  color: var(--page-bg);
+}
+
+.sidebar-link-icon {
+  display: inline-flex;
+  color: var(--ink-muted);
+}
+
+.sidebar-link:hover .sidebar-link-icon,
+.sidebar-link.is-active .sidebar-link-icon {
+  color: inherit;
+}
+
+.sidebar-link-quiet {
+  font-weight: 500;
+  color: var(--ink-muted);
+}
+
+/* --- Pied : compte connecté ---------------------------------------------- */
+
+.sidebar-foot {
+  padding: 0.6rem;
+  border-top: 1px solid var(--hairline);
+}
+
+.sidebar-account {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 0 0.6rem 0.5rem;
+}
+
+.sidebar-account-email {
+  font-size: 0.78rem;
   color: var(--ink-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 11rem;
 }
 
-.project-nav-browse,
-.project-nav-logout {
+/* --- Grand écran : la barre latérale devient permanente ------------------- */
+
+@media (min-width: 960px) {
+  .shell {
+    display: grid;
+    grid-template-columns: 16.5rem minmax(0, 1fr);
+  }
+
+  .shell-topbar,
+  .sidebar-close-button {
+    display: none;
+  }
+
+  .shell-sidebar {
+    position: sticky;
+    inset: auto;
+    top: 0;
+    height: 100vh;
+    width: auto;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* ==========================================================================
+   En-tête de contenu — titre à gauche, actions primaires toujours au même
+   endroit à droite. Sur mobile les actions passent sous le titre en pleine
+   largeur plutôt que de le comprimer.
+   ========================================================================== */
+
+.content-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  margin-bottom: 1.75rem;
+}
+
+.content-header-text {
+  min-width: 0;
+}
+
+.content-header h1 {
+  margin: 0;
+}
+
+.content-header-subtitle {
+  margin: 0.35rem 0 0;
   color: var(--ink-muted);
-  text-decoration: none;
-  white-space: nowrap;
+  font-size: 0.85rem;
 }
 
-.project-nav-browse:hover,
-.project-nav-logout:hover {
-  color: var(--ink);
-}
-
-/* Rangée 2 : les onglets. Toujours sur leur propre ligne, avec défilement
-   horizontal en dernier recours plutôt qu'un retour à la ligne qui casserait
-   l'alignement — se comporte comme un ruban d'onglets sur mobile. */
-.project-nav-links {
+.content-header-actions {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
-  margin-top: 0.75rem;
-  padding-top: 0.6rem;
-  border-top: 1px solid var(--hairline);
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
+  flex-wrap: wrap;
+  gap: 0.6rem;
 }
 
-.project-nav-links::-webkit-scrollbar {
-  display: none;
-}
+@media (max-width: 560px) {
+  .content-header-actions {
+    width: 100%;
+  }
 
-.project-nav-link {
-  flex: 0 0 auto;
-  color: var(--ink-muted);
-  text-decoration: none;
-  font-size: 0.9rem;
-  font-weight: 600;
-  padding-bottom: 0.2rem;
-  border-bottom: 2px solid transparent;
-}
-
-.project-nav-link:hover {
-  color: var(--ink);
-}
-
-.project-nav-link.is-active {
-  color: var(--ink);
-  border-bottom-color: var(--ink);
-}
-
-/* Petits écrans : compte tenu de la place limitée, l'e-mail cède la place
-   aux actions (rejoindre/se déconnecter restent toujours accessibles). */
-@media (max-width: 480px) {
-  .project-nav-account-email {
-    max-width: 7rem;
+  .content-header-actions > * {
+    flex: 1 1 auto;
+    justify-content: center;
   }
 }
 
@@ -583,6 +807,7 @@ h2 {
 .chart-grid {
   display: grid;
   grid-template-columns: 1fr;
+  align-items: start;
   gap: 1.5rem;
   margin-top: 1.5rem;
 }
@@ -690,6 +915,7 @@ h2 {
 .entry-duration {
   font-family: var(--font-mono);
   color: var(--ink);
+  white-space: nowrap;
 }
 
 .entry-description {
@@ -767,8 +993,11 @@ h2 {
   position: relative;
 }
 
+/* La viewBox est fixe : sans plafond de largeur, étirer le SVG sur une carte
+   pleine largeur grossit aussi ses libellés d'axe (ils sont en unités SVG). */
 .line-chart svg {
   width: 100%;
+  max-width: 44rem;
   height: auto;
   overflow: visible;
 }
@@ -974,5 +1203,217 @@ h2 {
 
   .stat-tiles {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ==========================================================================
+   Tuiles d'indicateurs — cartes à part entière plutôt que texte flottant,
+   pour qu'elles se lisent comme une rangée de chiffres clés en haut de page.
+   ========================================================================== */
+
+.stat-tiles {
+  margin-bottom: 1.5rem;
+}
+
+.stat-tile {
+  padding: 1rem 1.15rem;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+}
+
+/* ==========================================================================
+   Sélecteur de sprint — ruban d'onglets : on voit d'un coup les sprints et
+   lequel est ouvert, là où une liste déroulante cachait l'information.
+   ========================================================================== */
+
+.sprint-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  padding-bottom: 0.25rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.sprint-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.sprint-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 0 0 auto;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink-secondary);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sprint-tab:hover {
+  border-color: var(--ink-muted);
+  color: var(--ink);
+}
+
+.sprint-tab.is-active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--page-bg);
+}
+
+.sprint-tab-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.sprint-tab-dates {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   Paramètres — sous-navigation par section : une seule section affichée à la
+   fois, au lieu d'un défilement de sept blocs empilés.
+   ========================================================================== */
+
+.settings-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.settings-nav {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.settings-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.settings-nav-item {
+  flex: 0 0 auto;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink-secondary);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.settings-nav-item:hover {
+  border-color: var(--ink-muted);
+  color: var(--ink);
+}
+
+.settings-nav-item.is-active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--page-bg);
+}
+
+/* Les sections réutilisées ici portent leur propre marge haute (elles étaient
+   empilées avant) : neutralisée en tête de panneau. */
+.settings-panel > *:first-child {
+  margin-top: 0;
+}
+
+@media (min-width: 900px) {
+  .settings-layout {
+    grid-template-columns: 12.5rem minmax(0, 1fr);
+    gap: 2rem;
+  }
+
+  .settings-nav {
+    flex-direction: column;
+    overflow: visible;
+    padding-bottom: 0;
+  }
+
+  .settings-nav-item {
+    border-color: transparent;
+    background: transparent;
+    text-align: left;
+  }
+
+  .settings-nav-item:hover {
+    border-color: transparent;
+    background: var(--surface);
+  }
+}
+
+/* ==========================================================================
+   Saisie — formulaire et historique côte à côte sur grand écran. La saisie est
+   l'écran du quotidien : on ne veut pas descendre chercher sa liste après
+   chaque enregistrement, ni laisser la moitié droite vide.
+   ========================================================================== */
+
+.entry-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+
+@media (min-width: 1100px) {
+  .entry-layout {
+    grid-template-columns: 21rem minmax(0, 1fr);
+    align-items: start;
+    gap: 2.5rem;
+  }
+
+  /* Le formulaire reste à portée pendant qu'on parcourt l'historique. */
+  .entry-form-column {
+    position: sticky;
+    top: 1.5rem;
+  }
+}
+
+/* ==========================================================================
+   Paramètres — le panneau garde une largeur de lecture : un formulaire étiré
+   sur 900px est pénible à remplir.
+   ========================================================================== */
+
+.settings-panel {
+  max-width: 46rem;
+}
+
+/* Bouton de formulaire à sa largeur naturelle sur grand écran (il héritait de
+   l'étirement du conteneur flex), pleine largeur sur mobile pour la cible
+   tactile. */
+@media (min-width: 561px) {
+  .form > button,
+  .form-actions button {
+    align-self: flex-start;
+  }
+}
+
+/* Cible tactile : sur mobile les boutons d'un groupe d'actions prennent toute
+   la largeur plutôt que de rester à la largeur du texte. */
+@media (max-width: 560px) {
+  .form-actions {
+    flex-direction: column;
+  }
+
+  .form-actions button {
+    width: 100%;
   }
 }

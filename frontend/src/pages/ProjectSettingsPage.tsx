@@ -14,10 +14,23 @@ import {
   syncGithubIssues,
   updateProject,
 } from "../api/projects";
+import AppShell from "../components/AppShell";
 import CategoriesSection from "../components/CategoriesSection";
-import ProjectNav from "../components/ProjectNav";
+import PageHeader from "../components/PageHeader";
 import RolesSection from "../components/RolesSection";
 import SprintsSection from "../components/SprintsSection";
+
+const SETTINGS_SECTIONS = [
+  { key: "general", label: "Général" },
+  { key: "members", label: "Membres" },
+  { key: "github", label: "GitHub" },
+  { key: "sprints", label: "Sprints" },
+  { key: "categories", label: "Catégories" },
+  { key: "roles", label: "Rôles" },
+  { key: "danger", label: "Zone dangereuse" },
+] as const;
+
+type SettingsSection = (typeof SETTINGS_SECTIONS)[number]["key"];
 
 export default function ProjectSettingsPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -45,6 +58,7 @@ export default function ProjectSettingsPage() {
   const [members, setMembers] = useState<Account[] | null>(null);
   const [removingId, setRemovingId] = useState<number | null>(null);
   const [membersError, setMembersError] = useState<string | null>(null);
+  const [section, setSection] = useState<SettingsSection>("general");
 
   const canManage =
     !!account && (account.is_admin || (createdByAccountId !== null && createdByAccountId === account.id));
@@ -194,13 +208,35 @@ export default function ProjectSettingsPage() {
   }
 
   return (
-    <>
-      <ProjectNav projectId={Number(projectId)} projectName={projectName} active="settings" canManage={canManage} />
-      <div className="page">
-        <h1>Paramètres du projet</h1>
+    <AppShell
+      title="Paramètres"
+      project={{ id: Number(projectId), name: projectName }}
+      canManage={canManage}
+    >
+      <div className="page page-wide">
+        <PageHeader title="Paramètres du projet" subtitle="Configuration, équipe et intégrations." />
 
         {canManage ? (
-          <>
+          <div className="settings-layout">
+            {/* Sous-navigation : verticale à côté du contenu sur grand écran, ruban
+                défilant au-dessus sur mobile — une seule section à la fois plutôt
+                qu'un défilement de sept blocs empilés. */}
+            <nav className="settings-nav" aria-label="Sections des paramètres">
+              {SETTINGS_SECTIONS.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  aria-current={section === item.key}
+                  className={section === item.key ? "settings-nav-item is-active" : "settings-nav-item"}
+                  onClick={() => setSection(item.key)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+
+            <div className="settings-panel">
+              {section === "general" && (
             <form onSubmit={handleSubmit} className="form">
               <label htmlFor="name">Nom du projet *</label>
               <input
@@ -221,7 +257,9 @@ export default function ProjectSettingsPage() {
                 {submitting ? "Enregistrement..." : "Enregistrer"}
               </button>
             </form>
+              )}
 
+              {section === "members" && (
             <section className="member-management">
               <h2>Membres du projet</h2>
               {membersError && <p className="error">{membersError}</p>}
@@ -248,7 +286,9 @@ export default function ProjectSettingsPage() {
                 </ul>
               )}
             </section>
+              )}
 
+              {section === "github" && (
             <section className="chart-section">
               <h2>Intégration GitHub</h2>
               <p className="meta">
@@ -332,25 +372,29 @@ export default function ProjectSettingsPage() {
                 </div>
               )}
             </section>
+              )}
 
-            <SprintsSection projectId={Number(projectId)} />
-            <CategoriesSection projectId={Number(projectId)} />
-            <RolesSection projectId={Number(projectId)} />
+              {section === "sprints" && <SprintsSection projectId={Number(projectId)} />}
+              {section === "categories" && <CategoriesSection projectId={Number(projectId)} />}
+              {section === "roles" && <RolesSection projectId={Number(projectId)} />}
 
-            <section className="danger-zone">
-              <h2>Zone dangereuse</h2>
-              <p className="meta">
-                Supprimer ce projet supprime aussi définitivement tous ses membres et toutes les heures saisies.
-              </p>
-              <button type="button" className="button-danger" onClick={handleDelete} disabled={deleting}>
-                {deleting ? "Suppression..." : "Supprimer le projet"}
-              </button>
-            </section>
-          </>
+              {section === "danger" && (
+                <section className="danger-zone">
+                  <h2>Zone dangereuse</h2>
+                  <p className="meta">
+                    Supprimer ce projet supprime aussi définitivement tous ses membres et toutes les heures saisies.
+                  </p>
+                  <button type="button" className="button-danger" onClick={handleDelete} disabled={deleting}>
+                    {deleting ? "Suppression..." : "Supprimer le projet"}
+                  </button>
+                </section>
+              )}
+            </div>
+          </div>
         ) : (
           <p className="meta">Réservé au créateur du projet et aux administrateurs.</p>
         )}
       </div>
-    </>
+    </AppShell>
   );
 }

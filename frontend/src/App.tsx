@@ -7,6 +7,7 @@ import HomePage from "./pages/HomePage";
 import ProjectHomePage from "./pages/ProjectHomePage";
 import ProjectListPage from "./pages/ProjectListPage";
 import ProjectSettingsPage from "./pages/ProjectSettingsPage";
+import SprintsPage from "./pages/SprintsPage";
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="/projects/:projectId" element={<ProjectHomePage />} />
         <Route path="/projects/:projectId/settings" element={<ProjectSettingsPage />} />
         <Route path="/projects/:projectId/dashboard" element={<DashboardPage />} />
+        <Route path="/projects/:projectId/sprints" element={<SprintsPage />} />
         <Route path="/admin/demandes" element={<AdminMembershipRequestsPage />} />
       </Routes>
     </AuthProvider>

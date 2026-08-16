@@ -1,6 +1,8 @@
 import { type FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ApiError, createProject } from "../api/projects";
+import AppShell from "../components/AppShell";
+import PageHeader from "../components/PageHeader";
 
 export default function CreateProjectPage() {
   const navigate = useNavigate();
@@ -37,11 +39,12 @@ export default function CreateProjectPage() {
   }
 
   return (
+    <AppShell title="Nouveau projet">
     <div className="page">
       <Link to="/projects" className="back-link">
         ← Tous les projets
       </Link>
-      <h1>Créer un projet</h1>
+      <PageHeader title="Créer un projet" />
       <form onSubmit={handleSubmit} className="form">
         <label htmlFor="name">Nom du projet *</label>
         <input
@@ -68,5 +71,6 @@ export default function CreateProjectPage() {
         </button>
       </form>
     </div>
+    </AppShell>
   );
 }
