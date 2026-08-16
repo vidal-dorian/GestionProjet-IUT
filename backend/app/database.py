@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy.schema import CreateColumn
 
 from app.config import settings
 
@@ -50,5 +51,5 @@ def sync_missing_columns(target_engine: Engine = engine) -> None:
                         "valeur par défaut : ajout automatique impossible, une migration "
                         "manuelle est nécessaire."
                     )
-                column_type = column.type.compile(dialect=target_engine.dialect)
-                conn.execute(text(f"ALTER TABLE {table.name} ADD COLUMN {column.name} {column_type}"))
+                column_ddl = str(CreateColumn(column).compile(dialect=target_engine.dialect))
+                conn.execute(text(f"ALTER TABLE {table.name} ADD COLUMN {column_ddl}"))
