@@ -1,6 +1,7 @@
 import { type MouseEvent, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import ProjectNav from "../components/ProjectNav";
+import AppShell from "../components/AppShell";
+import PageHeader from "../components/PageHeader";
 import { ApiError, getProject, joinProject, listProjects, type Project, type ProjectSummary } from "../api/projects";
 import TimeEntriesSection from "../components/TimeEntriesSection";
 import { useAuth } from "../context/AuthContext";
@@ -88,14 +89,15 @@ export default function ProjectHomePage() {
   }
 
   return (
-    <>
-      <ProjectNav projectId={project.id} projectName={project.name} active="home" canManage={canManage} />
-      <div className="page">
-        <h1>Bonjour, {account.email.split("@")[0]}</h1>
-        {project.description && <p className="description">{project.description}</p>}
+    <AppShell title="Saisie" project={{ id: project.id, name: project.name }} canManage={canManage}>
+      <div className="page page-wide">
+        <PageHeader
+          title={`Bonjour, ${account.email.split("@")[0]}`}
+          subtitle={project.description || "Saisis le temps passé sur ce projet."}
+        />
 
         <TimeEntriesSection projectId={project.id} />
       </div>
-    </>
+    </AppShell>
   );
 }

@@ -8,6 +8,8 @@ import {
 } from "../api/admin";
 import { ApiError } from "../api/projects";
 import { useAuth } from "../context/AuthContext";
+import AppShell from "../components/AppShell";
+import PageHeader from "../components/PageHeader";
 
 export default function AdminMembershipRequestsPage() {
   const { isAdmin, loading: authLoading } = useAuth();
@@ -54,13 +56,12 @@ export default function AdminMembershipRequestsPage() {
   }
 
   return (
+    <AppShell title="Demandes d'accès">
     <div className="page">
-      <div className="page-header">
-        <Link to="/" className="back-link">
-          ← Retour à l'accueil
-        </Link>
-      </div>
-      <h1>Demandes d'adhésion</h1>
+      <PageHeader
+        title="Demandes d'adhésion"
+        subtitle="Approuvez ou refusez les demandes d'accès aux projets."
+      />
 
       {error && <p className="error">{error}</p>}
 
@@ -100,5 +101,6 @@ export default function AdminMembershipRequestsPage() {
         </ul>
       )}
     </div>
+    </AppShell>
   );
 }
