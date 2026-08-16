@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.3.0](https://github.com/vidal-dorian/GestionProjet-IUT/compare/v1.2.1...v1.3.0) (2026-08-16)
+
+
+### Features
+
+* US-39 (suite) — contexte d'identité unique + nav mobile sans débordement + dashboard en grille ([71e917d](https://github.com/vidal-dorian/GestionProjet-IUT/commit/71e917d5dd290359860cc0f3440629c781702905))
+
+
+### Bug Fixes
+
+* réparer le crash-loop de sync_missing_columns après PR [#72](https://github.com/vidal-dorian/GestionProjet-IUT/issues/72) ([fc1542e](https://github.com/vidal-dorian/GestionProjet-IUT/commit/fc1542e5833d7e2b82a3e00fc823c0e5eb2ca6dc))
+* réparer le crash-loop de sync_missing_columns après PR [#72](https://github.com/vidal-dorian/GestionProjet-IUT/issues/72) ([a94dba6](https://github.com/vidal-dorian/GestionProjet-IUT/commit/a94dba6a289062c0da199a28f7c999e2d711a49f))
+* **security:** fermer une fuite de PII cross-projet et une injection de formule Excel ([e59d3b4](https://github.com/vidal-dorian/GestionProjet-IUT/commit/e59d3b4b660132aea10603676399ecb219c0ab1f))
+
 ## [1.2.1](https://github.com/vidal-dorian/GestionProjet-IUT/compare/v1.2.0...v1.2.1) (2026-08-15)
 
 
