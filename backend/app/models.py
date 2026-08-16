@@ -59,7 +59,7 @@ class ProjectMembership(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False)
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="approved")
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="approved", server_default="approved")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
     decided_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
