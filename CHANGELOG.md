@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.1](https://github.com/vidal-dorian/GestionProjet-IUT/compare/v1.4.0...v1.4.1) (2026-09-29)
+
+
+### Bug Fixes
+
+* écran de reconnexion et administrateurs configurables via ADMIN_EMAILS ([659215d](https://github.com/vidal-dorian/GestionProjet-IUT/commit/659215d335e9f84f633c5931a5c2173b843f2540))
+* écran de reconnexion et administrateurs configurables via ADMIN_EMAILS ([d393099](https://github.com/vidal-dorian/GestionProjet-IUT/commit/d393099c37973c55c495203f81145fc8ef671cfe))
+
 ## [1.4.0](https://github.com/vidal-dorian/GestionProjet-IUT/compare/v1.3.0...v1.4.0) (2026-08-16)
 
 
