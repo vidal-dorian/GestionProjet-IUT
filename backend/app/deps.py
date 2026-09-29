@@ -37,18 +37,25 @@ def resolve_authenticated_email(request: Request) -> str | None:
     return None
 
 
+def _load_account(db: Session, email: str) -> models.Account:
+    account = crud.get_or_create_account(db, email)
+    if not account.is_admin and email.strip().lower() in settings.admin_email_set:
+        account = crud.promote_to_admin(db, account)
+    return account
+
+
 def get_current_account(request: Request, db: Session = Depends(get_db)) -> models.Account:
     email = resolve_authenticated_email(request)
     if not email:
         raise HTTPException(status_code=401, detail="Authentification requise.")
-    return crud.get_or_create_account(db, email)
+    return _load_account(db, email)
 
 
 def get_current_account_optional(request: Request, db: Session = Depends(get_db)) -> models.Account | None:
     email = resolve_authenticated_email(request)
     if not email:
         return None
-    return crud.get_or_create_account(db, email)
+    return _load_account(db, email)
 
 
 def get_current_admin(account: models.Account = Depends(get_current_account)) -> models.Account:

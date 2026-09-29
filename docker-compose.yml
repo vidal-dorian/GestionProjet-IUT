@@ -24,6 +24,7 @@ services:
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       CLOUDFLARE_TEAM_DOMAIN: "${CLOUDFLARE_TEAM_DOMAIN:?Renseigne CLOUDFLARE_TEAM_DOMAIN dans .env (voir docs/deploiement-raspberry-pi.md)}"
       CLOUDFLARE_ACCESS_AUD: "${CLOUDFLARE_ACCESS_AUD:?Renseigne CLOUDFLARE_ACCESS_AUD dans .env (voir docs/deploiement-raspberry-pi.md)}"
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-12811281d@gmail.com}
     depends_on:
       mysql:
         condition: service_healthy

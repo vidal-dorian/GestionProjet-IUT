@@ -264,6 +264,17 @@ politique de l'étape 4 doit ensuite donner accès normal à l'application ; un
 compte non autorisé doit être bloqué par Cloudflare lui-même, avant même
 d'atteindre le serveur.
 
+### Administrateurs
+
+Les administrateurs valident ou refusent les demandes d'adhésion aux
+projets depuis la page **Demandes d'accès** (`/admin/demandes`, visible dans
+la barre latérale uniquement pour eux). Un compte devient administrateur à
+sa prochaine connexion si son adresse figure dans `ADMIN_EMAILS` (liste
+séparée par des virgules dans `.env`) ; sans cette variable,
+`docker-compose.yml` utilise l'administrateur par défaut du projet. Retirer
+une adresse de la liste ne rétrograde pas le compte : le faire en base
+(`UPDATE accounts SET is_admin = 0 WHERE email = '...'`).
+
 ## 7. Mettre en place le déploiement continu (CI/CD)
 
 Une fois les étapes 1 à 6 terminées et l'application vérifiée en
