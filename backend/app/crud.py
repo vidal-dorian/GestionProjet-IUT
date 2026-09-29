@@ -416,6 +416,13 @@ def get_or_create_account(db: Session, email: str) -> models.Account:
     return account
 
 
+def promote_to_admin(db: Session, account: models.Account) -> models.Account:
+    account.is_admin = True
+    db.commit()
+    db.refresh(account)
+    return account
+
+
 def list_project_contributors(db: Session, project_id: int) -> list[tuple[models.Account, float]]:
     return (
         db.query(models.Account, func.coalesce(func.sum(models.TimeEntry.duration_hours), 0.0))

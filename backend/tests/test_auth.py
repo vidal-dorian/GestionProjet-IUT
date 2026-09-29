@@ -74,3 +74,34 @@ def test_cloudflare_jwt_is_validated_end_to_end(client, monkeypatch):
     # An invalid/tampered token must be rejected, not silently accepted.
     bad_response = client.get("/api/me", headers={"Cf-Access-Jwt-Assertion": token + "tampered"})
     assert bad_response.status_code == 401
+
+
+def test_email_listed_in_admin_emails_is_promoted_to_admin(client, monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "admin_emails", "boss@test.local, Chef@Test.local")
+    client.headers["X-Dev-Email"] = "chef@test.local"
+
+    body = client.get("/api/me").json()
+    assert body["is_admin"] is True
+    assert client.get("/api/admin/membership-requests").status_code == 200
+
+
+def test_existing_account_is_promoted_once_added_to_admin_emails(client, monkeypatch):
+    from app.config import settings
+
+    client.headers["X-Dev-Email"] = "alice@test.local"
+    assert client.get("/api/me").json()["is_admin"] is False
+
+    monkeypatch.setattr(settings, "admin_emails", "alice@test.local")
+    assert client.get("/api/me").json()["is_admin"] is True
+
+
+def test_email_not_listed_in_admin_emails_stays_regular(client, monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "admin_emails", "boss@test.local")
+    client.headers["X-Dev-Email"] = "alice@test.local"
+
+    assert client.get("/api/me").json()["is_admin"] is False
+    assert client.get("/api/admin/membership-requests").status_code == 403
