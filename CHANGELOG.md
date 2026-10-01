@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.5.0](https://github.com/vidal-dorian/GestionProjet-IUT/compare/v1.4.1...v1.5.0) (2026-10-01)
+
+
+### Features
+
+* modifier les dates (et le nom) d'un sprint depuis les paramètres ([1ddd79f](https://github.com/vidal-dorian/GestionProjet-IUT/commit/1ddd79f7ca69093b80e168e4ac5e0055584cde2c))
+
+
+### Bug Fixes
+
+* **security:** corriger les failles d'autorisation et durcir le déploiement ([f708f61](https://github.com/vidal-dorian/GestionProjet-IUT/commit/f708f619e377f329e5519fd6a5bce024b0895687))
+* sync GitHub robuste, modification des sprints et audit de sécurité ([6e10780](https://github.com/vidal-dorian/GestionProjet-IUT/commit/6e10780a9edc15e166177a41332ad7aa45473fcd))
+* synchroniser les issues même quand le GitHub Project est illisible ([72268a0](https://github.com/vidal-dorian/GestionProjet-IUT/commit/72268a0ac783e91fae639459230d9d3edfad5333))
+
 ## [1.4.1](https://github.com/vidal-dorian/GestionProjet-IUT/compare/v1.4.0...v1.4.1) (2026-09-29)
 
 
