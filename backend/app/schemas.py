@@ -46,6 +46,7 @@ class GithubIssueRead(BaseModel):
 class GithubSyncResult(BaseModel):
     synced_at: datetime
     issue_count: int
+    warning: str | None = None
 
 
 class SprintCreate(BaseModel):

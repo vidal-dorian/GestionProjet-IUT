@@ -504,6 +504,12 @@ body.has-drawer-open {
   font-size: 0.9rem;
 }
 
+.warning {
+  color: var(--status-warning-ink);
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+}
+
 /* ==========================================================================
    Buttons & links
    ========================================================================== */

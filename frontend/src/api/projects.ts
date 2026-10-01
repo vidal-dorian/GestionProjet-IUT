@@ -25,6 +25,7 @@ export interface GithubIssue {
 export interface GithubSyncResult {
   synced_at: string;
   issue_count: number;
+  warning: string | null;
 }
 
 export type MembershipStatus = "pending" | "approved" | "rejected";
@@ -66,7 +67,7 @@ export class ApiError extends Error {
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const body = await response.json().catch(() => null);
-    const message = body?.detail ?? "Une erreur est survenue.";
+    const message = body?.detail ?? `Une erreur est survenue (HTTP ${response.status}).`;
     throw new ApiError(response.status, message);
   }
   return response.json() as Promise<T>;

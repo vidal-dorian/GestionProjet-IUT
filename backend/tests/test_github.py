@@ -90,6 +90,7 @@ def test_sync_persists_issues_and_updates_timestamp(mock_list_issues, client):
     response = client.post(f"/api/projects/{project['id']}/github/sync")
     assert response.status_code == 200
     assert response.json()["issue_count"] == 2
+    assert response.json()["warning"] is None
 
     project_after = client.get(f"/api/projects/{project['id']}").json()
     assert project_after["github_last_synced_at"] is not None
@@ -99,6 +100,38 @@ def test_sync_persists_issues_and_updates_timestamp(mock_list_issues, client):
     issue_by_number = {i["number"]: i for i in issues}
     assert issue_by_number[1]["labels"] == ["bug"]
     assert issue_by_number[2]["state"] == "open"
+
+
+@patch("app.github_sync.github_client.list_issues", new_callable=AsyncMock)
+def test_sync_falls_back_without_story_points_when_projects_unavailable(mock_list_issues, client):
+    issue = {"number": 1, "title": "US", "state": "open", "labels": [{"name": "Sprint 1"}], "html_url": "https://x/1"}
+    mock_list_issues.side_effect = [
+        github_client.GithubProjectsUnavailable("Resource not accessible by personal access token"),
+        [issue],
+    ]
+    project = create_test_project(client)
+    _link_repo(client, project["id"])
+
+    response = client.post(f"/api/projects/{project['id']}/github/sync")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["issue_count"] == 1
+    assert "read:project" in body["warning"]
+    assert mock_list_issues.call_args_list[1].kwargs == {"with_story_points": False}
+
+    issues = client.get(f"/api/projects/{project['id']}/github/issues").json()
+    assert [i["number"] for i in issues] == [1]
+
+
+@patch("app.github_sync.github_client.list_issues", new_callable=AsyncMock)
+def test_sync_github_api_error_returns_502_with_reason(mock_list_issues, client):
+    mock_list_issues.side_effect = github_client.GithubApiError("Bad credentials")
+    project = create_test_project(client)
+    _link_repo(client, project["id"])
+
+    response = client.post(f"/api/projects/{project['id']}/github/sync")
+    assert response.status_code == 502
+    assert "Bad credentials" in response.json()["detail"]
 
 
 @patch("app.github_sync.github_client.list_issues", new_callable=AsyncMock)

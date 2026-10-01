@@ -58,15 +58,17 @@ async def sync_repo(
             )
 
     try:
-        issues = await github_sync.sync_project(db, db_project)
+        issues, warning = await github_sync.sync_project(db, db_project)
     except github_client.GithubRepoNotFound as exc:
         raise HTTPException(status_code=404, detail="Ce dépôt est introuvable ou inaccessible.") from exc
     except github_client.GithubApiError as exc:
         raise HTTPException(
-            status_code=502, detail="Impossible de synchroniser ce dépôt auprès de GitHub pour le moment."
+            status_code=502, detail=f"Impossible de synchroniser ce dépôt auprès de GitHub ({exc})."
         ) from exc
 
-    return schemas.GithubSyncResult(synced_at=db_project.github_last_synced_at, issue_count=len(issues))
+    return schemas.GithubSyncResult(
+        synced_at=db_project.github_last_synced_at, issue_count=len(issues), warning=warning
+    )
 
 
 @router.get("/issues", response_model=list[schemas.GithubIssueRead])

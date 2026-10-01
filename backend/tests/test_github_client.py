@@ -91,16 +91,49 @@ def test_list_issues_treats_missing_project_field_as_no_story_points():
     assert issues[0]["story_points"] is None
 
 
-def test_list_issues_tolerates_projectitems_denied_by_scope():
-    # A token without `read:project` makes GitHub return `projectItems: null` for
-    # that node (with a partial GraphQL error) rather than failing the request.
-    node = _issue_node(1, labels=["Sprint 1"])
-    node["projectItems"] = None
-    body = _page([node])
-    body["errors"] = [{"message": "Resource not accessible by integration"}]
+def test_list_issues_raises_projects_unavailable_when_issue_nodes_are_nulled():
+    # `Issue.projectItems` is non-nullable in GitHub's schema: when the token
+    # cannot read the Project, GitHub nulls the whole issue node.
+    body = _page([None, None])
+    body["errors"] = [{"message": "Resource not accessible by personal access token"}]
 
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
         mock_post.return_value = _http_response(200, body)
+        with pytest.raises(github_client.GithubProjectsUnavailable, match="personal access token"):
+            asyncio.run(github_client.list_issues("owner/repo"))
+
+
+def test_list_issues_without_story_points_skips_project_items():
+    node = _issue_node(1, labels=["Sprint 1"])
+    del node["projectItems"]
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = _http_response(200, _page([node]))
+        issues = asyncio.run(github_client.list_issues("owner/repo", with_story_points=False))
+
+    assert issues[0]["labels"] == [{"name": "Sprint 1"}]
+    assert issues[0]["story_points"] is None
+    assert "projectItems" not in mock_post.call_args.kwargs["json"]["query"]
+
+
+def test_list_issues_without_story_points_still_nulled_raises_api_error():
+    body = _page([None])
+    body["errors"] = [{"message": "Something else"}]
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = _http_response(200, body)
+        with pytest.raises(github_client.GithubApiError) as exc_info:
+            asyncio.run(github_client.list_issues("owner/repo", with_story_points=False))
+
+    assert not isinstance(exc_info.value, github_client.GithubProjectsUnavailable)
+
+
+def test_list_issues_tolerates_null_project_items():
+    node = _issue_node(1)
+    node["projectItems"]["nodes"] = [None]
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = _http_response(200, _page([node]))
         issues = asyncio.run(github_client.list_issues("owner/repo"))
 
     assert issues[0]["story_points"] is None
