@@ -51,13 +51,6 @@ def get_current_account(request: Request, db: Session = Depends(get_db)) -> mode
     return _load_account(db, email)
 
 
-def get_current_account_optional(request: Request, db: Session = Depends(get_db)) -> models.Account | None:
-    email = resolve_authenticated_email(request)
-    if not email:
-        return None
-    return _load_account(db, email)
-
-
 def get_current_admin(account: models.Account = Depends(get_current_account)) -> models.Account:
     if not account.is_admin:
         raise HTTPException(status_code=403, detail="Réservé aux administrateurs.")

@@ -31,3 +31,16 @@ def promote_to_admin(email: str) -> None:
         db.commit()
     finally:
         db.close()
+
+
+def create_ownerless_project(name: str) -> int:
+    """Insère directement un projet sans créateur, comme ceux créés avant que
+    la création de projet n'exige une authentification (données héritées)."""
+    db = TestingSessionLocal()
+    try:
+        project = models.Project(name=name)
+        db.add(project)
+        db.commit()
+        return project.id
+    finally:
+        db.close()

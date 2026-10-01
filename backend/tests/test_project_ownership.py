@@ -1,6 +1,6 @@
 from unittest.mock import AsyncMock, patch
 
-from tests.helpers import add_approved_member, promote_to_admin
+from tests.helpers import add_approved_member, create_ownerless_project, promote_to_admin
 
 
 def test_project_read_exposes_its_creator(client):
@@ -11,9 +11,9 @@ def test_project_read_exposes_its_creator(client):
     assert project["created_by_account_id"] == alice_id
 
 
-def test_project_created_unauthenticated_has_no_creator(client):
-    project = client.post("/api/projects", json={"name": "Projet anonyme"}).json()
-    assert project["created_by_account_id"] is None
+def test_project_cannot_be_created_unauthenticated(client):
+    response = client.post("/api/projects", json={"name": "Projet anonyme"})
+    assert response.status_code == 401
 
 
 def test_ordinary_member_cannot_update_or_delete_the_project(client):
@@ -56,7 +56,7 @@ def test_admin_can_delete_a_project_they_did_not_create(client):
 
 
 def test_project_without_a_creator_can_only_be_managed_by_an_admin(client):
-    project = client.post("/api/projects", json={"name": "Projet anonyme"}).json()
+    project = {"id": create_ownerless_project("Projet anonyme")}
 
     client.headers["X-Dev-Email"] = "alice@test.local"
     add_approved_member(project["id"], "alice@test.local")
@@ -86,7 +86,7 @@ def test_ordinary_member_cannot_configure_github(client):
     )
 
 
-@patch("app.routers.github.github_client.verify_repo", new_callable=AsyncMock)
+@patch("app.routers.github.github_client.verify_repo", new_callable=AsyncMock, return_value=False)
 def test_creator_can_configure_github(mock_verify, client):
     mock_verify.return_value = None
     client.headers["X-Dev-Email"] = "alice@test.local"

@@ -1,13 +1,20 @@
 from tests.helpers import add_approved_member
 
 
+def test_list_projects_requires_authentication(client):
+    response = client.get("/api/projects")
+    assert response.status_code == 401
+
+
 def test_list_projects_empty(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     response = client.get("/api/projects")
     assert response.status_code == 200
     assert response.json() == []
 
 
 def test_list_projects_returns_name_description_and_contributor_count(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     client.post("/api/projects", json={"name": "Site vitrine", "description": "Refonte du site"})
     client.post("/api/projects", json={"name": "App mobile"})
 

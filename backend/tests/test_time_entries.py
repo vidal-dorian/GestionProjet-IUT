@@ -9,7 +9,7 @@ def setup_authenticated_account(client, email="alice@test.local"):
 
 
 def link_repo_and_sync_issues(client, project_id, issues):
-    with patch("app.routers.github.github_client.verify_repo", new_callable=AsyncMock):
+    with patch("app.routers.github.github_client.verify_repo", new_callable=AsyncMock, return_value=False):
         client.put(f"/api/projects/{project_id}/github", json={"repo": "owner/repo"})
     with patch("app.github_sync.github_client.list_issues", new_callable=AsyncMock) as mock_list_issues:
         mock_list_issues.return_value = issues
@@ -18,7 +18,9 @@ def link_repo_and_sync_issues(client, project_id, issues):
 
 
 def test_create_time_entry_requires_authentication(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     project = client.post("/api/projects", json={"name": "Projet Sans Session"}).json()
+    del client.headers["X-Dev-Email"]
     response = client.post(
         f"/api/projects/{project['id']}/time-entries",
         json={"date": "2026-08-13", "duration_hours": 2, "description": "Dev"},
@@ -82,6 +84,17 @@ def test_date_today_is_allowed(client):
     )
     assert response.status_code == 201
     assert response.json()["date"] == today
+
+
+def test_date_cannot_be_absurdly_old(client):
+    project, _ = setup_authenticated_account(client)
+
+    response = client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "0001-01-01", "duration_hours": 1, "description": "Dev"},
+    )
+    assert response.status_code == 422
+    assert "antérieure" in response.json()["detail"][0]["msg"]
 
 
 def test_update_time_entry_rejects_a_future_date(client):

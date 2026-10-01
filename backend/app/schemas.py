@@ -4,6 +4,12 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
+# Bornes de saisie des dates : au-delà, une seule valeur aberrante (ex. an 1)
+# fait générer au dashboard des dizaines de milliers de points hebdomadaires.
+MIN_DATE = date_type(2000, 1, 1)
+MAX_SPRINT_DATE = date_type(2100, 12, 31)
+
+
 class ProjectCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     description: str | None = Field(default=None, max_length=5000)
@@ -27,7 +33,15 @@ class GithubRepoLink(BaseModel):
 
 
 class GithubLabelFilterUpdate(BaseModel):
-    labels: list[str] = Field(default_factory=list)
+    labels: list[str] = Field(default_factory=list, max_length=50)
+
+    @model_validator(mode="after")
+    def fits_storage_column(self) -> "GithubLabelFilterUpdate":
+        # Stocké joint par des virgules dans une colonne VARCHAR(500) : au-delà,
+        # MySQL refuse l'écriture et la requête échouerait en erreur 500.
+        if len(",".join(label.strip() for label in self.labels if label.strip())) > 500:
+            raise ValueError("La liste de labels est trop longue (500 caractères au maximum).")
+        return self
 
 
 class GithubIssueRead(BaseModel):
@@ -53,6 +67,13 @@ class SprintCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     start_date: date_type
     end_date: date_type
+
+    @field_validator("start_date", "end_date")
+    @classmethod
+    def date_within_bounds(cls, value: date_type) -> date_type:
+        if not MIN_DATE <= value <= MAX_SPRINT_DATE:
+            raise ValueError(f"La date doit être comprise entre {MIN_DATE:%d/%m/%Y} et {MAX_SPRINT_DATE:%d/%m/%Y}.")
+        return value
 
     @model_validator(mode="after")
     def end_after_start(self) -> "SprintCreate":
@@ -188,6 +209,8 @@ class TimeEntryCreate(BaseModel):
     def date_must_not_be_in_the_future(cls, value: date_type) -> date_type:
         if value > date_type.today():
             raise ValueError("La date ne peut pas être dans le futur.")
+        if value < MIN_DATE:
+            raise ValueError(f"La date ne peut pas être antérieure au {MIN_DATE:%d/%m/%Y}.")
         return value
 
 

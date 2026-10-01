@@ -112,6 +112,35 @@ def test_admin_can_remove_a_member(client):
     assert response.status_code == 403
 
 
+def test_removed_member_who_logged_time_loses_access(client):
+    # Un membre ayant déjà saisi des heures était considéré membre "historique"
+    # (repli sur les saisies) : le retirer supprimait sa ligne d'adhésion mais
+    # lui laissait l'accès au projet.
+    client.headers["X-Dev-Email"] = "alice@test.local"
+    project = client.post("/api/projects", json={"name": "Projet Alice"}).json()
+    add_approved_member(project["id"], "bob@test.local")
+
+    client.headers["X-Dev-Email"] = "bob@test.local"
+    bob_id = client.get("/api/me").json()["id"]
+    created = client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-13", "duration_hours": 2, "description": "Dev"},
+    )
+    assert created.status_code == 201
+
+    client.headers["X-Dev-Email"] = "alice@test.local"
+    assert client.delete(f"/api/admin/projects/{project['id']}/members/{bob_id}").status_code == 204
+
+    client.headers["X-Dev-Email"] = "bob@test.local"
+    assert client.get(f"/api/projects/{project['id']}/time-entries").status_code == 403
+    assert client.get(f"/api/projects/{project['id']}/dashboard/recent-entries").status_code == 403
+    assert client.get("/api/me/projects").json() == []
+
+    # Il peut redemander à rejoindre le projet, ce qui repasse par une validation.
+    join = client.post(f"/api/projects/{project['id']}/join")
+    assert join.json()["status"] == "pending"
+
+
 def test_removing_a_non_member_returns_404(client):
     client.headers["X-Dev-Email"] = "alice@test.local"
     project = client.post("/api/projects", json={"name": "Projet Alice"}).json()

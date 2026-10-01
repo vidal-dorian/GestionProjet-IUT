@@ -74,8 +74,8 @@ def is_valid_repo_format(repo: str) -> bool:
     return bool(REPO_PATTERN.match(repo))
 
 
-async def verify_repo(repo: str) -> None:
-    """Raises GithubRepoNotFound or GithubApiError; returns silently if the repo is reachable."""
+async def verify_repo(repo: str) -> bool:
+    """Raises GithubRepoNotFound or GithubApiError; returns whether the reachable repo is private."""
     async with httpx.AsyncClient(timeout=10.0) as client:
         try:
             response = await client.get(f"{GITHUB_API_URL}/repos/{repo}", headers=_headers())
@@ -86,6 +86,7 @@ async def verify_repo(repo: str) -> None:
         raise GithubRepoNotFound(repo)
     if response.status_code != 200:
         raise GithubApiError(f"GitHub a répondu {response.status_code}")
+    return bool(response.json().get("private"))
 
 
 def _story_points_from_node(node: dict) -> float | None:

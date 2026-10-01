@@ -190,3 +190,12 @@ def test_update_sprint_requires_project_membership(client):
         json={"name": "Sprint 1", "start_date": "2026-09-01", "end_date": "2026-09-14"},
     )
     assert response.status_code == 403
+
+
+def test_create_sprint_rejects_out_of_range_dates(client):
+    project = create_test_project(client)
+    response = client.post(
+        f"/api/projects/{project['id']}/sprints",
+        json={"name": "Sprint 0", "start_date": "0001-01-01", "end_date": "9999-12-31"},
+    )
+    assert response.status_code == 422

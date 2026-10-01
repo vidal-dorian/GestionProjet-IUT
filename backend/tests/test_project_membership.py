@@ -25,9 +25,9 @@ def test_creating_a_project_while_authenticated_joins_it_automatically(client):
     assert body[0]["is_member"] is True
 
 
-def test_creating_a_project_unauthenticated_does_not_crash_and_has_no_member(client):
+def test_creating_a_project_requires_authentication(client):
     response = client.post("/api/projects", json={"name": "Projet anonyme"})
-    assert response.status_code == 201
+    assert response.status_code == 401
 
 
 def test_me_projects_requires_authentication(client):
@@ -98,16 +98,17 @@ def test_list_projects_flags_pending_status_after_a_join_request(client):
     assert by_id[project["id"]]["membership_status"] == "pending"
 
 
-def test_list_projects_without_authentication_flags_no_membership(client):
+def test_list_projects_for_a_non_member_flags_no_membership(client):
     client.headers["X-Dev-Email"] = "alice@test.local"
     client.post("/api/projects", json={"name": "Un projet"})
-    del client.headers["X-Dev-Email"]
 
+    client.headers["X-Dev-Email"] = "bob@test.local"
     body = client.get("/api/projects").json()
-    assert all(p["is_member"] is False and p["membership_status"] is None for p in body)
+    assert body and all(p["is_member"] is False and p["membership_status"] is None for p in body)
 
 
 def test_existing_contributor_without_explicit_membership_still_sees_the_project(client):
+    client.headers["X-Dev-Email"] = "creator@test.local"
     project = client.post("/api/projects", json={"name": "Projet legacy"}).json()
 
     # Simule une saisie créée avant l'introduction du rattachement explicite

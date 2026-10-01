@@ -1,5 +1,5 @@
 import { devAuthHeaders } from "./authHeaders";
-import { ApiError } from "./projects";
+import { ApiError, extractErrorMessage } from "./projects";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
@@ -47,7 +47,7 @@ export interface BurndownChartData {
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const body = await response.json().catch(() => null);
-    const message = body?.detail ?? "Une erreur est survenue.";
+    const message = extractErrorMessage(body?.detail, response.status);
     throw new ApiError(response.status, message);
   }
   return response.json() as Promise<T>;

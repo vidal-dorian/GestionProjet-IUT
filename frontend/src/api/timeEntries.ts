@@ -1,7 +1,7 @@
 import type { Account } from "./auth";
 import { devAuthHeaders } from "./authHeaders";
 import type { Category } from "./categories";
-import { ApiError, type GithubIssue } from "./projects";
+import { ApiError, extractErrorMessage, type GithubIssue } from "./projects";
 import type { Sprint } from "./sprints";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
@@ -32,23 +32,10 @@ export interface TimeEntryInput {
   category_id?: number | null;
 }
 
-function extractErrorMessage(detail: unknown): string {
-  if (typeof detail === "string") return detail;
-  if (Array.isArray(detail)) {
-    // FastAPI renvoie une liste d'erreurs de validation Pydantic ({ msg, loc, ... })
-    // plutôt qu'un message simple pour les erreurs 422.
-    const messages = detail
-      .map((item) => (typeof item?.msg === "string" ? item.msg.replace(/^Value error,\s*/, "") : null))
-      .filter((msg): msg is string => Boolean(msg));
-    if (messages.length > 0) return messages.join(" ");
-  }
-  return "Une erreur est survenue.";
-}
-
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const body = await response.json().catch(() => null);
-    throw new ApiError(response.status, extractErrorMessage(body?.detail));
+    throw new ApiError(response.status, extractErrorMessage(body?.detail, response.status));
   }
   return response.json() as Promise<T>;
 }

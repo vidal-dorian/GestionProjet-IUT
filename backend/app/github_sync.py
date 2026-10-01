@@ -42,6 +42,11 @@ async def sync_all_projects() -> None:
                 await sync_project(db, db_project)
             except (github_client.GithubRepoNotFound, github_client.GithubApiError) as exc:
                 logger.warning("Synchronisation GitHub échouée pour le projet %s: %s", db_project.id, exc)
+            except Exception:
+                # Une erreur base de données sur un projet laisserait la session
+                # dans un état invalide et ferait échouer tous les suivants.
+                db.rollback()
+                logger.exception("Erreur inattendue lors de la synchronisation du projet %s.", db_project.id)
     finally:
         db.close()
 

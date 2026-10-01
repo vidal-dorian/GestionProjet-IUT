@@ -61,6 +61,11 @@ def delete_project(db: Session, db_project: models.Project) -> None:
 
 
 def link_github_repo(db: Session, db_project: models.Project, repo: str) -> models.Project:
+    if (db_project.github_repo or "").lower() != repo.lower():
+        # Les issues de l'ancien dépôt n'ont plus de sens (liste, burndown) et
+        # la limite de fréquence ne doit pas bloquer la première synchro du nouveau.
+        db.query(models.GithubIssue).filter(models.GithubIssue.project_id == db_project.id).delete()
+        db_project.github_last_synced_at = None
     db_project.github_repo = repo
     db.commit()
     db.refresh(db_project)
@@ -349,7 +354,12 @@ def get_approved_membership(db: Session, project_id: int, account_id: int) -> mo
 
 
 def remove_project_member(db: Session, membership: models.ProjectMembership) -> None:
-    db.delete(membership)
+    """Retire l'accès d'un membre. La ligne d'adhésion est conservée en statut
+    "rejected" plutôt que supprimée : sans elle, is_approved_member retomberait
+    sur la règle de compatibilité (saisies existantes) et un membre ayant déjà
+    saisi des heures garderait l'accès. Il peut toujours redemander à rejoindre."""
+    membership.status = "rejected"
+    membership.decided_at = datetime.utcnow()
     db.commit()
 
 

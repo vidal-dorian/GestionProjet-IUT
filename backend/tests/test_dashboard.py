@@ -10,7 +10,7 @@ def setup_authenticated_account(client, project_name="Projet Dashboard", email="
 
 
 def link_repo_and_sync_issues(client, project_id, issues):
-    with patch("app.routers.github.github_client.verify_repo", new_callable=AsyncMock):
+    with patch("app.routers.github.github_client.verify_repo", new_callable=AsyncMock, return_value=False):
         client.put(f"/api/projects/{project_id}/github", json={"repo": "owner/repo"})
     with patch("app.github_sync.github_client.list_issues", new_callable=AsyncMock) as mock_list_issues:
         mock_list_issues.return_value = issues
