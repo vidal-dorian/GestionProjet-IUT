@@ -1,9 +1,12 @@
-fastapi==0.115.6
+fastapi==0.142.2
+# Épinglé explicitement : FastAPI n'impose qu'un minimum, or les versions
+# antérieures à 1.3.1 ont des vulnérabilités connues (pip-audit).
+starlette==1.7.0
 uvicorn[standard]==0.34.0
 sqlalchemy==2.0.36
 pymysql==1.1.1
-cryptography==44.0.0
+cryptography==50.0.2
 pydantic-settings==2.7.1
 httpx==0.28.1
 openpyxl==3.1.5
-pyjwt==2.10.1
+pyjwt==2.15.1
