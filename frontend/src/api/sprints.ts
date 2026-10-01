@@ -69,6 +69,19 @@ export function createSprint(projectId: number | string, input: SprintInput): Pr
   }).then((res) => handleResponse<SprintWriteResult>(res));
 }
 
+export function updateSprint(
+  projectId: number | string,
+  sprintId: number | string,
+  input: SprintInput,
+): Promise<SprintWriteResult> {
+  return fetch(`${API_URL}/api/projects/${projectId}/sprints/${sprintId}`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...devAuthHeaders() },
+    body: JSON.stringify(input),
+  }).then((res) => handleResponse<SprintWriteResult>(res));
+}
+
 export function getSprintBurndown(
   projectId: number | string,
   sprintId: number | string,

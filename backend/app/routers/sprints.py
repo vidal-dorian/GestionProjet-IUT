@@ -43,6 +43,22 @@ def create_sprint(
     return schemas.SprintWriteResult(sprint=db_sprint, overlap_warning=warning)
 
 
+@router.put("/{sprint_id}", response_model=schemas.SprintWriteResult)
+def update_sprint(
+    project_id: int,
+    sprint_id: int,
+    sprint: schemas.SprintCreate,
+    account: models.Account = Depends(require_project_member),
+    db: Session = Depends(get_db),
+):
+    db_sprint = crud.get_sprint(db, project_id, sprint_id)
+    if db_sprint is None:
+        raise HTTPException(status_code=404, detail="Sprint introuvable.")
+    db_sprint = crud.update_sprint(db, db_sprint, sprint)
+    warning = _overlap_warning(db, project_id, db_sprint, exclude_id=db_sprint.id)
+    return schemas.SprintWriteResult(sprint=db_sprint, overlap_warning=warning)
+
+
 @router.get("/{sprint_id}/burndown", response_model=schemas.BurndownChartData)
 def get_sprint_burndown(
     project_id: int,

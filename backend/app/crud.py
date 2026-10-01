@@ -169,6 +169,15 @@ def create_sprint(db: Session, project_id: int, sprint: schemas.SprintCreate) ->
     return db_sprint
 
 
+def update_sprint(db: Session, db_sprint: models.Sprint, sprint: schemas.SprintCreate) -> models.Sprint:
+    db_sprint.name = sprint.name.strip()
+    db_sprint.start_date = sprint.start_date
+    db_sprint.end_date = sprint.end_date
+    db.commit()
+    db.refresh(db_sprint)
+    return db_sprint
+
+
 def list_categories(db: Session, project_id: int) -> list[models.Category]:
     return (
         db.query(models.Category)
