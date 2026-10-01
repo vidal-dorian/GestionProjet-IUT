@@ -12,7 +12,9 @@ def setup_authenticated_account(client, email="alice@test.local"):
 
 
 def test_export_my_entries_requires_authentication(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
     project = client.post("/api/projects", json={"name": "Projet Export Sans Session"}).json()
+    del client.headers["X-Dev-Email"]
     response = client.get(f"/api/projects/{project['id']}/time-entries/export")
     assert response.status_code == 401
 

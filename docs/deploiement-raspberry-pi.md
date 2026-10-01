@@ -15,7 +15,7 @@ Internet
 Cloudflare Tunnel (cloudflared, tourne sur le Pi)
    │  HTTP (loopback, à l'intérieur du Pi)
    ▼
-nginx (conteneur "frontend", écoute sur le port hôte 8080)
+nginx (conteneur "frontend", écoute sur 127.0.0.1:8080 — loopback uniquement)
    ├── sert les fichiers statiques du frontend (React)
    └── /api/*  ──reverse proxy──▶  backend (conteneur FastAPI, port 8000, réseau Docker interne)
                                         │

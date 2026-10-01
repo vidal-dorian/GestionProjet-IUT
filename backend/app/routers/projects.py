@@ -3,22 +3,17 @@ from sqlalchemy.orm import Session
 
 from app import crud, models, schemas
 from app.database import get_db
-from app.deps import (
-    get_current_account,
-    get_current_account_optional,
-    require_project_member,
-    require_project_owner,
-)
+from app.deps import get_current_account, require_project_member, require_project_owner
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
 
 @router.get("", response_model=list[schemas.ProjectSummary])
 def list_projects(
-    account: models.Account | None = Depends(get_current_account_optional),
+    account: models.Account = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
-    statuses = crud.list_membership_statuses_for_account(db, account.id) if account else {}
+    statuses = crud.list_membership_statuses_for_account(db, account.id)
     return [
         schemas.ProjectSummary(
             id=p.id,
@@ -47,17 +42,16 @@ def _validate_name(db: Session, name: str, *, exclude_project_id: int | None = N
 @router.post("", response_model=schemas.ProjectRead, status_code=status.HTTP_201_CREATED)
 def create_project(
     project: schemas.ProjectCreate,
-    account: models.Account | None = Depends(get_current_account_optional),
+    account: models.Account = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
     name = _validate_name(db, project.name)
     db_project = crud.create_project(
         db,
         schemas.ProjectCreate(name=name, description=project.description),
-        created_by_account_id=account.id if account else None,
+        created_by_account_id=account.id,
     )
-    if account is not None:
-        crud.add_project_member(db, db_project.id, account.id)
+    crud.add_project_member(db, db_project.id, account.id)
     return db_project
 
 
@@ -100,7 +94,9 @@ def list_contributors(
 
 
 @router.get("/{project_id}", response_model=schemas.ProjectRead)
-def read_project(project_id: int, db: Session = Depends(get_db)):
+def read_project(
+    project_id: int, _account: models.Account = Depends(get_current_account), db: Session = Depends(get_db)
+):
     db_project = crud.get_project(db, project_id)
     if db_project is None:
         raise HTTPException(status_code=404, detail="Projet introuvable.")

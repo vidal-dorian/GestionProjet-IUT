@@ -52,6 +52,7 @@ export default function ProjectSettingsPage() {
   const [linkingGithub, setLinkingGithub] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncWarning, setSyncWarning] = useState<string | null>(null);
   const [labelFilterInput, setLabelFilterInput] = useState("");
   const [savingLabelFilter, setSavingLabelFilter] = useState(false);
   const [labelFilterError, setLabelFilterError] = useState<string | null>(null);
@@ -127,10 +128,12 @@ export default function ProjectSettingsPage() {
 
   async function handleSync() {
     setSyncError(null);
+    setSyncWarning(null);
     setSyncing(true);
     try {
       const result = await syncGithubIssues(projectId!);
       setLastSyncedAt(result.synced_at);
+      setSyncWarning(result.warning);
       const fetchedIssues = await listGithubIssues(projectId!);
       setIssues(fetchedIssues);
     } catch (err) {
@@ -333,6 +336,7 @@ export default function ProjectSettingsPage() {
                   </button>
 
                   {syncError && <p className="error">{syncError}</p>}
+                  {syncWarning && <p className="warning">{syncWarning}</p>}
 
                   <form onSubmit={handleLabelFilterSubmit} className="form form-inline">
                     <label htmlFor="github-label-filter">Filtrer par labels (séparés par des virgules)</label>

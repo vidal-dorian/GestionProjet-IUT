@@ -25,6 +25,7 @@ export interface GithubIssue {
 export interface GithubSyncResult {
   synced_at: string;
   issue_count: number;
+  warning: string | null;
 }
 
 export type MembershipStatus = "pending" | "approved" | "rejected";
@@ -63,10 +64,26 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Transforme le champ `detail` d'une réponse d'erreur FastAPI en message
+ * lisible : une chaîne pour les HTTPException, une liste d'erreurs Pydantic
+ * ({ msg, loc, ... }) pour les 422 de validation.
+ */
+export function extractErrorMessage(detail: unknown, status?: number): string {
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item) => (typeof item?.msg === "string" ? item.msg.replace(/^Value error,\s*/, "") : null))
+      .filter((msg): msg is string => Boolean(msg));
+    if (messages.length > 0) return messages.join(" ");
+  }
+  return status ? `Une erreur est survenue (HTTP ${status}).` : "Une erreur est survenue.";
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const body = await response.json().catch(() => null);
-    const message = body?.detail ?? "Une erreur est survenue.";
+    const message = extractErrorMessage(body?.detail, response.status);
     throw new ApiError(response.status, message);
   }
   return response.json() as Promise<T>;
