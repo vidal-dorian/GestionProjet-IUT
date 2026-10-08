@@ -26,6 +26,8 @@ export interface ReportContent {
   // Daily
   scrum_master_notes?: string;
   balance?: Balance;
+  balance_x?: number | null;
+  balance_y?: number | null;
   // Planification / review
   client?: string;
   topics?: string;

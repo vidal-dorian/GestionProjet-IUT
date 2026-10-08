@@ -2,7 +2,6 @@ import { type FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError, getProject, type Project } from "../api/projects";
 import {
-  type Balance,
   deleteReport,
   downloadReportExport,
   getReport,
@@ -16,6 +15,7 @@ import {
 } from "../api/reports";
 import { listSprints, type Sprint } from "../api/sprints";
 import AppShell from "../components/AppShell";
+import BalanceDiagram from "../components/BalanceDiagram";
 import DailyEntryCard from "../components/DailyEntryCard";
 import PageHeader from "../components/PageHeader";
 import UserStoryTableEditor from "../components/UserStoryTableEditor";
@@ -26,16 +26,6 @@ interface Draft {
   meeting_date: string;
   content: ReportContent;
 }
-
-const BALANCE_OPTIONS: { value: Balance; label: string }[] = [
-  { value: "all", label: "Au centre : temps, qualité et cahier des charges tenus" },
-  { value: "time_quality", label: "Temps et qualité tenus, cahier des charges en retrait" },
-  { value: "time_scope", label: "Temps et cahier des charges tenus, qualité en retrait" },
-  { value: "quality_scope", label: "Qualité et cahier des charges tenus, temps en retrait" },
-  { value: "time", label: "Seul le temps est tenu" },
-  { value: "quality", label: "Seule la qualité est tenue" },
-  { value: "scope", label: "Seul le cahier des charges est tenu" },
-];
 
 const BULLET_HINT = "Une ligne par point ; commence une ligne par des espaces pour en faire un sous-point.";
 
@@ -380,19 +370,17 @@ export default function ReportEditorPage() {
                 <h2>Scrum Master</h2>
                 {textField("scrum_master_notes", "Notes du Scrum Master", { rows: 3, hint: BULLET_HINT })}
                 <div className="field">
-                  <label htmlFor="report-balance">Équilibre du projet (temps / qualité / cahier des charges)</label>
-                  <select
-                    id="report-balance"
-                    value={content.balance ?? "all"}
-                    onChange={(e) => patchContent({ balance: e.target.value as Balance })}
-                  >
-                    {BALANCE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="meta">Position du point rouge sur le diagramme en bas du daily exporté.</p>
+                  <span className="field-label">Équilibre du projet (temps / qualité / cahier des charges)</span>
+                  <BalanceDiagram
+                    x={content.balance_x}
+                    y={content.balance_y}
+                    balance={content.balance}
+                    onChange={(point) => patchContent({ balance_x: point.x, balance_y: point.y })}
+                  />
+                  <p className="meta">
+                    Clique ou fais glisser le point rouge pour indiquer où se situe le projet. Il apparaît au même
+                    endroit dans le daily exporté.
+                  </p>
                 </div>
               </section>
             </>

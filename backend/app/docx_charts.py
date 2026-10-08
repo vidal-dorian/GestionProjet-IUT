@@ -50,9 +50,10 @@ BALANCE_POINTS = {
 }
 
 
-def project_balance_diagram(balance: str) -> BytesIO:
+def project_balance_diagram(balance: str, point: tuple[float, float] | None = None) -> BytesIO:
     """Diagramme de Venn Temps / Qualité / Respect du cahier des charges, avec
-    un point rouge indiquant où se situe le projet."""
+    un point rouge indiquant où se situe le projet : à `point` s'il a été placé
+    librement, sinon au centre de la zone prédéfinie `balance`."""
     s = SCALE
     image = Image.new("RGB", (1000 * s, 820 * s), "white")
     draw = ImageDraw.Draw(image)
@@ -77,7 +78,7 @@ def project_balance_diagram(balance: str) -> BytesIO:
         spacing=8 * s,
     )
 
-    px, py = BALANCE_POINTS.get(balance, BALANCE_POINTS["all"])
+    px, py = point if point is not None else BALANCE_POINTS.get(balance, BALANCE_POINTS["all"])
     dot = 14
     draw.ellipse(((px - dot) * s, (py - dot) * s, (px + dot) * s, (py + dot) * s), fill="#e00000", outline="#7a0000", width=s)
     return _finish(image)

@@ -377,3 +377,40 @@ def test_parse_bullets_handles_indentation_and_manual_markers():
         (1, "Gérer les demandes"),
         (0, "Autre"),
     ]
+
+
+def test_footer_defaults_to_project_name(client):
+    project = create_test_project(client, name="Application de covoiturage")
+    sprint = create_sprint(client, project["id"])
+    review = client.post(
+        f"/api/projects/{project['id']}/reports",
+        json={"type": "sprint_review", "sprint_id": sprint["id"], "meeting_date": "2026-03-23"},
+    ).json()
+
+    response = client.get(f"/api/projects/{project['id']}/reports/{review['id']}/export")
+    footer = Document(BytesIO(response.content)).sections[0].footer.paragraphs[0].text
+    assert footer.startswith("Application de covoiturage")
+
+
+def test_daily_balance_point_can_be_placed_freely(client):
+    project = create_test_project(client)
+    report = client.post(f"/api/projects/{project['id']}/reports", json={"type": "daily", "meeting_date": "2026-03-10"}).json()
+
+    saved = save(client, project["id"], report, balance_x=320.5, balance_y=290)
+    assert saved.status_code == 200
+    assert (saved.json()["content"]["balance_x"], saved.json()["content"]["balance_y"]) == (320.5, 290)
+    assert client.get(f"/api/projects/{project['id']}/reports/{report['id']}/export").status_code == 200
+
+    outside = save(client, project["id"], saved.json(), balance_x=5000, balance_y=290)
+    assert outside.status_code == 422
+
+
+def test_balance_diagram_draws_dot_at_given_point():
+    from app.docx_charts import project_balance_diagram
+
+    image = Image.open(project_balance_diagram("all", (150, 600)))
+    assert image.size == (1000, 820)
+    red, green, _ = image.getpixel((150, 600))
+    assert red > 200 and green < 60
+    # Plus de point à la position par défaut (centre du diagramme).
+    assert image.getpixel((500, 387)) == (255, 255, 255)

@@ -46,9 +46,19 @@ class _Content(BaseModel):
     participant_ids: list[int] = Field(default_factory=list, max_length=100)
 
 
+# Dimensions du diagramme Temps / Qualité / Respect du cahier des charges, dans
+# le repère partagé par l'éditeur (SVG) et l'export Word (Pillow).
+BALANCE_WIDTH = 1000
+BALANCE_HEIGHT = 820
+
+
 class DailyContent(_Content):
     scrum_master_notes: str = Field(default="", max_length=LONG_TEXT)
+    # Zone prédéfinie, conservée pour les dailies enregistrés avant que le point
+    # ne puisse être placé librement (balance_x/balance_y, prioritaires).
     balance: Balance = "all"
+    balance_x: float | None = Field(default=None, ge=0, le=BALANCE_WIDTH)
+    balance_y: float | None = Field(default=None, ge=0, le=BALANCE_HEIGHT)
 
 
 class SprintPlanningContent(_Content):

@@ -393,7 +393,8 @@ def export_report(
             entry.account_id: docx_export.DailyAnswers(done=entry.done, todo=entry.todo, blockers=entry.blockers)
             for entry in report.daily_entries
         },
-        footer=report.project.document_footer or "",
+        # Pied de page par défaut : le nom du projet, personnalisable dans les paramètres.
+        footer=report.project.document_footer or report.project.name,
         logos={logo.position: logo.data for logo in report.project.document_logos},
         burndown=burndown_data,
     )

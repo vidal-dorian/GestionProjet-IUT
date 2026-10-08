@@ -1467,6 +1467,7 @@ body.has-drawer-open {
 }
 
 .field label,
+.field-label,
 .participants legend {
   font-family: var(--font-mono);
   font-size: 0.72rem;
@@ -1665,6 +1666,56 @@ body.has-drawer-open {
 .report-editor {
   display: flex;
   flex-direction: column;
+}
+
+.balance-diagram {
+  max-width: 26rem;
+}
+
+.balance-diagram svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+
+.balance-diagram svg:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* Le diagramme reste blanc en mode sombre : c'est un aperçu de l'image
+   insérée dans le document Word. */
+.balance-diagram-bg {
+  fill: #ffffff;
+}
+
+.balance-diagram-circle {
+  fill: none;
+  stroke: #333333;
+  stroke-width: 2.5;
+}
+
+.balance-diagram-label {
+  fill: #222222;
+  font-family: Arial, "Liberation Sans", sans-serif;
+  font-size: 44px;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+.balance-diagram-dot {
+  fill: #e00000;
+  stroke: #7a0000;
+  stroke-width: 2;
+}
+
+.balance-diagram svg.is-dragging {
+  cursor: grabbing;
 }
 
 .daily-grid {

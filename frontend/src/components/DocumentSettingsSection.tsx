@@ -11,6 +11,7 @@ import { ApiError } from "../api/projects";
 
 interface Props {
   projectId: number;
+  projectName: string;
 }
 
 const POSITIONS: { key: LogoPosition; label: string }[] = [
@@ -20,7 +21,7 @@ const POSITIONS: { key: LogoPosition; label: string }[] = [
 
 const MAX_LOGO_BYTES = 1024 * 1024;
 
-export default function DocumentSettingsSection({ projectId }: Props) {
+export default function DocumentSettingsSection({ projectId, projectName }: Props) {
   const [footer, setFooter] = useState("");
   const [logoUrls, setLogoUrls] = useState<Partial<Record<LogoPosition, string>>>({});
   const [loaded, setLoaded] = useState(false);
@@ -125,7 +126,7 @@ export default function DocumentSettingsSection({ projectId }: Props) {
               setFooterSaved(false);
             }}
             maxLength={255}
-            placeholder="SAE S4 - Développement d'une application complexe"
+            placeholder={projectName}
           />
         </div>
         <button type="submit" className="button-secondary" disabled={savingFooter}>
@@ -133,7 +134,9 @@ export default function DocumentSettingsSection({ projectId }: Props) {
         </button>
       </form>
       <p className="meta">
-        {footerSaved ? "Pied de page enregistré." : "Le numéro de page (1/3...) est ajouté automatiquement à droite."}
+        {footerSaved
+          ? "Pied de page enregistré."
+          : "Laisse vide pour utiliser le nom du projet. Le numéro de page (1/3...) est ajouté automatiquement à droite."}
       </p>
 
       <div className="logo-grid">

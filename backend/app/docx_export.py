@@ -356,7 +356,10 @@ def _build_daily(document, data: ReportExportData) -> None:
     _bullets(document, content.scrum_master_notes)
 
     _blank(document, 2)
-    document.add_picture(docx_charts.project_balance_diagram(content.balance), width=Cm(12))
+    point = None
+    if content.balance_x is not None and content.balance_y is not None:
+        point = (content.balance_x, content.balance_y)
+    document.add_picture(docx_charts.project_balance_diagram(content.balance, point), width=Cm(12))
 
 
 def _build_planning(document, data: ReportExportData) -> None:

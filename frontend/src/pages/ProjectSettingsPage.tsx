@@ -383,7 +383,7 @@ export default function ProjectSettingsPage() {
               {section === "sprints" && <SprintsSection projectId={Number(projectId)} />}
               {section === "categories" && <CategoriesSection projectId={Number(projectId)} />}
               {section === "roles" && <RolesSection projectId={Number(projectId)} />}
-              {section === "documents" && <DocumentSettingsSection projectId={Number(projectId)} />}
+              {section === "documents" && <DocumentSettingsSection projectId={Number(projectId)} projectName={projectName} />}
 
               {section === "danger" && (
                 <section className="danger-zone">
