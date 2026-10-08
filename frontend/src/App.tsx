@@ -8,7 +8,10 @@ import HomePage from "./pages/HomePage";
 import LoginRequiredPage from "./pages/LoginRequiredPage";
 import ProjectHomePage from "./pages/ProjectHomePage";
 import ProjectListPage from "./pages/ProjectListPage";
+import ProfilePage from "./pages/ProfilePage";
 import ProjectSettingsPage from "./pages/ProjectSettingsPage";
+import ReportEditorPage from "./pages/ReportEditorPage";
+import ReportsPage from "./pages/ReportsPage";
 import SprintsPage from "./pages/SprintsPage";
 
 function AuthGate({ children }: { children: ReactNode }) {
@@ -36,6 +39,9 @@ export default function App() {
           <Route path="/projects/:projectId/settings" element={<ProjectSettingsPage />} />
           <Route path="/projects/:projectId/dashboard" element={<DashboardPage />} />
           <Route path="/projects/:projectId/sprints" element={<SprintsPage />} />
+          <Route path="/projects/:projectId/reports" element={<ReportsPage />} />
+          <Route path="/projects/:projectId/reports/:reportId" element={<ReportEditorPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
           <Route path="/admin/demandes" element={<AdminMembershipRequestsPage />} />
         </Routes>
       </AuthGate>

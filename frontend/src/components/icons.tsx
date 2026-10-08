@@ -119,3 +119,22 @@ export function IconLogout({ className }: IconProps) {
     </svg>
   );
 }
+
+/* Feuille avec lignes de texte : les comptes-rendus de cérémonies. */
+export function IconDocument({ className }: IconProps) {
+  return (
+    <svg {...svgProps(className)}>
+      <path d="M14 3.5H7a1.5 1.5 0 0 0-1.5 1.5v14A1.5 1.5 0 0 0 7 20.5h10a1.5 1.5 0 0 0 1.5-1.5V8L14 3.5Z" />
+      <path d="M14 3.5V8h4.5M9 12.5h6M9 16h6" />
+    </svg>
+  );
+}
+
+export function IconUser({ className }: IconProps) {
+  return (
+    <svg {...svgProps(className)}>
+      <circle cx="12" cy="8.5" r="3.5" />
+      <path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5" />
+    </svg>
+  );
+}

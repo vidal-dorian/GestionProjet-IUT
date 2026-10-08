@@ -1365,6 +1365,13 @@ body.has-drawer-open {
     border-color: transparent;
     background: var(--surface);
   }
+
+  /* Sans ça, le survol de l'onglet actif garde son texte clair sur le fond
+     clair du survol : l'intitulé disparaît. */
+  .settings-nav-item.is-active,
+  .settings-nav-item.is-active:hover {
+    background: var(--ink);
+  }
 }
 
 /* ==========================================================================
@@ -1421,5 +1428,537 @@ body.has-drawer-open {
 
   .form-actions button {
     width: 100%;
+  }
+}
+
+/* ==========================================================================
+   Comptes-rendus (daily, planification, review, rétrospective)
+   ========================================================================== */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.notice {
+  margin: 0 0 1.5rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--status-warning) 45%, var(--hairline));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--status-warning) 10%, var(--surface));
+  color: var(--status-warning-ink);
+  font-size: 0.9rem;
+}
+
+/* Champ libellé + saisie, utilisable hors d'un .form (sections de l'éditeur). */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+  margin-top: 1rem;
+}
+
+.field label,
+.field-label,
+.participants legend {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.form .field label {
+  margin-top: 0;
+}
+
+.field input,
+.field textarea,
+.field select,
+.us-table input,
+.rename-form input {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.field textarea {
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.field input:focus-visible,
+.field textarea:focus-visible,
+.field select:focus-visible,
+.us-table input:focus-visible,
+.rename-form input:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.field .meta,
+.participants .meta {
+  margin: 0;
+}
+
+.form-section h2 {
+  margin-bottom: 0.25rem;
+}
+
+.form-subheading {
+  margin: 1.75rem 0 0.75rem;
+  font-size: 0.95rem;
+}
+
+.report-create-form h2 {
+  margin: 0;
+}
+
+.report-create-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0 1rem;
+}
+
+.participants {
+  margin: 1.25rem 0 0;
+  padding: 0;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.participants legend {
+  padding: 0;
+  margin-bottom: 0.5rem;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.form-section > .checkbox-row {
+  margin-top: 1.25rem;
+}
+
+.checkbox-row input {
+  margin-top: 0.2rem;
+  accent-color: var(--ink);
+}
+
+/* Historique */
+.report-list-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.report-list-header h2 {
+  margin: 0;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.chip {
+  padding: 0.3rem 0.75rem;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-secondary);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chip:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.chip.is-active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--page-bg);
+}
+
+.report-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.report-list-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.9rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  text-decoration: none;
+  transition: border-color 0.12s ease;
+}
+
+.report-list-item:hover {
+  border-color: var(--ink);
+}
+
+.report-list-main {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.report-list-date {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.report-list-author {
+  white-space: nowrap;
+}
+
+.report-badge {
+  margin-left: 0;
+  min-width: 9.5rem;
+  text-align: center;
+}
+
+.report-badge-daily {
+  background: var(--ink);
+  color: var(--page-bg);
+}
+
+/* Éditeur */
+.report-editor {
+  display: flex;
+  flex-direction: column;
+}
+
+.balance-diagram {
+  max-width: 26rem;
+}
+
+.balance-diagram svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+
+.balance-diagram svg:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* Le diagramme reste blanc en mode sombre : c'est un aperçu de l'image
+   insérée dans le document Word. */
+.balance-diagram-bg {
+  fill: #ffffff;
+}
+
+.balance-diagram-circle {
+  fill: none;
+  stroke: #333333;
+  stroke-width: 2.5;
+}
+
+.balance-diagram-label {
+  fill: #222222;
+  font-family: Arial, "Liberation Sans", sans-serif;
+  font-size: 44px;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+.balance-diagram-dot {
+  fill: #e00000;
+  stroke: #7a0000;
+  stroke-width: 2;
+}
+
+.balance-diagram svg.is-dragging {
+  cursor: grabbing;
+}
+
+.live-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 1.5rem 0 0;
+  color: var(--ink-secondary);
+  font-size: 0.88rem;
+}
+
+.live-dot {
+  flex: 0 0 auto;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--status-good);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-good) 25%, transparent);
+}
+
+.daily-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+@media (min-width: 900px) {
+  .daily-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.daily-card {
+  padding: 1.25rem 1.25rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+}
+
+.daily-card.is-me {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 1px var(--ink);
+}
+
+.daily-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.daily-card-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.daily-card-role {
+  color: var(--ink-secondary);
+  font-weight: 500;
+}
+
+.daily-card .field {
+  margin-top: 0.85rem;
+}
+
+.daily-card .field label {
+  text-transform: none;
+  letter-spacing: 0;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  color: var(--ink-secondary);
+}
+
+.daily-card-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.us-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.us-table th {
+  padding: 0 0.5rem 0.4rem 0;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.us-table td {
+  padding: 0.2rem 0.5rem 0.2rem 0;
+}
+
+.us-table td:first-child,
+.us-table th:first-child {
+  width: 7rem;
+}
+
+.us-table td:last-child,
+.us-table th:last-child {
+  width: 1%;
+  white-space: nowrap;
+  padding-right: 0;
+}
+
+.us-table input {
+  padding: 0.45rem 0.6rem;
+  font-size: 0.9rem;
+}
+
+.us-table-actions {
+  flex-wrap: wrap;
+  margin-top: 0.9rem;
+}
+
+/* Barre d'enregistrement collée en bas d'écran : le formulaire est long et on
+   ne doit pas avoir à remonter pour enregistrer. */
+.report-save-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding: 0.85rem 1rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  box-shadow: 0 -6px 18px var(--ring);
+}
+
+.report-save-bar > .meta {
+  flex: 1 1 14rem;
+}
+
+.report-save-bar .error {
+  flex: 1 1 100%;
+  margin: 0;
+}
+
+/* Renommage sur place (catégories, rôles) */
+.rename-row {
+  flex-direction: column;
+  align-items: stretch !important;
+}
+
+.rename-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.rename-form input {
+  flex: 1 1 14rem;
+  width: auto;
+}
+
+.rename-row .error {
+  margin: 0;
+}
+
+/* Logos des documents exportés */
+.footer-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.footer-form .field {
+  flex: 1 1 18rem;
+}
+
+.logo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.logo-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.logo-slot-label {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.logo-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 96px;
+  padding: 0.5rem;
+  border: 1px dashed var(--hairline-strong);
+  border-radius: var(--radius-sm);
+  background: #ffffff;
+}
+
+.logo-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.logo-slot .member-actions label {
+  cursor: pointer;
+}
+
+@media (max-width: 560px) {
+  .report-badge {
+    min-width: 0;
+  }
+
+  .report-save-bar {
+    justify-content: stretch;
+  }
+
+  .report-save-bar .button-link,
+  .report-save-bar .button-secondary {
+    flex: 1 1 100%;
   }
 }

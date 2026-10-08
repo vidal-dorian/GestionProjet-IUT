@@ -119,7 +119,9 @@ export function createProject(input: ProjectInput): Promise<Project> {
 }
 
 export function getProject(id: number | string): Promise<Project> {
-  return fetch(`${API_URL}/api/projects/${id}`).then((res) => handleResponse<Project>(res));
+  return fetch(`${API_URL}/api/projects/${id}`, { credentials: "include", headers: devAuthHeaders() }).then((res) =>
+    handleResponse<Project>(res),
+  );
 }
 
 export function updateProject(id: number | string, input: ProjectInput): Promise<Project> {
@@ -184,6 +186,7 @@ export function listContributors(id: number | string): Promise<Contributor[]> {
 export interface ProjectMember {
   id: number;
   email: string;
+  display_name: string | null;
   is_admin: boolean;
   created_at: string;
 }

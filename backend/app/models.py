@@ -1,6 +1,19 @@
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    LargeBinary,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
+from sqlalchemy.dialects.mysql import LONGTEXT, MEDIUMBLOB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -19,6 +32,9 @@ class Project(Base):
     github_repo: Mapped[str | None] = mapped_column(String(255), nullable=True)
     github_last_synced_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     github_label_filter_raw: Mapped[str] = mapped_column(String(500), nullable=False, default="")
+    # Texte du pied de page des comptes-rendus exportés en Word (ex. "SAE S4 -
+    # Développement d'une application complexe"), à gauche du numéro de page.
+    document_footer: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     time_entries: Mapped[list["TimeEntry"]] = relationship(back_populates="project", cascade="all, delete-orphan")
     github_issues: Mapped[list["GithubIssue"]] = relationship(
@@ -30,6 +46,12 @@ class Project(Base):
         back_populates="project", cascade="all, delete-orphan"
     )
     team_roles: Mapped[list["TeamRole"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    meeting_reports: Mapped[list["MeetingReport"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    document_logos: Mapped[list["ProjectDocumentLogo"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
 
     @property
     def github_label_filter(self) -> list[str]:
@@ -41,8 +63,15 @@ class Account(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    # Nom affiché dans les comptes-rendus (ex. "VIDAL Dorian"), saisi par la
+    # personne elle-même — l'e-mail sert de repli tant qu'il n'est pas renseigné.
+    display_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+
+    @property
+    def label(self) -> str:
+        return (self.display_name or "").strip() or self.email
 
 
 class ProjectMembership(Base):
@@ -182,3 +211,91 @@ class Category(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
     project: Mapped[Project] = relationship(back_populates="categories")
+
+
+class MeetingReport(Base):
+    """Compte-rendu d'une cérémonie Scrum (daily, planification, review,
+    rétrospective), rempli collaborativement depuis l'application puis
+    exportable en Word.
+
+    Les champs propres à chaque type de cérémonie sont stockés en JSON dans
+    `content_json` (validé par le schéma Pydantic du type, voir
+    app/report_content.py) ; seules les réponses individuelles du daily vivent
+    dans une table à part (DailyEntry) pour que chacun puisse remplir sa
+    partie sans écraser celle des autres. `version` sert de verrou optimiste
+    sur `content_json`.
+    """
+
+    __tablename__ = "meeting_reports"
+    # Un seul daily par projet et par jour, garanti par la base : la
+    # vérification applicative seule laisse passer deux créations simultanées
+    # (toute l'équipe ouvre le daily du jour au même moment). `daily_date` vaut
+    # meeting_date pour un daily et NULL sinon (les NULL ne se heurtent pas).
+    __table_args__ = (UniqueConstraint("project_id", "daily_date", name="uq_meeting_report_project_daily_date"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    sprint_id: Mapped[int | None] = mapped_column(ForeignKey("sprints.id", ondelete="SET NULL"), nullable=True)
+    type: Mapped[str] = mapped_column(String(30), nullable=False)
+    meeting_date: Mapped[date] = mapped_column(Date, nullable=False)
+    daily_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    content_json: Mapped[str] = mapped_column(
+        Text().with_variant(LONGTEXT(), "mysql"), nullable=False, default="{}"
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_by_account_id: Mapped[int | None] = mapped_column(
+        ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    updated_by_account_id: Mapped[int | None] = mapped_column(
+        ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True
+    )
+
+    project: Mapped[Project] = relationship(back_populates="meeting_reports")
+    sprint: Mapped["Sprint | None"] = relationship()
+    created_by: Mapped["Account | None"] = relationship(foreign_keys=[created_by_account_id])
+    updated_by: Mapped["Account | None"] = relationship(foreign_keys=[updated_by_account_id])
+    daily_entries: Mapped[list["DailyEntry"]] = relationship(back_populates="report", cascade="all, delete-orphan")
+
+    # Verrou optimiste géré par SQLAlchemy : chaque UPDATE porte
+    # "WHERE version = <version lue>" et incrémente la version, si bien que deux
+    # enregistrements simultanés ne peuvent pas réussir tous les deux.
+    __mapper_args__ = {"version_id_col": version}
+
+
+class DailyEntry(Base):
+    """Réponses d'un participant aux trois questions du daily."""
+
+    __tablename__ = "daily_entries"
+    __table_args__ = (UniqueConstraint("report_id", "account_id", name="uq_daily_entry_report_account"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    report_id: Mapped[int] = mapped_column(ForeignKey("meeting_reports.id", ondelete="CASCADE"), nullable=False)
+    account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False)
+    done: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    todo: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    blockers: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    updated_by_account_id: Mapped[int | None] = mapped_column(
+        ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True
+    )
+
+    report: Mapped[MeetingReport] = relationship(back_populates="daily_entries")
+    account: Mapped[Account] = relationship(foreign_keys=[account_id])
+
+
+class ProjectDocumentLogo(Base):
+    """Logo affiché en tête des comptes-rendus exportés (à gauche ou à droite)."""
+
+    __tablename__ = "project_document_logos"
+    __table_args__ = (UniqueConstraint("project_id", "position", name="uq_project_document_logo_position"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    position: Mapped[str] = mapped_column(String(10), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    data: Mapped[bytes] = mapped_column(LargeBinary().with_variant(MEDIUMBLOB(), "mysql"), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+
+    project: Mapped[Project] = relationship(back_populates="document_logos")

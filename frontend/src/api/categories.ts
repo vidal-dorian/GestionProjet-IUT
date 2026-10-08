@@ -34,3 +34,12 @@ export function createCategory(projectId: number | string, name: string): Promis
     body: JSON.stringify({ name }),
   }).then((res) => handleResponse<Category>(res));
 }
+
+export function renameCategory(projectId: number | string, categoryId: number, name: string): Promise<Category> {
+  return fetch(`${API_URL}/api/projects/${projectId}/categories/${categoryId}`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...devAuthHeaders() },
+    body: JSON.stringify({ name }),
+  }).then((res) => handleResponse<Category>(res));
+}
