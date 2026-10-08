@@ -1,3 +1,4 @@
+import time
 def test_me_without_authentication_returns_401(client):
     response = client.get("/api/me")
     assert response.status_code == 401
@@ -55,7 +56,13 @@ def test_cloudflare_jwt_is_validated_end_to_end(client, monkeypatch):
 
     private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     token = jwt.encode(
-        {"email": "alice@example.com", "aud": ["test-aud"], "iss": "https://myteam.cloudflareaccess.com"},
+        {
+            "email": "alice@example.com",
+            "aud": ["test-aud"],
+            "iss": "https://myteam.cloudflareaccess.com",
+            "iat": int(time.time()),
+            "exp": int(time.time()) + 3600,
+        },
         private_key,
         algorithm="RS256",
     )
@@ -105,3 +112,50 @@ def test_email_not_listed_in_admin_emails_stays_regular(client, monkeypatch):
 
     assert client.get("/api/me").json()["is_admin"] is False
     assert client.get("/api/admin/membership-requests").status_code == 403
+
+
+def test_cross_site_write_is_rejected(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
+    response = client.post("/api/projects", json={"name": "CSRF"}, headers={"Origin": "https://evil.example"})
+    assert response.status_code == 403
+    response = client.post("/api/projects", json={"name": "CSRF"}, headers={"Sec-Fetch-Site": "cross-site"})
+    assert response.status_code == 403
+    assert client.get("/api/projects").status_code == 200
+
+
+def test_same_origin_write_is_accepted(client):
+    from app.config import settings
+
+    client.headers["X-Dev-Email"] = "alice@test.local"
+    allowed = settings.cors_origins.split(",")[0].strip()
+    response = client.post(
+        "/api/projects",
+        json={"name": "Même origine"},
+        headers={"Origin": allowed, "Sec-Fetch-Site": "same-origin"},
+    )
+    assert response.status_code == 201
+
+
+def test_integrity_errors_become_conflicts(client, monkeypatch):
+    # Simule deux créations simultanées de la même catégorie : la vérification
+    # applicative passe, la contrainte d'unicité de la base refuse la seconde.
+    from app import crud
+
+    client.headers["X-Dev-Email"] = "alice@test.local"
+    project = client.post("/api/projects", json={"name": "Projet course"}).json()
+    assert client.post(f"/api/projects/{project['id']}/categories", json={"name": "Dev"}).status_code == 201
+    monkeypatch.setattr(crud, "list_categories", lambda db, project_id: [])
+    response = client.post(f"/api/projects/{project['id']}/categories", json={"name": "Dev"})
+    assert response.status_code == 409
+
+
+def test_same_host_write_is_accepted_even_if_not_listed_in_cors(client):
+    # En production, nginx sert frontend et API sur le même domaine : la
+    # requête vient de l'hôte appelé lui-même, même si CORS_ORIGINS est mal réglé.
+    client.headers["X-Dev-Email"] = "alice@test.local"
+    response = client.post(
+        "/api/projects",
+        json={"name": "Même hôte"},
+        headers={"Origin": "https://suivi.exemple.com", "Host": "suivi.exemple.com", "Sec-Fetch-Site": "same-origin"},
+    )
+    assert response.status_code == 201

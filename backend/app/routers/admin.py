@@ -20,6 +20,18 @@ def _to_membership_request_read(membership: models.ProjectMembership) -> schemas
     )
 
 
+def _get_pending_request(db: Session, request_id: int) -> models.ProjectMembership:
+    """Seules les demandes en attente se décident ici : retirer un membre déjà
+    approuvé passe par la gestion des membres du projet, pas par un "refus"
+    d'une demande déjà traitée (qui contournerait les règles de retrait)."""
+    membership = crud.get_membership_request(db, request_id)
+    if membership is None:
+        raise HTTPException(status_code=404, detail="Demande introuvable.")
+    if membership.status != "pending":
+        raise HTTPException(status_code=409, detail="Cette demande a déjà été traitée.")
+    return membership
+
+
 @router.get("/membership-requests", response_model=list[schemas.MembershipRequestRead])
 def list_membership_requests(
     admin: models.Account = Depends(get_current_admin),
@@ -34,9 +46,7 @@ def approve_membership_request(
     admin: models.Account = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    membership = crud.get_membership_request(db, request_id)
-    if membership is None:
-        raise HTTPException(status_code=404, detail="Demande introuvable.")
+    membership = _get_pending_request(db, request_id)
     membership = crud.decide_membership_request(db, membership, approve=True)
     return _to_membership_request_read(membership)
 
@@ -47,9 +57,7 @@ def reject_membership_request(
     admin: models.Account = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    membership = crud.get_membership_request(db, request_id)
-    if membership is None:
-        raise HTTPException(status_code=404, detail="Demande introuvable.")
+    membership = _get_pending_request(db, request_id)
     membership = crud.decide_membership_request(db, membership, approve=False)
     return _to_membership_request_read(membership)
 

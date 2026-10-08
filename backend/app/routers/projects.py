@@ -65,6 +65,11 @@ def join_project(
     if db_project is None:
         raise HTTPException(status_code=404, detail="Projet introuvable.")
 
+    # Déjà membre : rien à demander (sans ce garde, une nouvelle demande
+    # repasserait l'adhésion en attente et lui retirerait son accès).
+    if crud.is_approved_member(db, project_id, account.id):
+        return schemas.MembershipRead(project_id=project_id, status="approved")
+
     # Un administrateur a de toute façon l'autorité de valider les demandes :
     # inutile de lui faire attendre sa propre approbation.
     if account.is_admin:
@@ -95,12 +100,26 @@ def list_contributors(
 
 @router.get("/{project_id}", response_model=schemas.ProjectRead)
 def read_project(
-    project_id: int, _account: models.Account = Depends(get_current_account), db: Session = Depends(get_db)
+    project_id: int, account: models.Account = Depends(get_current_account), db: Session = Depends(get_db)
 ):
     db_project = crud.get_project(db, project_id)
     if db_project is None:
         raise HTTPException(status_code=404, detail="Projet introuvable.")
-    return db_project
+    if account.is_admin or crud.is_approved_member(db, project_id, account.id):
+        return db_project
+    # Un non-membre voit le projet pour demander à le rejoindre (nom,
+    # description), pas sa configuration : dépôt GitHub (éventuellement
+    # privé), filtre de labels, date de synchronisation.
+    return schemas.ProjectRead(
+        id=db_project.id,
+        name=db_project.name,
+        description=db_project.description,
+        created_at=db_project.created_at,
+        created_by_account_id=db_project.created_by_account_id,
+        github_repo=None,
+        github_last_synced_at=None,
+        github_label_filter=[],
+    )
 
 
 @router.put("/{project_id}", response_model=schemas.ProjectRead)

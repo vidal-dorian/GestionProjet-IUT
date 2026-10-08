@@ -6,6 +6,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Jeton GitHub en lecture seule pour tous les jobs : aucun n'a besoin d'écrire
+# dans le dépôt.
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -57,7 +62,11 @@ jobs:
           clean: false
 
       - name: Construire et relancer les conteneurs
-        run: docker compose up -d --build
+        # --pull : récupère les correctifs de sécurité des images de base
+        # (python, nginx, node) au lieu de réutiliser indéfiniment le cache.
+        run: |
+          docker compose build --pull
+          docker compose up -d
 
       - name: Vérifier que l'application répond
         run: |

@@ -9,8 +9,15 @@ services:
       MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:?Renseigne MYSQL_ROOT_PASSWORD dans .env}"
     volumes:
       - mysql_data:/var/lib/mysql
+    # Réseau interne uniquement : seul le backend peut joindre la base.
+    networks:
+      - db
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      # Mot de passe lu dans l'environnement du conteneur ($$) plutôt
+      # qu'inscrit en clair dans la commande (visible via docker inspect / ps).
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -24,7 +31,16 @@ services:
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       CLOUDFLARE_TEAM_DOMAIN: "${CLOUDFLARE_TEAM_DOMAIN:?Renseigne CLOUDFLARE_TEAM_DOMAIN dans .env (voir docs/deploiement-raspberry-pi.md)}"
       CLOUDFLARE_ACCESS_AUD: "${CLOUDFLARE_ACCESS_AUD:?Renseigne CLOUDFLARE_ACCESS_AUD dans .env (voir docs/deploiement-raspberry-pi.md)}"
-      ADMIN_EMAILS: ${ADMIN_EMAILS:-12811281d@gmail.com}
+      # Aucune adresse par défaut : un administrateur doit être désigné
+      # explicitement dans .env (les comptes déjà promus le restent).
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+    networks:
+      - db
+      - web
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     depends_on:
       mysql:
         condition: service_healthy
@@ -39,9 +55,21 @@ services:
       # Loopback uniquement : cloudflared (sur le Pi) est le seul client prévu.
       # Exposé sur toutes les interfaces, le port laisserait n'importe quelle
       # machine du réseau local contourner Cloudflare Access.
-      - "127.0.0.1:${FRONTEND_PORT:-8080}:80"
+      - "127.0.0.1:${FRONTEND_PORT:-8080}:8080"
+    networks:
+      - web
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     depends_on:
       - backend
+
+networks:
+  # "internal" : pas d'accès sortant ni entrant hors des conteneurs reliés.
+  db:
+    internal: true
+  web:
 
 volumes:
   mysql_data:

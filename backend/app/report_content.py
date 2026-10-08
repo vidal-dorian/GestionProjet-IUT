@@ -12,7 +12,9 @@ tabulation) devient un sous-point — voir `parse_bullets`.
 import json
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from app.text import clean_strings
 
 REPORT_TYPES = ("daily", "sprint_planning", "sprint_review", "retrospective")
 ReportType = Literal["daily", "sprint_planning", "sprint_review", "retrospective"]
@@ -31,10 +33,17 @@ BALANCE_VALUES = ("all", "time_quality", "time_scope", "quality_scope", "time", 
 Balance = Literal["all", "time_quality", "time_scope", "quality_scope", "time", "quality", "scope"]
 
 LONG_TEXT = 10000
+SHORT_TEXT = 200
+MAX_USER_STORIES = 300
 
 
 class UserStoryRow(BaseModel):
     model_config = ConfigDict(extra="ignore")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _clean(cls, data):
+        return clean_strings(data)
 
     reference: str = Field(default="", max_length=50)
     name: str = Field(default="", max_length=500)
@@ -42,6 +51,11 @@ class UserStoryRow(BaseModel):
 
 class _Content(BaseModel):
     model_config = ConfigDict(extra="ignore")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _clean(cls, data):
+        return clean_strings(data)
 
     participant_ids: list[int] = Field(default_factory=list, max_length=100)
 
@@ -62,21 +76,21 @@ class DailyContent(_Content):
 
 
 class SprintPlanningContent(_Content):
-    client: str = Field(default="", max_length=200)
+    client: str = Field(default="", max_length=SHORT_TEXT)
     topics: str = Field(default="", max_length=LONG_TEXT)
     hours_per_member: float | None = Field(default=None, ge=0, le=10000)
-    user_stories: list[UserStoryRow] = Field(default_factory=list, max_length=300)
+    user_stories: list[UserStoryRow] = Field(default_factory=list, max_length=MAX_USER_STORIES)
 
 
 class SprintReviewContent(_Content):
-    client: str = Field(default="", max_length=200)
+    client: str = Field(default="", max_length=SHORT_TEXT)
     objectives: str = Field(default="", max_length=LONG_TEXT)
-    user_stories: list[UserStoryRow] = Field(default_factory=list, max_length=300)
+    user_stories: list[UserStoryRow] = Field(default_factory=list, max_length=MAX_USER_STORIES)
 
 
 class RetrospectiveContent(_Content):
-    scrum_master: str = Field(default="", max_length=200)
-    product_owner: str = Field(default="", max_length=200)
+    scrum_master: str = Field(default="", max_length=SHORT_TEXT)
+    product_owner: str = Field(default="", max_length=SHORT_TEXT)
     went_well: str = Field(default="", max_length=LONG_TEXT)
     to_improve: str = Field(default="", max_length=LONG_TEXT)
     actions: str = Field(default="", max_length=LONG_TEXT)

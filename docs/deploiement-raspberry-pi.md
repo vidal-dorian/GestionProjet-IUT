@@ -270,12 +270,42 @@ Les administrateurs valident ou refusent les demandes d'adhésion aux
 projets depuis la page **Demandes d'accès** (`/admin/demandes`, visible dans
 la barre latérale uniquement pour eux). Un compte devient administrateur à
 sa prochaine connexion si son adresse figure dans `ADMIN_EMAILS` (liste
-séparée par des virgules dans `.env`) ; sans cette variable,
-`docker-compose.yml` utilise l'administrateur par défaut du projet. Retirer
+séparée par des virgules dans `.env`). Aucun administrateur n'est désigné
+par défaut : renseigner au moins une adresse avant le premier démarrage
+(les comptes déjà promus le restent). Retirer
 une adresse de la liste ne rétrograde pas le compte : le faire en base
 (`UPDATE accounts SET is_admin = 0 WHERE email = '...'`).
 
+### Sécurité : réglages à faire hors du code
+
+Ces protections ne se configurent pas dans le dépôt, mais dans les
+tableaux de bord GitHub et Cloudflare :
+
+- **Cookie Cloudflare Access en `SameSite=Lax`** : Zero Trust →
+  **Access** → **Applications** → l'application → **Settings** → *Cookie
+  settings* → **SameSite attribute : Lax** (et cocher *HTTP Only*). Le
+  backend refuse déjà les écritures venant d'une autre origine, mais ce
+  réglage empêche le navigateur d'envoyer la session depuis un autre site.
+- **Runner self-hosted et dépôt public** : voir l'encadré « Sécurité » de
+  l'étape 7 ci-dessous — c'est le point le plus important.
+
 ## 7. Mettre en place le déploiement continu (CI/CD)
+
+> **Sécurité — à lire avant d'installer le runner.** Sur un dépôt
+> **public**, GitHub exécute le workflow tel que modifié par une pull
+> request venant d'un fork. Une personne extérieure peut donc écrire un job
+> qui cible le runner self-hosted (`runs-on: [self-hosted, ...]`) et
+> exécuter n'importe quelle commande sur le Raspberry Pi, avec l'accès
+> Docker (donc root), le fichier `.env` (mots de passe, token GitHub) et la
+> base de données. GitHub recommande de n'utiliser un runner self-hosted
+> qu'avec un dépôt **privé**. Par ordre de préférence :
+>
+> 1. passer le dépôt en **privé** (Settings → General → Danger Zone) ;
+> 2. sinon, dans Settings → Actions → General, choisir **« Require approval
+>    for all external contributors »** et ne jamais approuver l'exécution
+>    d'une pull request venant d'un fork sans avoir relu son workflow ;
+> 3. dans tous les cas, faire tourner le runner avec un utilisateur dédié
+>    qui ne sert à rien d'autre sur le Pi.
 
 Une fois les étapes 1 à 6 terminées et l'application vérifiée en
 production, l'étape suivante rend les mises à jour automatiques : chaque
@@ -294,7 +324,9 @@ Le workflow `.github/workflows/ci-cd.yml` définit trois jobs :
    les deux jobs précédents ont réussi. Il tourne sur un **runner
    self-hosted** — c'est-à-dire un agent GitHub Actions installé et
    exécuté directement sur le Raspberry Pi — qui récupère le code puis
-   lance `docker compose up -d --build`.
+   reconstruit les images en récupérant les dernières versions corrigées
+   des images de base (`docker compose build --pull`) puis relance les
+   conteneurs.
 
 Ce découpage évite de déployer du code cassé : si les tests ou le build
 échouent, le job `deploy` ne se lance pas et l'application en production

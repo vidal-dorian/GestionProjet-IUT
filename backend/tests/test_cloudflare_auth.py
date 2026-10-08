@@ -1,3 +1,4 @@
+import time
 from unittest.mock import MagicMock, patch
 
 import jwt
@@ -18,6 +19,10 @@ def _configure_cloudflare_settings(monkeypatch):
 
 
 def _make_token(private_key, **claims):
+    # Comme les vrais jetons Cloudflare Access : émis maintenant, valables 1 h.
+    now = int(time.time())
+    claims = {"iat": now, "exp": now + 3600, **claims}
+    claims = {key: value for key, value in claims.items() if value is not None}
     return jwt.encode(claims, private_key, algorithm="RS256")
 
 
@@ -95,3 +100,43 @@ def test_verify_access_jwt_rejects_signature_from_different_key():
     with _patch_signing_key(other_key):
         with pytest.raises(cloudflare_auth.CloudflareAuthError):
             cloudflare_auth.verify_access_jwt(token)
+
+
+def test_verify_access_jwt_rejects_token_without_expiry():
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    token = _make_token(
+        private_key,
+        email="alice@example.com",
+        aud=["test-aud"],
+        iss="https://myteam.cloudflareaccess.com",
+        exp=None,
+    )
+    with _patch_signing_key(private_key):
+        with pytest.raises(cloudflare_auth.CloudflareAuthError):
+            cloudflare_auth.verify_access_jwt(token)
+
+
+def test_verify_access_jwt_rejects_expired_token_beyond_leeway():
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    token = _make_token(
+        private_key,
+        email="alice@example.com",
+        aud=["test-aud"],
+        iss="https://myteam.cloudflareaccess.com",
+        exp=int(time.time()) - 120,
+    )
+    with _patch_signing_key(private_key):
+        with pytest.raises(cloudflare_auth.CloudflareAuthError):
+            cloudflare_auth.verify_access_jwt(token)
+
+
+def test_verify_access_jwt_normalizes_email_case():
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    token = _make_token(
+        private_key,
+        email=" Alice@Example.com ",
+        aud=["test-aud"],
+        iss="https://myteam.cloudflareaccess.com",
+    )
+    with _patch_signing_key(private_key):
+        assert cloudflare_auth.verify_access_jwt(token) == "alice@example.com"
