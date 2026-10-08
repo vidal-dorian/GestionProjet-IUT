@@ -44,3 +44,30 @@ def test_create_duplicate_category_name_returns_409(client):
 
     response = client.post(f"/api/projects/{project['id']}/categories", json={"name": "dev"})
     assert response.status_code == 409
+
+
+def test_rename_category_fixes_accents(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
+    project = client.post("/api/projects", json={"name": "Projet Renommage"}).json()
+    category = client.post(f"/api/projects/{project['id']}/categories", json={"name": "Reunion"}).json()
+
+    response = client.put(f"/api/projects/{project['id']}/categories/{category['id']}", json={"name": "Réunion"})
+    assert response.status_code == 200
+    assert response.json()["name"] == "Réunion"
+
+
+def test_rename_category_to_existing_name_returns_409(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
+    project = client.post("/api/projects", json={"name": "Projet Renommage 2"}).json()
+    client.post(f"/api/projects/{project['id']}/categories", json={"name": "Dev"})
+    doc = client.post(f"/api/projects/{project['id']}/categories", json={"name": "Doc"}).json()
+
+    response = client.put(f"/api/projects/{project['id']}/categories/{doc['id']}", json={"name": "dev"})
+    assert response.status_code == 409
+
+
+def test_rename_unknown_category_returns_404(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
+    project = client.post("/api/projects", json={"name": "Projet Renommage 3"}).json()
+    response = client.put(f"/api/projects/{project['id']}/categories/999", json={"name": "X"})
+    assert response.status_code == 404

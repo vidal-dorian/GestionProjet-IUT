@@ -3,6 +3,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.report_content import ReportType
+
 
 # Bornes de saisie des dates : au-delà, une seule valeur aberrante (ex. an 1)
 # fait générer au dashboard des dizaines de milliers de points hebdomadaires.
@@ -159,8 +161,13 @@ class AccountRead(BaseModel):
 
     id: int
     email: str
+    display_name: str | None = None
     is_admin: bool
     created_at: datetime
+
+
+class DisplayNameUpdate(BaseModel):
+    display_name: str = Field(max_length=120)
 
 
 class ProjectSummary(BaseModel):
@@ -296,3 +303,92 @@ class HoursByCategoryItem(BaseModel):
 class HoursByCategory(BaseModel):
     items: list[HoursByCategoryItem]
     unattached_hours: float
+
+
+class ReportCreate(BaseModel):
+    type: ReportType
+    sprint_id: int | None = None
+    meeting_date: date_type
+
+    @field_validator("meeting_date")
+    @classmethod
+    def date_within_bounds(cls, value: date_type) -> date_type:
+        if not MIN_DATE <= value <= MAX_SPRINT_DATE:
+            raise ValueError(f"La date doit être comprise entre {MIN_DATE:%d/%m/%Y} et {MAX_SPRINT_DATE:%d/%m/%Y}.")
+        return value
+
+
+class ReportUpdate(BaseModel):
+    sprint_id: int | None = None
+    meeting_date: date_type
+    content: dict
+    # Version lue avant modification : refusée (409) si quelqu'un a enregistré
+    # entre-temps, pour ne pas écraser silencieusement son travail.
+    version: int
+
+    @field_validator("meeting_date")
+    @classmethod
+    def date_within_bounds(cls, value: date_type) -> date_type:
+        if not MIN_DATE <= value <= MAX_SPRINT_DATE:
+            raise ValueError(f"La date doit être comprise entre {MIN_DATE:%d/%m/%Y} et {MAX_SPRINT_DATE:%d/%m/%Y}.")
+        return value
+
+
+class ReportSummary(BaseModel):
+    id: int
+    project_id: int
+    type: str
+    sprint_id: int | None
+    sprint_name: str | None
+    meeting_date: date_type
+    created_by_label: str | None
+    updated_at: datetime
+    updated_by_label: str | None
+
+
+class TeamMember(BaseModel):
+    account_id: int
+    label: str
+    email: str
+    roles: list[str]
+
+
+class DailyEntryRead(BaseModel):
+    account_id: int
+    done: str
+    todo: str
+    blockers: str
+    updated_at: datetime
+    updated_by_label: str | None
+
+
+class DailyEntryUpdate(BaseModel):
+    done: str = Field(default="", max_length=5000)
+    todo: str = Field(default="", max_length=5000)
+    blockers: str = Field(default="", max_length=5000)
+
+
+class ReportRead(ReportSummary):
+    content: dict
+    version: int
+    team: list[TeamMember]
+    daily_entries: list[DailyEntryRead]
+    can_delete: bool
+
+
+class SuggestedUserStories(BaseModel):
+    user_stories: list[dict]
+    source_label: str | None
+
+
+class DocumentSettings(BaseModel):
+    footer: str = Field(default="", max_length=255)
+
+
+class DocumentSettingsRead(DocumentSettings):
+    logos: list[str]
+
+
+class LogoUpload(BaseModel):
+    # Image encodée en base64 (sans le préfixe "data:...;base64,").
+    data_base64: str = Field(min_length=1, max_length=2_000_000)

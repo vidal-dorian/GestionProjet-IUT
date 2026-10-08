@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useState } from "react";
-import { createCategory, listCategories, type Category } from "../api/categories";
+import { createCategory, listCategories, renameCategory, type Category } from "../api/categories";
 import { ApiError } from "../api/projects";
+import RenamableListItem from "./RenamableListItem";
 
 interface Props {
   projectId: number;
@@ -69,9 +70,16 @@ export default function CategoriesSection({ projectId }: Props) {
       {categories && categories.length > 0 && (
         <ul className="member-list">
           {categories.map((category) => (
-            <li key={category.id}>
-              <span>{category.name}</span>
-            </li>
+            <RenamableListItem
+              key={category.id}
+              name={category.name}
+              inputLabel={`Nouveau nom de la catégorie ${category.name}`}
+              maxLength={80}
+              onRename={async (newName) => {
+                await renameCategory(projectId, category.id, newName);
+                await loadCategories();
+              }}
+            />
           ))}
         </ul>
       )}

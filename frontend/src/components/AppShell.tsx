@@ -2,7 +2,20 @@ import { type ReactNode, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import SidebarProjectPicker from "./SidebarProjectPicker";
-import { IconChart, IconClock, IconClose, IconGrid, IconInbox, IconLogout, IconMenu, IconSettings, IconSprint } from "./icons";
+import { accountLabel } from "../api/auth";
+import {
+  IconChart,
+  IconClock,
+  IconClose,
+  IconDocument,
+  IconGrid,
+  IconInbox,
+  IconLogout,
+  IconMenu,
+  IconSettings,
+  IconSprint,
+  IconUser,
+} from "./icons";
 
 export const LAST_PROJECT_STORAGE_KEY = "lastProjectId";
 
@@ -55,6 +68,7 @@ export default function AppShell({ children, title, project, canManage = false }
         { to: `/projects/${project.id}`, label: "Saisie", icon: <IconClock />, exact: true },
         { to: `/projects/${project.id}/dashboard`, label: "Dashboard", icon: <IconChart /> },
         { to: `/projects/${project.id}/sprints`, label: "Sprints", icon: <IconSprint /> },
+        { to: `/projects/${project.id}/reports`, label: "Comptes-rendus", icon: <IconDocument /> },
         ...(canManage
           ? [{ to: `/projects/${project.id}/settings`, label: "Paramètres", icon: <IconSettings /> }]
           : []),
@@ -63,6 +77,7 @@ export default function AppShell({ children, title, project, canManage = false }
 
   const globalItems: NavItem[] = [
     { to: "/projects", label: "Tous les projets", icon: <IconGrid />, exact: true },
+    { to: "/profile", label: "Mon profil", icon: <IconUser />, exact: true },
     ...(isAdmin ? [{ to: "/admin/demandes", label: "Demandes d'accès", icon: <IconInbox /> }] : []),
   ];
 
@@ -125,7 +140,7 @@ export default function AppShell({ children, title, project, canManage = false }
         <div className="sidebar-foot">
           {account && (
             <span className="sidebar-account">
-              <span className="sidebar-account-email">{account.email}</span>
+              <span className="sidebar-account-email">{accountLabel(account)}</span>
               {isAdmin && <span className="badge">Admin</span>}
             </span>
           )}

@@ -7,7 +7,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import github_sync
 from app.config import settings
 from app.database import Base, engine, sync_missing_columns
-from app.routers import admin, auth, categories, dashboard, exports, github, projects, sprints, team_roles, time_entries
+from app.routers import (
+    admin,
+    auth,
+    categories,
+    dashboard,
+    document_settings,
+    exports,
+    github,
+    projects,
+    reports,
+    sprints,
+    team_roles,
+    time_entries,
+)
 
 
 @asynccontextmanager
@@ -38,6 +51,8 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # Nom des fichiers exportés : lisible par le frontend en dev (cross-origin).
+    expose_headers=["Content-Disposition"],
 )
 
 app.include_router(projects.router)
@@ -50,6 +65,8 @@ app.include_router(categories.router)
 app.include_router(exports.router)
 app.include_router(admin.router)
 app.include_router(team_roles.router)
+app.include_router(reports.router)
+app.include_router(document_settings.router)
 
 
 @app.get("/api/health")

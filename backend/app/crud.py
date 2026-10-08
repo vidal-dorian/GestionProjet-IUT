@@ -625,3 +625,73 @@ def update_time_entry(
 def delete_time_entry(db: Session, db_entry: models.TimeEntry) -> None:
     db.delete(db_entry)
     db.commit()
+
+
+def rename_category(db: Session, db_category: models.Category, name: str) -> models.Category:
+    db_category.name = name
+    db.commit()
+    db.refresh(db_category)
+    return db_category
+
+
+def set_display_name(db: Session, account: models.Account, display_name: str | None) -> models.Account:
+    account.display_name = display_name
+    db.commit()
+    db.refresh(account)
+    return account
+
+
+def list_reports(
+    db: Session, project_id: int, report_type: str | None = None, sprint_id: int | None = None
+) -> list[models.MeetingReport]:
+    query = db.query(models.MeetingReport).filter(models.MeetingReport.project_id == project_id)
+    if report_type is not None:
+        query = query.filter(models.MeetingReport.type == report_type)
+    if sprint_id is not None:
+        query = query.filter(models.MeetingReport.sprint_id == sprint_id)
+    return query.order_by(models.MeetingReport.meeting_date.desc(), models.MeetingReport.id.desc()).all()
+
+
+def get_report(db: Session, project_id: int, report_id: int) -> models.MeetingReport | None:
+    return (
+        db.query(models.MeetingReport)
+        .filter(models.MeetingReport.project_id == project_id, models.MeetingReport.id == report_id)
+        .first()
+    )
+
+
+def find_daily_on_date(db: Session, project_id: int, meeting_date) -> models.MeetingReport | None:
+    return (
+        db.query(models.MeetingReport)
+        .filter(
+            models.MeetingReport.project_id == project_id,
+            models.MeetingReport.type == "daily",
+            models.MeetingReport.meeting_date == meeting_date,
+        )
+        .first()
+    )
+
+
+def get_daily_entry(db: Session, report_id: int, account_id: int) -> models.DailyEntry | None:
+    return (
+        db.query(models.DailyEntry)
+        .filter(models.DailyEntry.report_id == report_id, models.DailyEntry.account_id == account_id)
+        .first()
+    )
+
+
+def get_document_logo(db: Session, project_id: int, position: str) -> models.ProjectDocumentLogo | None:
+    return (
+        db.query(models.ProjectDocumentLogo)
+        .filter(models.ProjectDocumentLogo.project_id == project_id, models.ProjectDocumentLogo.position == position)
+        .first()
+    )
+
+
+def list_document_logo_positions(db: Session, project_id: int) -> list[str]:
+    rows = (
+        db.query(models.ProjectDocumentLogo.position)
+        .filter(models.ProjectDocumentLogo.project_id == project_id)
+        .all()
+    )
+    return sorted(row[0] for row in rows)

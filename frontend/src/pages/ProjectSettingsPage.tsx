@@ -16,6 +16,7 @@ import {
 } from "../api/projects";
 import AppShell from "../components/AppShell";
 import CategoriesSection from "../components/CategoriesSection";
+import DocumentSettingsSection from "../components/DocumentSettingsSection";
 import PageHeader from "../components/PageHeader";
 import RolesSection from "../components/RolesSection";
 import SprintsSection from "../components/SprintsSection";
@@ -27,6 +28,7 @@ const SETTINGS_SECTIONS = [
   { key: "sprints", label: "Sprints" },
   { key: "categories", label: "Catégories" },
   { key: "roles", label: "Rôles" },
+  { key: "documents", label: "Documents" },
   { key: "danger", label: "Zone dangereuse" },
 ] as const;
 
@@ -381,6 +383,7 @@ export default function ProjectSettingsPage() {
               {section === "sprints" && <SprintsSection projectId={Number(projectId)} />}
               {section === "categories" && <CategoriesSection projectId={Number(projectId)} />}
               {section === "roles" && <RolesSection projectId={Number(projectId)} />}
+              {section === "documents" && <DocumentSettingsSection projectId={Number(projectId)} />}
 
               {section === "danger" && (
                 <section className="danger-zone">

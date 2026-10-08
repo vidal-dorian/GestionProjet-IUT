@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useState } from "react";
-import { createRole, deleteRole, listRoles, type TeamRole } from "../api/roles";
+import { createRole, deleteRole, listRoles, renameRole, type TeamRole } from "../api/roles";
 import { ApiError } from "../api/projects";
+import RenamableListItem from "./RenamableListItem";
 
 interface Props {
   projectId: number;
@@ -59,7 +60,8 @@ export default function RolesSection({ projectId }: Props) {
     <section className="chart-section">
       <h2>Rôles d'équipe</h2>
       <p className="meta">
-        Utilisés pour indiquer qui occupe quel rôle sur chaque sprint (voir le détail par sprint du dashboard).
+        Utilisés pour indiquer qui occupe quel rôle sur chaque sprint, et repris dans les comptes-rendus (daily,
+        rétrospective). Renommer un rôle conserve ses attributions.
       </p>
 
       <form onSubmit={handleSubmit} className="form form-inline">
@@ -85,17 +87,26 @@ export default function RolesSection({ projectId }: Props) {
       {roles && roles.length > 0 && (
         <ul className="member-list">
           {roles.map((role) => (
-            <li key={role.id}>
-              <span>{role.name}</span>
-              <button
-                type="button"
-                className="button-danger"
-                disabled={deletingId === role.id}
-                onClick={() => handleDelete(role.id)}
-              >
-                Supprimer
-              </button>
-            </li>
+            <RenamableListItem
+              key={role.id}
+              name={role.name}
+              inputLabel={`Nouveau nom du rôle ${role.name}`}
+              maxLength={80}
+              onRename={async (newName) => {
+                await renameRole(projectId, role.id, newName);
+                await loadRoles();
+              }}
+              extraActions={
+                <button
+                  type="button"
+                  className="button-danger"
+                  disabled={deletingId === role.id}
+                  onClick={() => handleDelete(role.id)}
+                >
+                  Supprimer
+                </button>
+              }
+            />
           ))}
         </ul>
       )}

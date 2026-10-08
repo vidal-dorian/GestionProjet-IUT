@@ -13,6 +13,17 @@ def me(account: models.Account = Depends(get_current_account)):
     return account
 
 
+@router.put("/me", response_model=schemas.AccountRead)
+def update_me(
+    payload: schemas.DisplayNameUpdate,
+    account: models.Account = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    """Chacun renseigne son propre nom (ex. "VIDAL Dorian"), utilisé dans les
+    comptes-rendus à la place de l'adresse e-mail. Une chaîne vide l'efface."""
+    return crud.set_display_name(db, account, payload.display_name.strip() or None)
+
+
 @router.get("/me/projects", response_model=list[schemas.ProjectSummary])
 def my_projects(account: models.Account = Depends(get_current_account), db: Session = Depends(get_db)):
     return [
