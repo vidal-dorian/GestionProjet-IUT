@@ -227,12 +227,18 @@ class MeetingReport(Base):
     """
 
     __tablename__ = "meeting_reports"
+    # Un seul daily par projet et par jour, garanti par la base : la
+    # vérification applicative seule laisse passer deux créations simultanées
+    # (toute l'équipe ouvre le daily du jour au même moment). `daily_date` vaut
+    # meeting_date pour un daily et NULL sinon (les NULL ne se heurtent pas).
+    __table_args__ = (UniqueConstraint("project_id", "daily_date", name="uq_meeting_report_project_daily_date"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     sprint_id: Mapped[int | None] = mapped_column(ForeignKey("sprints.id", ondelete="SET NULL"), nullable=True)
     type: Mapped[str] = mapped_column(String(30), nullable=False)
     meeting_date: Mapped[date] = mapped_column(Date, nullable=False)
+    daily_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     content_json: Mapped[str] = mapped_column(
         Text().with_variant(LONGTEXT(), "mysql"), nullable=False, default="{}"
     )
@@ -251,6 +257,11 @@ class MeetingReport(Base):
     created_by: Mapped["Account | None"] = relationship(foreign_keys=[created_by_account_id])
     updated_by: Mapped["Account | None"] = relationship(foreign_keys=[updated_by_account_id])
     daily_entries: Mapped[list["DailyEntry"]] = relationship(back_populates="report", cascade="all, delete-orphan")
+
+    # Verrou optimiste géré par SQLAlchemy : chaque UPDATE porte
+    # "WHERE version = <version lue>" et incrémente la version, si bien que deux
+    # enregistrements simultanés ne peuvent pas réussir tous les deux.
+    __mapper_args__ = {"version_id_col": version}
 
 
 class DailyEntry(Base):

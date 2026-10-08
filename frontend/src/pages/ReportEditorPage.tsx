@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError, getProject, type Project } from "../api/projects";
 import {
@@ -16,7 +16,7 @@ import {
 import { listSprints, type Sprint } from "../api/sprints";
 import AppShell from "../components/AppShell";
 import BalanceDiagram from "../components/BalanceDiagram";
-import DailyEntryCard from "../components/DailyEntryCard";
+import DailyEntryCard, { type Answers } from "../components/DailyEntryCard";
 import PageHeader from "../components/PageHeader";
 import UserStoryTableEditor from "../components/UserStoryTableEditor";
 import { useAuth } from "../context/AuthContext";
@@ -26,6 +26,9 @@ interface Draft {
   meeting_date: string;
   content: ReportContent;
 }
+
+// Fréquence de synchronisation avec les modifications des autres membres.
+const SYNC_INTERVAL_MS = 4000;
 
 const BULLET_HINT = "Une ligne par point ; commence une ligne par des espaces pour en faire un sous-point.";
 
@@ -54,12 +57,21 @@ export default function ReportEditorPage() {
   const [exporting, setExporting] = useState(false);
   const [filling, setFilling] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [remoteChanged, setRemoteChanged] = useState(false);
+  const reportRef = useRef<Report | null>(null);
+  const dirtyRef = useRef(false);
+  // Incrémenté à chaque début et fin d'enregistrement d'une carte du daily :
+  // une synchronisation lancée avant ne doit pas réafficher l'ancienne version.
+  const entrySavesRef = useRef(0);
+  reportRef.current = report;
+  dirtyRef.current = dirty;
 
   function applyServerReport(next: Report) {
     setReport(next);
     setDraft(toDraft(next));
     setDirty(false);
     setConflict(false);
+    setRemoteChanged(false);
   }
 
   useEffect(() => {
@@ -71,6 +83,41 @@ export default function ReportEditorPage() {
         applyServerReport(reportData);
       })
       .catch(() => setLoadError("Ce compte-rendu est introuvable."));
+  }, [projectId, reportId]);
+
+  /* Synchronisation en direct (sondage régulier plutôt que WebSocket : simple,
+     et suffisant pour une équipe de quelques personnes) : les réponses des
+     autres au daily apparaissent sans recharger, et le reste du formulaire
+     suit les enregistrements des autres tant qu'on ne le modifie pas soi-même. */
+  useEffect(() => {
+    if (!projectId || !reportId) return;
+    let cancelled = false;
+    const timer = window.setInterval(async () => {
+      if (document.visibilityState !== "visible" || !reportRef.current) return;
+      const savesAtStart = entrySavesRef.current;
+      let fresh: Report;
+      try {
+        fresh = await getReport(projectId, reportId);
+      } catch {
+        return;
+      }
+      const current = reportRef.current;
+      if (cancelled || !current || fresh.version < current.version) return;
+      const entries = entrySavesRef.current === savesAtStart ? fresh.daily_entries : current.daily_entries;
+      if (dirtyRef.current) {
+        // Formulaire en cours de modification : on ne touche qu'aux réponses du
+        // daily, et on prévient si quelqu'un a enregistré le reste entre-temps.
+        if (fresh.version !== current.version) setRemoteChanged(true);
+        setReport({ ...current, team: fresh.team, daily_entries: entries });
+      } else {
+        setReport({ ...fresh, daily_entries: entries });
+        if (fresh.version !== current.version) setDraft(toDraft(fresh));
+      }
+    }, SYNC_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
   }, [projectId, reportId]);
 
   // Prévient avant de quitter la page avec des modifications non enregistrées.
@@ -176,12 +223,17 @@ export default function ReportEditorPage() {
     }
   }
 
-  async function handleSaveEntry(accountId: number, answers: { done: string; todo: string; blockers: string }) {
-    if (!projectId || !report) return;
-    const saved = await saveDailyEntry(projectId, report.id, accountId, answers);
-    // On ne reprend que les réponses : le reste du formulaire peut contenir
-    // des modifications locales pas encore enregistrées.
-    setReport((current) => (current ? { ...current, daily_entries: saved.daily_entries } : current));
+  async function handleSaveEntry(accountId: number, answers: Answers) {
+    if (!projectId || !reportId) return;
+    entrySavesRef.current += 1;
+    try {
+      const saved = await saveDailyEntry(projectId, reportId, accountId, answers);
+      // On ne reprend que les réponses : le reste du formulaire peut contenir
+      // des modifications locales pas encore enregistrées.
+      setReport((current) => (current ? { ...current, daily_entries: saved.daily_entries } : current));
+    } finally {
+      entrySavesRef.current += 1;
+    }
   }
 
   if (loadError) {
@@ -352,6 +404,11 @@ export default function ReportEditorPage() {
 
           {report.type === "daily" && (
             <>
+              <p className="live-hint">
+                <span className="live-dot" aria-hidden="true" />
+                Chacun remplit sa carte en même temps : tout s'enregistre automatiquement et les réponses des autres
+                apparaissent en direct.
+              </p>
               <section className="daily-grid" aria-label="Réponses de l'équipe">
                 {orderedParticipants.length === 0 && (
                   <p className="meta">Coche les personnes présentes pour faire apparaître leur partie.</p>
@@ -465,11 +522,27 @@ export default function ReportEditorPage() {
 
           <div className="report-save-bar">
             <span className="meta">
-              {dirty ? "Modifications non enregistrées" : savedAt ? `Enregistré à ${savedAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}` : ""}
-              {report.type === "daily" && " — les réponses de chacun s'enregistrent avec leur propre bouton."}
+              {[
+                dirty
+                  ? "Modifications non enregistrées"
+                  : savedAt
+                    ? `Enregistré à ${savedAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`
+                    : "",
+                report.type === "daily"
+                  ? "Ce bouton enregistre les informations générales et la partie Scrum Master ; les cartes s'enregistrent seules."
+                  : "",
+              ]
+                .filter(Boolean)
+                .join(" — ")}
             </span>
             {saveError && <p className="error">{saveError}</p>}
-            {conflict && (
+            {remoteChanged && !conflict && (
+              <p className="warning">
+                Quelqu'un vient d'enregistrer ce compte-rendu pendant que tu le modifiais : recharge pour voir ses
+                changements (les tiens seront perdus), ou enregistre pour être averti du conflit.
+              </p>
+            )}
+            {(conflict || remoteChanged) && (
               <button type="button" className="button-secondary" onClick={handleReload}>
                 Recharger (perd mes modifications)
               </button>

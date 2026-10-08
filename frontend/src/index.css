@@ -1718,11 +1718,29 @@ body.has-drawer-open {
   cursor: grabbing;
 }
 
+.live-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 1.5rem 0 0;
+  color: var(--ink-secondary);
+  font-size: 0.88rem;
+}
+
+.live-dot {
+  flex: 0 0 auto;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--status-good);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-good) 25%, transparent);
+}
+
 .daily-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: 1rem;
-  margin-top: 1.5rem;
+  margin-top: 0.75rem;
 }
 
 @media (min-width: 900px) {

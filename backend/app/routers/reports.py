@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import StaleDataError
 
 from app import burndown, crud, docx_export, models, schemas
 from app.database import get_db
@@ -15,6 +16,12 @@ from app.deps import require_project_member
 from app.report_content import REPORT_TYPES, dump_content, load_content, validate_content
 
 router = APIRouter(prefix="/api/projects/{project_id}/reports", tags=["reports"])
+
+DAILY_EXISTS = "Un daily existe déjà à cette date."
+REPORT_CHANGED = (
+    "Ce compte-rendu a été modifié par quelqu'un d'autre entre-temps. "
+    "Recharge-le pour récupérer ses changements avant d'enregistrer."
+)
 
 DOCX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
@@ -187,7 +194,7 @@ def create_report(
     # Un seul daily par jour : sinon deux membres qui ouvrent le daily du matin
     # en même temps rempliraient chacun le leur.
     if payload.type == "daily" and crud.find_daily_on_date(db, project_id, payload.meeting_date):
-        raise HTTPException(status_code=409, detail="Un daily existe déjà à cette date.")
+        raise HTTPException(status_code=409, detail=DAILY_EXISTS)
 
     team = _team(db, project_id, sprint)
     content = validate_content(payload.type, _initial_content(db, project_id, payload.type, sprint, team))
@@ -197,15 +204,20 @@ def create_report(
         sprint_id=sprint.id if sprint else None,
         type=payload.type,
         meeting_date=payload.meeting_date,
+        daily_date=payload.meeting_date if payload.type == "daily" else None,
         content_json=dump_content(content),
-        version=1,
         created_by_account_id=account.id,
         updated_by_account_id=account.id,
         created_at=now,
         updated_at=now,
     )
     db.add(report)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        # Création simultanée du même daily : l'autre a gagné, le client le rejoint.
+        db.rollback()
+        raise HTTPException(status_code=409, detail=DAILY_EXISTS) from exc
     db.refresh(report)
     return _to_read(db, report, account)
 
@@ -230,11 +242,7 @@ def update_report(
 ):
     report = _get_report_or_404(db, project_id, report_id)
     if payload.version != report.version:
-        raise HTTPException(
-            status_code=409,
-            detail="Ce compte-rendu a été modifié par quelqu'un d'autre entre-temps. "
-            "Recharge-le pour récupérer ses changements avant d'enregistrer.",
-        )
+        raise HTTPException(status_code=409, detail=REPORT_CHANGED)
 
     sprint = _get_sprint_or_422(db, project_id, payload.sprint_id)
     if sprint is None and report.type != "daily":
@@ -244,7 +252,7 @@ def update_report(
         and payload.meeting_date != report.meeting_date
         and crud.find_daily_on_date(db, project_id, payload.meeting_date)
     ):
-        raise HTTPException(status_code=409, detail="Un daily existe déjà à cette date.")
+        raise HTTPException(status_code=409, detail=DAILY_EXISTS)
 
     try:
         content = validate_content(report.type, payload.content)
@@ -258,11 +266,19 @@ def update_report(
 
     report.sprint_id = sprint.id if sprint else None
     report.meeting_date = payload.meeting_date
+    if report.type == "daily":
+        report.daily_date = payload.meeting_date
     report.content_json = dump_content(content)
-    report.version += 1
     report.updated_at = datetime.utcnow()
     report.updated_by_account_id = account.id
-    db.commit()
+    try:
+        db.commit()
+    except StaleDataError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=REPORT_CHANGED) from exc
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=DAILY_EXISTS) from exc
     db.refresh(report)
     return _to_read(db, report, account)
 
@@ -307,9 +323,12 @@ def save_daily_entry(
         if entry is None:
             entry = models.DailyEntry(report_id=report.id, account_id=entry_account_id)
             db.add(entry)
-        entry.done = payload.done.strip()
-        entry.todo = payload.todo.strip()
-        entry.blockers = payload.blockers.strip()
+        # Texte gardé tel quel (pas de strip) : la saisie s'enregistre
+        # automatiquement pendant la frappe, et retirer l'espace qu'on vient de
+        # taper le ferait disparaître de l'écran. L'export nettoie le texte.
+        entry.done = payload.done
+        entry.todo = payload.todo
+        entry.blockers = payload.blockers
         entry.updated_at = datetime.utcnow()
         entry.updated_by_account_id = account.id
         db.commit()

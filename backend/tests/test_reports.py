@@ -414,3 +414,71 @@ def test_balance_diagram_draws_dot_at_given_point():
     assert red > 200 and green < 60
     # Plus de point à la position par défaut (centre du diagramme).
     assert image.getpixel((500, 387)) == (255, 255, 255)
+
+
+def test_daily_entry_keeps_trailing_space_for_autosave(client):
+    project = create_test_project(client)
+    report = client.post(f"/api/projects/{project['id']}/reports", json={"type": "daily", "meeting_date": "2026-03-10"}).json()
+    alice = account_id(client, "alice@test.local")
+
+    response = client.put(
+        f"/api/projects/{project['id']}/reports/{report['id']}/daily-entries/{alice}",
+        json={"done": "Rédaction du ", "todo": "", "blockers": "   "},
+    )
+    assert response.json()["daily_entries"][0]["done"] == "Rédaction du "
+
+    text = docx_text(client.get(f"/api/projects/{project['id']}/reports/{report['id']}/export"))
+    assert "Ce que j’ai fait depuis la dernière daily : Rédaction du" in text
+    assert "Ce qui me bloque : /" in text
+
+
+def test_simultaneous_daily_creation_yields_a_single_daily(client, monkeypatch):
+    project = create_test_project(client)
+    first = client.post(f"/api/projects/{project['id']}/reports", json={"type": "daily", "meeting_date": "2026-03-10"})
+    assert first.status_code == 201
+
+    # Second membre dont la vérification applicative est passée avant que le
+    # premier daily ne soit enregistré : c'est la base qui doit l'arrêter.
+    from app import crud
+
+    monkeypatch.setattr(crud, "find_daily_on_date", lambda *args, **kwargs: None)
+    second = client.post(f"/api/projects/{project['id']}/reports", json={"type": "daily", "meeting_date": "2026-03-10"})
+    assert second.status_code == 409
+    assert len(client.get(f"/api/projects/{project['id']}/reports").json()) == 1
+
+    # Les autres types ne sont pas concernés par la contrainte.
+    sprint = create_sprint(client, project["id"])
+    for _ in range(2):
+        response = client.post(
+            f"/api/projects/{project['id']}/reports",
+            json={"type": "sprint_review", "sprint_id": sprint["id"], "meeting_date": "2026-03-10"},
+        )
+        assert response.status_code == 201
+
+
+def test_simultaneous_saves_cannot_both_succeed(client, monkeypatch):
+    project = create_test_project(client)
+    report = client.post(f"/api/projects/{project['id']}/reports", json={"type": "daily", "meeting_date": "2026-03-10"}).json()
+
+    # Un autre membre enregistre entre la lecture et l'écriture de cette requête.
+    from app.routers import reports as reports_router
+
+    original_validate = reports_router.validate_content
+
+    def validate_then_concurrent_write(report_type, raw):
+        db = TestingSessionLocal()
+        try:
+            other = db.get(models.MeetingReport, report["id"])
+            other.content_json = '{"scrum_master_notes": "écrit par un autre"}'
+            db.commit()
+        finally:
+            db.close()
+        return original_validate(report_type, raw)
+
+    monkeypatch.setattr(reports_router, "validate_content", validate_then_concurrent_write)
+    response = save(client, project["id"], report, scrum_master_notes="le mien")
+    assert response.status_code == 409
+
+    monkeypatch.setattr(reports_router, "validate_content", original_validate)
+    stored = client.get(f"/api/projects/{project['id']}/reports/{report['id']}").json()
+    assert stored["content"]["scrum_master_notes"] == "écrit par un autre"

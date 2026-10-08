@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ApiError } from "../api/projects";
 import type { DailyEntry, TeamMember } from "../api/reports";
 
@@ -6,7 +6,7 @@ interface Props {
   member: TeamMember;
   entry: DailyEntry | undefined;
   isMe: boolean;
-  onSave: (answers: { done: string; todo: string; blockers: string }) => Promise<void>;
+  onSave: (answers: Answers) => Promise<void>;
 }
 
 const QUESTIONS = [
@@ -15,10 +15,17 @@ const QUESTIONS = [
   { key: "blockers", label: "Ce qui me bloque" },
 ] as const;
 
-type Answers = Record<(typeof QUESTIONS)[number]["key"], string>;
+export type Answers = Record<(typeof QUESTIONS)[number]["key"], string>;
+
+// Délai sans frappe avant l'enregistrement automatique.
+const AUTOSAVE_DELAY_MS = 800;
 
 function fromEntry(entry: DailyEntry | undefined): Answers {
   return { done: entry?.done ?? "", todo: entry?.todo ?? "", blockers: entry?.blockers ?? "" };
+}
+
+function sameAnswers(a: Answers, b: Answers): boolean {
+  return a.done === b.done && a.todo === b.todo && a.blockers === b.blockers;
 }
 
 function formatTime(iso: string): string {
@@ -27,35 +34,77 @@ function formatTime(iso: string): string {
   return date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 }
 
-/* Partie d'une personne dans le daily, enregistrée séparément des autres :
-   chacun peut remplir la sienne en même temps sans écraser celle du voisin. */
+/* Partie d'une personne dans le daily. Chaque carte s'enregistre seule et
+   automatiquement, indépendamment des autres : toute l'équipe peut remplir le
+   daily en même temps. Les modifications faites ailleurs (arrivées par la
+   synchronisation de la page) s'affichent tant qu'on n'est pas soi-même en
+   train de modifier la carte. */
 export default function DailyEntryCard({ member, entry, isMe, onSave }: Props) {
   const [answers, setAnswers] = useState<Answers>(fromEntry(entry));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [dirty, setDirty] = useState(false);
+  // Dernière valeur connue côté serveur : la carte est "à enregistrer" tant
+  // que la saisie en diffère.
+  const savedRef = useRef<Answers>(fromEntry(entry));
+  const answersRef = useRef(answers);
+  const inFlightRef = useRef(false);
+  answersRef.current = answers;
+  const dirty = !sameAnswers(answers, savedRef.current);
 
-  // Reprend la version serveur quand elle change (enregistrement, rechargement),
-  // sauf si l'utilisateur est en train de modifier la carte.
   useEffect(() => {
-    if (!dirty) setAnswers(fromEntry(entry));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const remote = fromEntry(entry);
+    if (sameAnswers(remote, savedRef.current)) return;
+    const hasLocalChanges = !sameAnswers(answersRef.current, savedRef.current);
+    savedRef.current = remote;
+    // Une saisie locale en cours l'emporte : elle sera enregistrée par-dessus.
+    if (!hasLocalChanges) setAnswers(remote);
   }, [entry]);
 
-  async function handleSave() {
+  async function save() {
+    if (inFlightRef.current) return;
+    const snapshot = answersRef.current;
+    if (sameAnswers(snapshot, savedRef.current)) return;
+    inFlightRef.current = true;
     setSaving(true);
     setError(null);
     try {
-      await onSave(answers);
-      setDirty(false);
+      await onSave(snapshot);
+      savedRef.current = snapshot;
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Impossible d'enregistrer pour le moment.");
+      setError(err instanceof ApiError ? err.message : "Enregistrement impossible pour le moment.");
     } finally {
+      inFlightRef.current = false;
       setSaving(false);
     }
+    // Saisie poursuivie pendant l'enregistrement : on enchaîne.
+    if (!sameAnswers(answersRef.current, savedRef.current)) setAnswers((current) => ({ ...current }));
   }
 
+  useEffect(() => {
+    if (!dirty || error) return;
+    const timer = window.setTimeout(() => void save(), AUTOSAVE_DELAY_MS);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [answers, dirty, error]);
+
+  // En quittant la page avant la fin du délai, on enregistre quand même.
+  useEffect(
+    () => () => {
+      if (!sameAnswers(answersRef.current, savedRef.current)) void onSave(answersRef.current).catch(() => {});
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
   const idPrefix = `daily-${member.account_id}`;
+
+  let status: string;
+  if (error) status = error;
+  else if (saving) status = "Enregistrement...";
+  else if (dirty) status = "Modifications en cours...";
+  else if (entry)
+    status = `Enregistré${entry.updated_by_label ? ` par ${entry.updated_by_label}` : ""} à ${formatTime(entry.updated_at)}`;
+  else status = "Pas encore rempli";
 
   return (
     <article className={isMe ? "daily-card is-me" : "daily-card"}>
@@ -79,25 +128,24 @@ export default function DailyEntryCard({ member, entry, isMe, onSave }: Props) {
             value={answers[question.key]}
             placeholder={question.key === "blockers" ? "Rien (laisser vide)" : ""}
             onChange={(e) => {
-              setAnswers((current) => ({ ...current, [question.key]: e.target.value }));
-              setDirty(true);
+              const value = e.target.value;
+              setError(null);
+              setAnswers((current) => ({ ...current, [question.key]: value }));
             }}
+            onBlur={() => void save()}
           />
         </div>
       ))}
 
-      {error && <p className="error">{error}</p>}
       <div className="daily-card-footer">
-        <span className="meta">
-          {dirty
-            ? "Modifications non enregistrées"
-            : entry
-              ? `Enregistré${entry.updated_by_label ? ` par ${entry.updated_by_label}` : ""} à ${formatTime(entry.updated_at)}`
-              : "Pas encore rempli"}
+        <span className={error ? "error" : "meta"} role="status">
+          {status}
         </span>
-        <button type="button" className="button-secondary" onClick={handleSave} disabled={saving || !dirty}>
-          {saving ? "Enregistrement..." : "Enregistrer"}
-        </button>
+        {error && (
+          <button type="button" className="button-secondary" onClick={() => void save()}>
+            Réessayer
+          </button>
+        )}
       </div>
     </article>
   );
