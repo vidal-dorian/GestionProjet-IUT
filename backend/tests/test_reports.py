@@ -482,3 +482,75 @@ def test_simultaneous_saves_cannot_both_succeed(client, monkeypatch):
     monkeypatch.setattr(reports_router, "validate_content", original_validate)
     stored = client.get(f"/api/projects/{project['id']}/reports/{report['id']}").json()
     assert stored["content"]["scrum_master_notes"] == "écrit par un autre"
+
+
+def test_logo_upload_rejects_oversized_dimensions(client):
+    project = create_test_project(client)
+    buffer = BytesIO()
+    Image.new("1", (5000, 10)).save(buffer, format="PNG")
+    response = client.put(
+        f"/api/projects/{project['id']}/document-settings/logos/left",
+        json={"data_base64": base64.b64encode(buffer.getvalue()).decode()},
+    )
+    assert response.status_code == 422
+
+
+def test_report_with_departed_participant_can_still_be_saved(client):
+    project = create_test_project(client)
+    add_approved_member(project["id"], "carol@test.local")
+    report = client.post(f"/api/projects/{project['id']}/reports", json={"type": "daily", "meeting_date": "2026-03-10"}).json()
+    carol = account_id(client, "carol@test.local")
+    assert carol in report["content"]["participant_ids"]
+
+    assert client.delete(f"/api/admin/projects/{project['id']}/members/{carol}").status_code == 204
+    report = client.get(f"/api/projects/{project['id']}/reports/{report['id']}").json()
+    assert save(client, project["id"], report, scrum_master_notes="RAS").status_code == 200
+
+
+def test_retrospective_prefill_with_long_names_does_not_crash(client):
+    project = create_test_project(client)
+    sprint = create_sprint(client, project["id"])
+    roles = {r["name"]: r["id"] for r in client.get(f"/api/projects/{project['id']}/roles").json()}
+    sm_role = client.post(f"/api/projects/{project['id']}/roles", json={"name": "Scrum Master"}).json()["id"]
+    assignments = []
+    for index in range(3):
+        email = f"sm{index}@test.local"
+        add_approved_member(project["id"], email)
+        client.headers["X-Dev-Email"] = email
+        client.put("/api/me", json={"display_name": "N" * 110})
+        assignments.append({"role_id": sm_role, "account_id": client.get("/api/me").json()["id"]})
+    client.headers["X-Dev-Email"] = "alice@test.local"
+    client.put(f"/api/projects/{project['id']}/sprints/{sprint['id']}/role-assignments", json={"assignments": assignments})
+
+    response = client.post(
+        f"/api/projects/{project['id']}/reports",
+        json={"type": "retrospective", "sprint_id": sprint["id"], "meeting_date": "2026-03-23"},
+    )
+    assert response.status_code == 201
+    assert len(response.json()["content"]["scrum_master"]) <= 200
+    assert roles  # rôles par défaut toujours présents
+
+
+def test_logo_is_reencoded_to_png_and_usable_in_exports(client):
+    project = create_test_project(client)
+    buffer = BytesIO()
+    Image.new("RGB", (60, 30), "blue").save(buffer, format="JPEG")
+    response = client.put(
+        f"/api/projects/{project['id']}/document-settings/logos/right",
+        json={"data_base64": base64.b64encode(buffer.getvalue()).decode()},
+    )
+    assert response.status_code == 200
+    stored = client.get(f"/api/projects/{project['id']}/document-settings/logos/right")
+    assert stored.headers["content-type"] == "image/png"
+    assert Image.open(BytesIO(stored.content)).format == "PNG"
+
+
+def test_logo_in_unsupported_format_is_rejected(client):
+    project = create_test_project(client)
+    buffer = BytesIO()
+    Image.new("RGB", (20, 20), "red").save(buffer, format="BMP")
+    response = client.put(
+        f"/api/projects/{project['id']}/document-settings/logos/left",
+        json={"data_base64": base64.b64encode(buffer.getvalue()).decode()},
+    )
+    assert response.status_code == 422

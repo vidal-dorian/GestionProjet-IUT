@@ -154,3 +154,43 @@ def test_removing_a_non_member_returns_404(client):
 
     response = client.delete(f"/api/admin/projects/{project['id']}/members/{bob_id}")
     assert response.status_code == 404
+
+
+def test_removed_creator_loses_owner_powers(client):
+    client.headers["X-Dev-Email"] = "creator@test.local"
+    project = client.post("/api/projects", json={"name": "Projet du créateur"}).json()
+    creator_id = client.get("/api/me").json()["id"]
+
+    client.headers["X-Dev-Email"] = "admin@test.local"
+    client.get("/api/me")
+    promote_to_admin("admin@test.local")
+    client.post(f"/api/projects/{project['id']}/join")
+    assert client.delete(f"/api/admin/projects/{project['id']}/members/{creator_id}").status_code == 204
+
+    client.headers["X-Dev-Email"] = "creator@test.local"
+    assert client.delete(f"/api/projects/{project['id']}").status_code == 403
+    assert client.put(f"/api/projects/{project['id']}", json={"name": "Volé"}).status_code == 403
+    assert client.get(f"/api/admin/projects/{project['id']}/members").status_code == 403
+
+
+def test_only_pending_requests_can_be_decided(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
+    project = client.post("/api/projects", json={"name": "Projet décisions"}).json()
+
+    client.headers["X-Dev-Email"] = "bob@test.local"
+    client.post(f"/api/projects/{project['id']}/join")
+
+    client.headers["X-Dev-Email"] = "admin@test.local"
+    client.get("/api/me")
+    promote_to_admin("admin@test.local")
+    request_id = client.get("/api/admin/membership-requests").json()[0]["id"]
+    assert client.post(f"/api/admin/membership-requests/{request_id}/approve").status_code == 200
+    assert client.post(f"/api/admin/membership-requests/{request_id}/reject").status_code == 409
+
+
+def test_joining_again_does_not_revoke_access(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
+    project = client.post("/api/projects", json={"name": "Projet rejoindre"}).json()
+    response = client.post(f"/api/projects/{project['id']}/join")
+    assert response.json()["status"] == "approved"
+    assert client.get(f"/api/projects/{project['id']}/time-entries").status_code == 200

@@ -188,8 +188,8 @@ def test_hours_by_issue_groups_by_issue_and_separates_unattached(client):
         client,
         project["id"],
         [
-            {"number": 1, "title": "US-01", "state": "open", "labels": [], "html_url": "https://x/1"},
-            {"number": 2, "title": "US-02", "state": "open", "labels": [], "html_url": "https://x/2"},
+            {"number": 1, "title": "US-01", "state": "open", "labels": [], "html_url": "https://github.com/owner/repo/issues/1"},
+            {"number": 2, "title": "US-02", "state": "open", "labels": [], "html_url": "https://github.com/owner/repo/issues/2"},
         ],
     )
 
@@ -215,8 +215,8 @@ def test_hours_by_issue_groups_by_issue_and_separates_unattached(client):
     body = response.json()
     assert body["unattached_hours"] == 4.0
     assert body["items"] == [
-        {"issue_number": 1, "issue_title": "US-01", "issue_url": "https://x/1", "hours": 5.0},
-        {"issue_number": 2, "issue_title": "US-02", "issue_url": "https://x/2", "hours": 1.0},
+        {"issue_number": 1, "issue_title": "US-01", "issue_url": "https://github.com/owner/repo/issues/1", "hours": 5.0},
+        {"issue_number": 2, "issue_title": "US-02", "issue_url": "https://github.com/owner/repo/issues/2", "hours": 1.0},
     ]
 
 
@@ -248,7 +248,7 @@ def test_sprint_stats_aggregates_hours_by_account_and_issue(client):
     issues = link_repo_and_sync_issues(
         client,
         project["id"],
-        [{"number": 1, "title": "US-01", "state": "open", "labels": [], "html_url": "https://x/1"}],
+        [{"number": 1, "title": "US-01", "state": "open", "labels": [], "html_url": "https://github.com/owner/repo/issues/1"}],
     )
 
     client.post(
@@ -287,7 +287,7 @@ def test_sprint_stats_aggregates_hours_by_account_and_issue(client):
         ("bob@test.local", 2.0),
     }
     assert body["hours_by_issue"]["items"] == [
-        {"issue_number": 1, "issue_title": "US-01", "issue_url": "https://x/1", "hours": 3.0}
+        {"issue_number": 1, "issue_title": "US-01", "issue_url": "https://github.com/owner/repo/issues/1", "hours": 3.0}
     ]
     assert body["hours_by_issue"]["unattached_hours"] == 3.0
 

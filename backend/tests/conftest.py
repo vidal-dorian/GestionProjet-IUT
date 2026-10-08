@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.config import settings
-from app.database import Base, get_db
+from app.database import Base, enable_sqlite_foreign_keys, get_db
 from app.main import app
 
 engine = create_engine(
@@ -13,6 +13,7 @@ engine = create_engine(
     connect_args={"check_same_thread": False},
     poolclass=StaticPool,
 )
+enable_sqlite_foreign_keys(engine)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

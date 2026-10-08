@@ -13,7 +13,15 @@ from sqlalchemy.orm.exc import StaleDataError
 from app import burndown, crud, docx_export, models, schemas
 from app.database import get_db
 from app.deps import require_project_member
-from app.report_content import REPORT_TYPES, dump_content, load_content, validate_content
+from app.report_content import (
+    LONG_TEXT,
+    MAX_USER_STORIES,
+    REPORT_TYPES,
+    SHORT_TEXT,
+    dump_content,
+    load_content,
+    validate_content,
+)
 
 router = APIRouter(prefix="/api/projects/{project_id}/reports", tags=["reports"])
 
@@ -82,7 +90,10 @@ def _suggested_user_stories(
     issues = [issue for issue in crud.list_github_issues(db, project_id) if sprint.name in issue.labels]
     if report_type == "sprint_review":
         issues = [issue for issue in issues if issue.state == "closed"]
-    return [{"reference": f"#{issue.number}", "name": issue.title} for issue in sorted(issues, key=lambda i: i.number)]
+    # Bornées aux limites du contenu, sans quoi le pré-remplissage produirait un
+    # compte-rendu impossible à enregistrer (ou une erreur à la création).
+    ordered = sorted(issues, key=lambda i: i.number)[:MAX_USER_STORIES]
+    return [{"reference": f"#{issue.number}", "name": issue.title[:500]} for issue in ordered]
 
 
 def _last_client(db: Session, project_id: int) -> str:
@@ -99,12 +110,12 @@ def _initial_content(
 ) -> dict:
     content: dict = {"participant_ids": _default_participant_ids(team)}
     if report_type in ("sprint_planning", "sprint_review"):
-        content["client"] = _last_client(db, project_id)
+        content["client"] = _last_client(db, project_id)[:SHORT_TEXT]
         content["user_stories"] = _suggested_user_stories(db, project_id, sprint, report_type)
     if report_type == "sprint_review" and sprint is not None:
         plannings = crud.list_reports(db, project_id, "sprint_planning", sprint.id)
         if plannings:
-            content["objectives"] = load_content("sprint_planning", plannings[0].content_json).topics
+            content["objectives"] = load_content("sprint_planning", plannings[0].content_json).topics[:LONG_TEXT]
     if report_type == "retrospective":
         by_role: dict[str, list[str]] = defaultdict(list)
         for member in team:
@@ -112,10 +123,10 @@ def _initial_content(
                 by_role[_normalize(role)].append(member.label)
         content["scrum_master"] = " et ".join(
             name for role, names in by_role.items() if "scrum" in role for name in names
-        )
+        )[:SHORT_TEXT]
         content["product_owner"] = " et ".join(
             name for role, names in by_role.items() if "product owner" in role or role == "po" for name in names
-        )
+        )[:SHORT_TEXT]
     return content
 
 
@@ -197,7 +208,10 @@ def create_report(
         raise HTTPException(status_code=409, detail=DAILY_EXISTS)
 
     team = _team(db, project_id, sprint)
-    content = validate_content(payload.type, _initial_content(db, project_id, payload.type, sprint, team))
+    try:
+        content = validate_content(payload.type, _initial_content(db, project_id, payload.type, sprint, team))
+    except ValidationError as exc:
+        raise RequestValidationError(exc.errors(include_url=False, include_context=False)) from exc
     now = datetime.utcnow()
     report = models.MeetingReport(
         project_id=project_id,
@@ -259,8 +273,12 @@ def update_report(
     except ValidationError as exc:
         raise RequestValidationError(exc.errors(include_url=False, include_context=False)) from exc
 
+    # Seuls les participants ajoutés doivent être membres : un participant déjà
+    # présent qui a quitté le projet depuis reste dans le compte-rendu (il était
+    # là ce jour-là), sinon le document ne pourrait plus être enregistré.
+    previous_ids = set(load_content(report.type, report.content_json).participant_ids)
     member_ids = {member.id for member in crud.list_approved_members(db, project_id)}
-    if any(account_id not in member_ids for account_id in content.participant_ids):
+    if any(account_id not in member_ids | previous_ids for account_id in content.participant_ids):
         raise HTTPException(status_code=422, detail="Un participant n'est pas membre approuvé de ce projet.")
     content.participant_ids = list(dict.fromkeys(content.participant_ids))
 

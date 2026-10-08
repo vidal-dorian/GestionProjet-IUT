@@ -425,3 +425,16 @@ def test_create_and_update_time_entry_can_attach_category(client):
     ).json()
     assert updated["category_id"] is None
     assert updated["category"] is None
+
+
+def test_daily_total_cannot_exceed_24_hours(client):
+    client.headers["X-Dev-Email"] = "alice@test.local"
+    project = client.post("/api/projects", json={"name": "Projet 24h"}).json()
+    url = f"/api/projects/{project['id']}/time-entries"
+    first = client.post(url, json={"date": "2026-08-13", "duration_hours": 20, "description": "Dev"})
+    assert first.status_code == 201
+    assert client.post(url, json={"date": "2026-08-13", "duration_hours": 5, "description": "Dev"}).status_code == 422
+    assert client.post(url, json={"date": "2026-08-14", "duration_hours": 5, "description": "Dev"}).status_code == 201
+    # Modifier l'entrée existante ne compte pas deux fois ses propres heures.
+    updated = client.put(f"{url}/{first.json()['id']}", json={"date": "2026-08-13", "duration_hours": 24, "description": "Dev"})
+    assert updated.status_code == 200

@@ -295,3 +295,31 @@ def test_label_filter_too_long_is_rejected(client):
         f"/api/projects/{project['id']}/github/label-filter", json={"labels": ["x" * 60] * 10}
     )
     assert response.status_code == 422
+
+
+def test_repo_format_rejects_path_traversal_and_non_github_names():
+    from app.github_client import is_valid_repo_format
+
+    assert is_valid_repo_format("vidal-dorian/GestionProjet-IUT")
+    assert is_valid_repo_format("octo/my.repo_name-2")
+    for invalid in ["../..", "owner/..", "owner/.", "-owner/repo", "own er/repo", "owner/repo/extra", "owner", "ownér/repo", "owner/repo\n"]:
+        assert not is_valid_repo_format(invalid), invalid
+
+
+def test_synced_issue_url_is_forced_to_github(client):
+    from app import crud, models
+    from tests.conftest import TestingSessionLocal
+
+    db = TestingSessionLocal()
+    try:
+        project = models.Project(name="Projet URL", github_repo="owner/repo")
+        db.add(project)
+        db.commit()
+        crud.replace_github_issues(
+            db,
+            project,
+            [{"number": 4, "title": "US", "state": "open", "labels": [], "html_url": "javascript:alert(1)"}],
+        )
+        assert db.query(models.GithubIssue).one().url == "https://github.com/owner/repo/issues/4"
+    finally:
+        db.close()

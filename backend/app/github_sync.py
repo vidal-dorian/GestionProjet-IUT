@@ -30,6 +30,12 @@ async def sync_project(db: Session, db_project: models.Project) -> tuple[list[di
         logger.warning("Valorisation illisible pour le projet %s: %s", db_project.id, exc)
         warning = STORY_POINTS_UNAVAILABLE_WARNING % (github_client.STORY_POINTS_FIELD_NAME, exc)
         issues = await github_client.list_issues(db_project.github_repo, with_story_points=False)
+    if len(issues) >= github_client.MAX_ISSUES:
+        truncated = (
+            f"Seules les {github_client.MAX_ISSUES} premières issues du dépôt ont été synchronisées "
+            "(limite fixée pour préserver le quota de l'API GitHub)."
+        )
+        warning = f"{warning} {truncated}" if warning else truncated
     crud.replace_github_issues(db, db_project, issues)
     return issues, warning
 

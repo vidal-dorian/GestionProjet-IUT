@@ -9,20 +9,36 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
 from app import models
+from app.text import strip_control_chars
 
 ENTRY_HEADERS = ["Date", "Durée (h)", "Description", "Sprint", "Issue", "Catégorie"]
 
-# Neutralise l'injection de formule (CSV/Excel injection) : un tableur interprète comme
-# formule toute cellule texte commençant par l'un de ces caractères. Ces valeurs (description
-# de saisie, noms de sprint/catégorie/projet...) sont fournies par n'importe quel membre du
-# projet, donc non fiables — on les préfixe d'une apostrophe pour forcer un affichage littéral.
-_FORMULA_PREFIXES = ("=", "+", "-", "@")
-
-
 def _safe_cell(value):
-    if isinstance(value, str) and value.startswith(_FORMULA_PREFIXES):
-        return "'" + value
-    return value
+    # Filet de sécurité : textes venant d'avant le nettoyage à la saisie, ou de
+    # GitHub (titres d'issues). Un caractère de contrôle ferait échouer l'export.
+    return strip_control_chars(value) if isinstance(value, str) else value
+
+
+def _save(wb: Workbook) -> io.BytesIO:
+    """Enregistre le classeur en neutralisant toute formule.
+
+    Injection de formule : openpyxl transforme en formule toute chaîne qui
+    commence par "=" — une description de saisie comme "=HYPERLINK(...)" ou
+    "=cmd|..." serait évaluée à l'ouverture. Les données exportées sont des
+    saisies d'utilisateurs (non fiables) et l'export ne contient aucune formule
+    légitime : chaque cellule "formule" est donc forcée en texte, affiché tel
+    quel (sans apostrophe ajoutée). Les autres préfixes (+, -, @) restent du
+    texte dans un .xlsx et ne sont jamais évalués.
+    """
+    for ws in wb.worksheets:
+        for row in ws.iter_rows():
+            for cell in row:
+                if cell.data_type == "f":
+                    cell.data_type = "s"
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return buffer
 
 
 def _safe_row(row: list) -> list:
@@ -153,10 +169,7 @@ def build_account_export(
         )
         ws.add_chart(_bar_chart("Par sprint", ws, SPRINT_COL, SUMMARY_ROW, len(sprint_data)), "N34")
 
-    buffer = io.BytesIO()
-    wb.save(buffer)
-    buffer.seek(0)
-    return buffer
+    return _save(wb)
 
 
 def build_burndown_export(sprint: models.Sprint, data: dict) -> io.BytesIO:
@@ -199,10 +212,7 @@ def build_burndown_export(sprint: models.Sprint, data: dict) -> io.BytesIO:
     ws.column_dimensions["B"].width = 20
     ws.column_dimensions["C"].width = 20
 
-    buffer = io.BytesIO()
-    wb.save(buffer)
-    buffer.seek(0)
-    return buffer
+    return _save(wb)
 
 
 def build_project_export(
@@ -243,7 +253,4 @@ def build_project_export(
         )
         _add_line_chart_sheet(wb, "Évolution temporelle", sorted(hours_by_date.items()))
 
-    buffer = io.BytesIO()
-    wb.save(buffer)
-    buffer.seek(0)
-    return buffer
+    return _save(wb)

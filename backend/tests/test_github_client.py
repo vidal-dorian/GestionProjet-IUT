@@ -176,3 +176,39 @@ def test_list_issues_non_200_raises_api_error():
         mock_post.return_value = _http_response(502, {})
         with pytest.raises(github_client.GithubApiError):
             asyncio.run(github_client.list_issues("owner/repo"))
+
+
+def test_list_issues_stops_after_the_page_cap(monkeypatch):
+    import asyncio
+
+    calls = []
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            node = {"number": len(calls), "title": "t", "state": "OPEN", "url": "https://github.com/o/r/issues/1",
+                    "closedAt": None, "labels": {"nodes": []}}
+            return {"data": {"repository": {"issues": {
+                "pageInfo": {"hasNextPage": True, "endCursor": "c"},
+                "nodes": [node] * github_client.ISSUES_PER_PAGE,
+            }}}}
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+        async def post(self, *args, **kwargs):
+            calls.append(1)
+            return FakeResponse()
+
+    monkeypatch.setattr(github_client.httpx, "AsyncClient", FakeClient)
+    issues = asyncio.run(github_client.list_issues("o/r"))
+    assert len(calls) == github_client.MAX_ISSUE_PAGES
+    assert len(issues) == github_client.MAX_ISSUES

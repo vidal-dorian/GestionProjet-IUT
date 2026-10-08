@@ -29,6 +29,20 @@ def _validate_sprint(db: Session, project_id: int, entry: schemas.TimeEntryCreat
         raise HTTPException(status_code=422, detail="Ce sprint n'existe pas pour ce projet.")
 
 
+MAX_HOURS_PER_DAY = 24
+
+
+def _validate_daily_total(
+    db: Session, project_id: int, account_id: int, entry: schemas.TimeEntryCreate, exclude_entry_id: int | None = None
+) -> None:
+    already = crud.sum_hours_for_account_on_date(db, project_id, account_id, entry.date, exclude_entry_id)
+    if already + entry.duration_hours > MAX_HOURS_PER_DAY:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Le total de la journée dépasserait {MAX_HOURS_PER_DAY} h ({already:g} h déjà saisies ce jour-là).",
+        )
+
+
 def _validate_category(db: Session, project_id: int, entry: schemas.TimeEntryCreate) -> None:
     if entry.category_id is not None and crud.get_category(db, project_id, entry.category_id) is None:
         raise HTTPException(status_code=422, detail="Cette catégorie n'existe pas pour ce projet.")
@@ -51,6 +65,11 @@ def create_time_entry(
     _validate_github_issue(db, project_id, entry)
     _validate_sprint(db, project_id, entry)
     _validate_category(db, project_id, entry)
+    _validate_daily_total(db, project_id, account.id, entry)
+    # Un administrateur peut saisir sans avoir rejoint le projet : il en devient
+    # alors membre explicite (visible et révocable dans la liste des membres).
+    if not crud.is_approved_member(db, project_id, account.id):
+        crud.add_project_member(db, project_id, account.id)
     return crud.create_time_entry(db, project_id, account.id, entry)
 
 
@@ -66,6 +85,7 @@ def update_time_entry(
     _validate_github_issue(db, project_id, entry)
     _validate_sprint(db, project_id, entry)
     _validate_category(db, project_id, entry)
+    _validate_daily_total(db, project_id, account.id, entry, exclude_entry_id=entry_id)
     return crud.update_time_entry(db, db_entry, entry)
 
 

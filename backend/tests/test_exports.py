@@ -167,7 +167,31 @@ def test_export_my_entries_sanitizes_description_starting_with_a_formula_prefix(
     wb = load_workbook(io.BytesIO(response.content))
     ws = wb["Entrées"]
     description_cell = ws["C2"]
-    assert description_cell.value == "'=cmd|'/C calc'!A0"
+    # Texte conservé tel quel, mais stocké comme texte : jamais évalué.
+    assert description_cell.value == "=cmd|'/C calc'!A0"
+    assert description_cell.data_type == "s"
+
+
+def test_export_keeps_text_starting_with_dash_unchanged(client):
+    project, _ = setup_authenticated_account(client)
+    client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-13", "duration_hours": 2, "description": "- correction du bug"},
+    )
+    response = client.get(f"/api/projects/{project['id']}/time-entries/export")
+    ws = load_workbook(io.BytesIO(response.content))["Entrées"]
+    assert ws["C2"].value == "- correction du bug"
+
+
+def test_control_characters_are_stripped_and_exports_still_work(client):
+    project, _ = setup_authenticated_account(client)
+    created = client.post(
+        f"/api/projects/{project['id']}/time-entries",
+        json={"date": "2026-08-13", "duration_hours": 2, "description": "ok\u000bbad\u0001"},
+    )
+    assert created.json()["description"] == "okbad"
+    assert client.get(f"/api/projects/{project['id']}/export").status_code == 200
+    assert client.put("/api/me", json={"display_name": "Bob\u0001"}).json()["display_name"] == "Bob"
 
 
 def test_export_project_with_no_entries_has_no_chart_sheets(client):

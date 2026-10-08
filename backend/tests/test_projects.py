@@ -133,3 +133,37 @@ def test_delete_project_cascades_to_time_entries(client):
     # cascade at the database level and this recreation would fail).
     recreated = client.post("/api/projects", json={"name": "Projet Cascade"})
     assert recreated.status_code == 201
+
+
+def test_non_member_does_not_see_project_configuration(client):
+    client.headers["X-Dev-Email"] = "owner@test.local"
+    project = client.post("/api/projects", json={"name": "Projet Privé", "description": "Desc"}).json()
+    from tests.conftest import TestingSessionLocal
+    from app import models
+
+    db = TestingSessionLocal()
+    try:
+        db_project = db.get(models.Project, project["id"])
+        db_project.github_repo = "owner/secret-repo"
+        db_project.github_label_filter_raw = "interne"
+        db.commit()
+    finally:
+        db.close()
+
+    assert client.get(f"/api/projects/{project['id']}").json()["github_repo"] == "owner/secret-repo"
+
+    client.headers["X-Dev-Email"] = "outsider@test.local"
+    visible = client.get(f"/api/projects/{project['id']}").json()
+    assert visible["name"] == "Projet Privé"
+    assert visible["description"] == "Desc"
+    assert visible["github_repo"] is None
+    assert visible["github_label_filter"] == []
+
+
+def test_email_case_does_not_create_a_second_account(client):
+    client.headers["X-Dev-Email"] = "Alice@Test.local"
+    first = client.get("/api/me").json()
+    client.headers["X-Dev-Email"] = "alice@test.local"
+    second = client.get("/api/me").json()
+    assert first["id"] == second["id"]
+    assert second["email"] == "alice@test.local"

@@ -4,10 +4,24 @@ import httpx
 
 from app.config import settings
 
-REPO_PATTERN = re.compile(r"^[\w.-]+/[\w.-]+$")
+# Règles de nommage GitHub : propriétaire en ASCII alphanumérique et tirets
+# (39 caractères max, pas de tiret initial), dépôt en ASCII alphanumérique,
+# points, tirets et soulignés (100 max). "." et ".." sont exclus : interpolés
+# dans l'URL REST (/repos/{owner}/{repo}), ils feraient sortir de /repos et
+# appeler d'autres routes de l'API GitHub avec le token du serveur.
+OWNER_PATTERN = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})")
+REPO_NAME_PATTERN = re.compile(r"[A-Za-z0-9._-]{1,100}")
 
 GITHUB_API_URL = "https://api.github.com"
 GITHUB_GRAPHQL_URL = "https://api.github.com/graphql"
+
+# Plafond d'une synchronisation : 40 pages de 50 issues. Sans limite, lier un
+# dépôt public géant (des centaines de milliers d'issues) déclencherait des
+# milliers d'appels GraphQL à chaque synchro et épuiserait le quota horaire du
+# token du serveur, partagé par tous les projets.
+MAX_ISSUE_PAGES = 40
+ISSUES_PER_PAGE = 50
+MAX_ISSUES = MAX_ISSUE_PAGES * ISSUES_PER_PAGE
 
 # Nom du champ personnalisé de GitHub Projects (v2) utilisé par l'équipe pour
 # valoriser une US en story points (voir US-29 — burndown chart).
@@ -30,7 +44,7 @@ _PROJECT_ITEMS_FIELDS = """
 _ISSUES_QUERY_TEMPLATE = """
 query($owner: String!, $name: String!, $cursor: String) {
   repository(owner: $owner, name: $name) {
-    issues(first: 50, after: $cursor, states: [OPEN, CLOSED]) {
+    issues(first: %d, after: $cursor, states: [OPEN, CLOSED]) {
       pageInfo { hasNextPage endCursor }
       nodes {
         number
@@ -45,8 +59,8 @@ query($owner: String!, $name: String!, $cursor: String) {
 }
 """
 
-_ISSUES_QUERY = _ISSUES_QUERY_TEMPLATE % _PROJECT_ITEMS_FIELDS
-_ISSUES_QUERY_WITHOUT_STORY_POINTS = _ISSUES_QUERY_TEMPLATE % ""
+_ISSUES_QUERY = _ISSUES_QUERY_TEMPLATE % (ISSUES_PER_PAGE, _PROJECT_ITEMS_FIELDS)
+_ISSUES_QUERY_WITHOUT_STORY_POINTS = _ISSUES_QUERY_TEMPLATE % (ISSUES_PER_PAGE, "")
 
 
 class GithubRepoNotFound(Exception):
@@ -71,7 +85,13 @@ def _headers() -> dict[str, str]:
 
 
 def is_valid_repo_format(repo: str) -> bool:
-    return bool(REPO_PATTERN.match(repo))
+    owner, separator, name = repo.partition("/")
+    return bool(
+        separator
+        and OWNER_PATTERN.fullmatch(owner)
+        and REPO_NAME_PATTERN.fullmatch(name)
+        and name not in (".", "..")
+    )
 
 
 async def verify_repo(repo: str) -> bool:
@@ -135,7 +155,7 @@ async def list_issues(repo: str, *, with_story_points: bool = True) -> list[dict
     cursor: str | None = None
 
     async with httpx.AsyncClient(timeout=15.0) as client:
-        while True:
+        for _page in range(MAX_ISSUE_PAGES):
             variables = {"owner": owner, "name": name, "cursor": cursor}
             try:
                 response = await client.post(

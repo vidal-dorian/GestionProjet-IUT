@@ -88,7 +88,11 @@ def require_project_owner(
     autres membres conservent la saisie et la consultation (require_project_member).
     """
     db_project = get_project_or_404(project_id, db)
-    if not account.is_admin and db_project.created_by_account_id != account.id:
+    # Le créateur doit aussi être toujours membre : un créateur retiré du projet
+    # par un administrateur ne doit pas garder la main dessus (suppression,
+    # configuration GitHub, gestion des membres...).
+    is_owner = db_project.created_by_account_id == account.id and crud.is_approved_member(db, project_id, account.id)
+    if not account.is_admin and not is_owner:
         raise HTTPException(
             status_code=403, detail="Réservé au créateur du projet ou à un administrateur."
         )

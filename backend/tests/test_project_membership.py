@@ -1,6 +1,6 @@
 from datetime import date
 
-from app import models
+from app import crud, models
 from tests.conftest import TestingSessionLocal
 
 
@@ -107,7 +107,7 @@ def test_list_projects_for_a_non_member_flags_no_membership(client):
     assert body and all(p["is_member"] is False and p["membership_status"] is None for p in body)
 
 
-def test_existing_contributor_without_explicit_membership_still_sees_the_project(client):
+def test_existing_contributor_is_backfilled_as_a_regular_removable_member(client):
     client.headers["X-Dev-Email"] = "creator@test.local"
     project = client.post("/api/projects", json={"name": "Projet legacy"}).json()
 
@@ -133,9 +133,27 @@ def test_existing_contributor_without_explicit_membership_still_sees_the_project
     finally:
         db.close()
 
+    # Migration exécutée au démarrage de l'application.
+    db = TestingSessionLocal()
+    try:
+        assert crud.backfill_legacy_memberships(db) == 1
+        assert crud.backfill_legacy_memberships(db) == 0
+    finally:
+        db.close()
+
     client.headers["X-Dev-Email"] = "alice@test.local"
     my_projects = client.get("/api/me/projects").json()
     assert [p["id"] for p in my_projects] == [project["id"]]
+    alice_id = client.get("/api/me").json()["id"]
+
+    # Désormais visible et révocable comme n'importe quel membre.
+    client.headers["X-Dev-Email"] = "creator@test.local"
+    members = client.get(f"/api/projects/{project['id']}/members").json()
+    assert "alice@test.local" in {m["email"] for m in members}
+    assert client.delete(f"/api/admin/projects/{project['id']}/members/{alice_id}").status_code == 204
+
+    client.headers["X-Dev-Email"] = "alice@test.local"
+    assert client.get(f"/api/projects/{project['id']}/time-entries").status_code == 403
 
 
 def test_admin_who_joins_a_project_gets_immediate_access(client):

@@ -4,6 +4,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.report_content import ReportType
+from app.text import CleanStr
 
 
 # Bornes de saisie des dates : au-delà, une seule valeur aberrante (ex. an 1)
@@ -13,8 +14,8 @@ MAX_SPRINT_DATE = date_type(2100, 12, 31)
 
 
 class ProjectCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=120)
-    description: str | None = Field(default=None, max_length=5000)
+    name: CleanStr = Field(min_length=1, max_length=120)
+    description: CleanStr | None = Field(default=None, max_length=5000)
 
 
 class ProjectRead(BaseModel):
@@ -35,7 +36,7 @@ class GithubRepoLink(BaseModel):
 
 
 class GithubLabelFilterUpdate(BaseModel):
-    labels: list[str] = Field(default_factory=list, max_length=50)
+    labels: list[CleanStr] = Field(default_factory=list, max_length=50)
 
     @model_validator(mode="after")
     def fits_storage_column(self) -> "GithubLabelFilterUpdate":
@@ -66,7 +67,7 @@ class GithubSyncResult(BaseModel):
 
 
 class SprintCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=120)
+    name: CleanStr = Field(min_length=1, max_length=120)
     start_date: date_type
     end_date: date_type
 
@@ -115,7 +116,7 @@ class BurndownChartData(BaseModel):
 
 
 class TeamRoleCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=80)
+    name: CleanStr = Field(min_length=1, max_length=80)
 
 
 class TeamRoleRead(BaseModel):
@@ -144,7 +145,7 @@ class SprintRoleAssignmentsUpdate(BaseModel):
 
 
 class CategoryCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=80)
+    name: CleanStr = Field(min_length=1, max_length=80)
 
 
 class CategoryRead(BaseModel):
@@ -167,7 +168,7 @@ class AccountRead(BaseModel):
 
 
 class DisplayNameUpdate(BaseModel):
-    display_name: str = Field(max_length=120)
+    display_name: CleanStr = Field(max_length=120)
 
 
 class ProjectSummary(BaseModel):
@@ -199,7 +200,7 @@ class MembershipRequestRead(BaseModel):
 class TimeEntryCreate(BaseModel):
     date: date_type
     duration_hours: float = Field(gt=0, le=24)
-    description: str = Field(min_length=1, max_length=2000)
+    description: CleanStr = Field(min_length=1, max_length=2000)
     github_issue_id: int | None = None
     sprint_id: int | None = None
     category_id: int | None = None
@@ -363,9 +364,9 @@ class DailyEntryRead(BaseModel):
 
 
 class DailyEntryUpdate(BaseModel):
-    done: str = Field(default="", max_length=5000)
-    todo: str = Field(default="", max_length=5000)
-    blockers: str = Field(default="", max_length=5000)
+    done: CleanStr = Field(default="", max_length=5000)
+    todo: CleanStr = Field(default="", max_length=5000)
+    blockers: CleanStr = Field(default="", max_length=5000)
 
 
 class ReportRead(ReportSummary):
@@ -382,7 +383,7 @@ class SuggestedUserStories(BaseModel):
 
 
 class DocumentSettings(BaseModel):
-    footer: str = Field(default="", max_length=255)
+    footer: CleanStr = Field(default="", max_length=255)
 
 
 class DocumentSettingsRead(DocumentSettings):

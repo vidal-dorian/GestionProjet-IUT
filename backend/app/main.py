@@ -1,12 +1,15 @@
 import asyncio
 from contextlib import asynccontextmanager
+from urllib.parse import urlsplit
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
 
-from app import github_sync
+from app import crud, github_sync
 from app.config import settings
-from app.database import Base, engine, sync_missing_columns
+from app.database import Base, SessionLocal, engine, sync_missing_columns
 from app.routers import (
     admin,
     auth,
@@ -32,6 +35,8 @@ async def lifespan(app: FastAPI):
     if settings.auto_create_schema:
         Base.metadata.create_all(bind=engine)
         sync_missing_columns(engine)
+        with SessionLocal() as db:
+            crud.backfill_legacy_memberships(db)
     # La boucle périodique utilise le moteur de production (SessionLocal), pas
     # la session de test injectée par dépendance : elle doit rester désactivée
     # pendant les tests, sous peine de tenter une vraie connexion MySQL.
@@ -45,15 +50,65 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="GestionProjet-IUT API", lifespan=lifespan)
 
+_cors_origins = [origin.strip().rstrip("/") for origin in settings.cors_origins.split(",") if origin.strip()]
+# Avec allow_credentials, Starlette renvoie l'origine appelante quand "*" est
+# autorisé : n'importe quel site pourrait alors appeler l'API avec la session
+# de l'utilisateur. On refuse de démarrer plutôt que d'ouvrir cette porte.
+if "*" in _cors_origins:
+    raise RuntimeError("CORS_ORIGINS ne doit pas contenir « * » : liste les origines autorisées explicitement.")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[origin.strip() for origin in settings.cors_origins.split(",")],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     # Nom des fichiers exportés : lisible par le frontend en dev (cross-origin).
     expose_headers=["Content-Disposition"],
 )
+
+@app.exception_handler(IntegrityError)
+async def integrity_error_handler(request: Request, exc: IntegrityError):
+    """Contrainte d'unicité violée par deux requêtes simultanées (même nom de
+    catégorie, de rôle, de projet, même demande d'adhésion...) : les
+    vérifications applicatives passent pour les deux, la base n'en accepte
+    qu'une. Conflit explicite (409) plutôt qu'une erreur serveur ; la session
+    est annulée à sa fermeture."""
+    return JSONResponse(
+        status_code=409,
+        content={"detail": "Conflit : cette donnée vient d'être créée ou modifiée par une autre requête. Réessaie."},
+    )
+
+
+_STATE_CHANGING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+
+
+@app.middleware("http")
+async def reject_cross_site_writes(request: Request, call_next):
+    """Protection CSRF. L'identité vient du cookie Cloudflare Access, que le
+    navigateur joint aussi aux requêtes déclenchées depuis un autre site : un
+    simple formulaire piégé (POST sans corps, donc sans contrôle CORS
+    préalable) pourrait alors agir au nom de la victime, par exemple valider
+    une demande d'adhésion avec le compte d'un administrateur. Toute écriture
+    venant d'une origine non autorisée est donc refusée."""
+    if request.method in _STATE_CHANGING_METHODS:
+        origin = request.headers.get("origin")
+        cross_site = request.headers.get("sec-fetch-site") == "cross-site"
+        if cross_site or (origin is not None and not _is_allowed_origin(origin, request)):
+            return JSONResponse(status_code=403, content={"detail": "Requête d'une origine non autorisée."})
+    return await call_next(request)
+
+
+def _is_allowed_origin(origin: str, request: Request) -> bool:
+    # Même hôte que celui appelé (déploiement same-origin derrière nginx) : un
+    # navigateur ne laisse pas un site tiers choisir l'en-tête Host, cette
+    # comparaison ne peut donc pas être contournée. Sinon, origine listée dans
+    # CORS_ORIGINS (frontend servi sur un autre domaine, dev local).
+    if origin.rstrip("/") in _cors_origins:
+        return True
+    host = request.headers.get("host")
+    return host is not None and urlsplit(origin).netloc.lower() == host.lower()
+
 
 app.include_router(projects.router)
 app.include_router(auth.router)

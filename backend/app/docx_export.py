@@ -22,6 +22,7 @@ from docx.oxml.ns import qn
 from docx.shared import Cm, Inches, Pt, RGBColor
 
 from app import docx_charts
+from app.text import strip_control_chars
 from app.report_content import (
     DailyContent,
     RetrospectiveContent,
@@ -124,7 +125,8 @@ def _new_document() -> Document:
 
 
 def _run(paragraph, text: str, *, bold: bool = False, size: float | None = None, font: str | None = None):
-    run = paragraph.add_run(text)
+    # Filet de sécurité : un caractère de contrôle ferait échouer tout l'export.
+    run = paragraph.add_run(strip_control_chars(text))
     run.bold = bold
     if size is not None:
         run.font.size = Pt(size)

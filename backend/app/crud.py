@@ -1,9 +1,11 @@
 from datetime import datetime
 
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app import models, schemas
+from app.text import strip_control_chars
 
 
 def list_projects(db: Session) -> list[models.Project]:
@@ -110,15 +112,21 @@ def replace_github_issues(db: Session, db_project: models.Project, issues: list[
 
     for payload in issues:
         number = payload["number"]
-        labels_raw = ",".join(label["name"] for label in payload.get("labels", []))
+        # Colonne VARCHAR(500) : tronquée plutôt que de faire échouer toute la synchro.
+        labels_raw = ",".join(label["name"] for label in payload.get("labels", []))[:500]
         db_issue = existing.pop(number, None)
         if db_issue is None:
             db_issue = models.GithubIssue(project_id=db_project.id, number=number)
             db.add(db_issue)
-        db_issue.title = payload["title"]
+        db_issue.title = strip_control_chars(payload["title"])[:500]
         db_issue.state = payload["state"]
         db_issue.labels_raw = labels_raw
-        db_issue.url = payload["html_url"]
+        # Rendue telle quelle dans des liens <a href> : on n'accepte qu'une URL
+        # GitHub en https (jamais un "javascript:" ou un autre domaine).
+        url = payload.get("html_url") or ""
+        if not url.startswith("https://github.com/"):
+            url = f"https://github.com/{db_project.github_repo}/issues/{number}"
+        db_issue.url = url[:500]
         db_issue.synced_at = synced_at
         db_issue.story_points = payload.get("story_points")
         closed_at_raw = payload.get("closed_at")
@@ -320,17 +328,32 @@ def request_project_membership(db: Session, project_id: int, account_id: int) ->
 
 def is_approved_member(db: Session, project_id: int, account_id: int) -> bool:
     membership = _get_membership(db, project_id, account_id)
-    if membership is not None:
-        return membership.status == "approved"
-    # Mêmes règles de compatibilité que list_membership_statuses_for_account : un
-    # compte ayant déjà saisi des heures sur ce projet avant l'introduction du
-    # rattachement explicite en est considéré membre.
-    return (
-        db.query(models.TimeEntry)
-        .filter(models.TimeEntry.project_id == project_id, models.TimeEntry.account_id == account_id)
-        .first()
-        is not None
+    return membership is not None and membership.status == "approved"
+
+
+def backfill_legacy_memberships(db: Session) -> int:
+    """Crée une adhésion approuvée pour chaque compte ayant saisi des heures sur
+    un projet sans avoir de ligne d'adhésion (données antérieures au
+    rattachement explicite). Exécuté au démarrage : ces membres historiques
+    deviennent des membres ordinaires, visibles dans la liste des membres et
+    révocables, au lieu de garder un accès implicite impossible à retirer.
+    Les comptes déjà retirés (adhésion "rejected") ne sont pas concernés."""
+    pairs = (
+        db.query(models.TimeEntry.project_id, models.TimeEntry.account_id)
+        .outerjoin(
+            models.ProjectMembership,
+            (models.ProjectMembership.project_id == models.TimeEntry.project_id)
+            & (models.ProjectMembership.account_id == models.TimeEntry.account_id),
+        )
+        .filter(models.ProjectMembership.id.is_(None))
+        .distinct()
+        .all()
     )
+    for project_id, account_id in pairs:
+        db.add(models.ProjectMembership(project_id=project_id, account_id=account_id, status="approved"))
+    if pairs:
+        db.commit()
+    return len(pairs)
 
 
 def list_approved_members(db: Session, project_id: int) -> list[models.Account]:
@@ -387,22 +410,10 @@ def decide_membership_request(
 
 
 def list_membership_statuses_for_account(db: Session, account_id: int) -> dict[int, str]:
-    statuses = {
+    return {
         m.project_id: m.status
         for m in db.query(models.ProjectMembership).filter(models.ProjectMembership.account_id == account_id)
     }
-    # Un compte ayant déjà saisi des heures sur un projet en est aussi
-    # considéré membre approuvé, pour ne pas perdre l'accès des contributeurs
-    # existants créés avant l'introduction du rattachement explicite.
-    contributor_project_ids = {
-        row[0]
-        for row in db.query(models.TimeEntry.project_id)
-        .filter(models.TimeEntry.account_id == account_id)
-        .distinct()
-    }
-    for project_id in contributor_project_ids:
-        statuses.setdefault(project_id, "approved")
-    return statuses
 
 
 def list_projects_for_account(db: Session, account_id: int) -> list[models.Project]:
@@ -424,13 +435,33 @@ def get_account(db: Session, account_id: int) -> models.Account | None:
 
 
 def get_or_create_account(db: Session, email: str) -> models.Account:
-    account = db.query(models.Account).filter(models.Account.email == email).first()
+    # Les adresses e-mail ne sont pas sensibles à la casse : "Alice@x.fr" et
+    # "alice@x.fr" doivent désigner le même compte (mêmes projets, même statut
+    # d'administrateur), quelle que soit la casse renvoyée par le fournisseur.
+    email = email.strip()
+    account = (
+        db.query(models.Account)
+        .filter(func.lower(models.Account.email) == email.lower())
+        .order_by(models.Account.id)
+        .first()
+    )
     if account is not None:
         return account
 
-    account = models.Account(email=email)
+    account = models.Account(email=email.lower())
     db.add(account)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # Première visite : plusieurs requêtes parallèles (/api/me,
+        # /api/projects...) créent le même compte ; une seule l'emporte.
+        db.rollback()
+        return (
+            db.query(models.Account)
+            .filter(func.lower(models.Account.email) == email.lower())
+            .order_by(models.Account.id)
+            .first()
+        )
     db.refresh(account)
     return account
 
@@ -695,3 +726,16 @@ def list_document_logo_positions(db: Session, project_id: int) -> list[str]:
         .all()
     )
     return sorted(row[0] for row in rows)
+
+
+def sum_hours_for_account_on_date(
+    db: Session, project_id: int, account_id: int, day, exclude_entry_id: int | None = None
+) -> float:
+    query = db.query(func.coalesce(func.sum(models.TimeEntry.duration_hours), 0.0)).filter(
+        models.TimeEntry.project_id == project_id,
+        models.TimeEntry.account_id == account_id,
+        models.TimeEntry.date == day,
+    )
+    if exclude_entry_id is not None:
+        query = query.filter(models.TimeEntry.id != exclude_entry_id)
+    return float(query.scalar() or 0.0)
