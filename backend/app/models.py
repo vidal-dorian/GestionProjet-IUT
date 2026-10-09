@@ -140,6 +140,9 @@ class GithubIssue(Base):
     # pas ce champ renseigné (ou n'appartient à aucun Project).
     story_points: Mapped[float | None] = mapped_column(Float, nullable=True)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Titre de l'itération GitHub Projects (v2) de l'issue (ex: "Sprint 0"),
+    # None si elle n'en a pas ou si le Project est illisible avec ce token.
+    iteration: Mapped[str | None] = mapped_column(String(120), nullable=True)
 
     project: Mapped[Project] = relationship(back_populates="github_issues")
 

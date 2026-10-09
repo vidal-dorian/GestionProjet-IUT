@@ -101,8 +101,8 @@ export default function SprintsSection({ projectId }: Props) {
 
         {editingId && (
           <p className="meta">
-            Le burndown d'un sprint repose sur le label GitHub portant exactement son nom : pensez à renommer le
-            label si vous renommez le sprint.
+            Le burndown d'un sprint repose sur l'itération du GitHub Project (ou le label GitHub) portant son nom
+            (casse, accents, espaces et tirets ignorés) : pensez à la renommer si vous renommez le sprint.
           </p>
         )}
 

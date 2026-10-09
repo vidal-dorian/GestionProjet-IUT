@@ -20,6 +20,7 @@ export interface GithubIssue {
   state: string;
   labels: string[];
   url: string;
+  iteration: string | null;
 }
 
 export interface GithubSyncResult {

@@ -136,3 +136,30 @@ def test_burndown_export_for_unknown_sprint_returns_404(client):
     project, _ = _setup_project_with_sprint(client)
     response = client.get(f"/api/projects/{project['id']}/sprints/999/burndown/export")
     assert response.status_code == 404
+
+
+def test_burndown_counts_issues_in_the_sprint_project_iteration(client):
+    project, sprint = _setup_project_with_sprint(client)
+    _sync_issues(
+        client,
+        project["id"],
+        [
+            {
+                "number": 4,
+                "title": "US sans label de sprint",
+                "state": "open",
+                "labels": [{"name": "US"}],
+                "html_url": "https://github.com/owner/repo/issues/4",
+                "story_points": 2,
+                "closed_at": None,
+                "iteration": "Sprint 1",
+            },
+        ],
+    )
+
+    response = client.get(f"/api/projects/{project['id']}/sprints/{sprint['id']}/burndown")
+    assert response.json()["matched_issue_count"] == 1
+    assert response.json()["total_points"] == 2
+
+    issues = client.get(f"/api/projects/{project['id']}/github/issues").json()
+    assert issues[0]["iteration"] == "Sprint 1"

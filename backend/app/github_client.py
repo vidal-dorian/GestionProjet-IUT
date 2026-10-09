@@ -27,7 +27,10 @@ MAX_ISSUES = MAX_ISSUE_PAGES * ISSUES_PER_PAGE
 # valoriser une US en story points (voir US-29 — burndown chart).
 STORY_POINTS_FIELD_NAME = "Valorisation"
 
-# Bloc demandé en plus des champs de base pour récupérer la valorisation.
+# Bloc demandé en plus des champs de base pour récupérer la valorisation et
+# l'itération (champ "Iteration" de GitHub Projects, que l'équipe renomme en
+# "Sprint 0", "Sprint 1"... et qui rattache l'US à un sprint, au même titre
+# qu'un label du même nom).
 # `Issue.projectItems` est non-nullable dans le schéma GraphQL de GitHub : si le
 # token ne peut pas lire le Project (Project privé, token fine-grained face à un
 # Project appartenant à un compte utilisateur...), l'erreur remonte jusqu'à
@@ -37,6 +40,11 @@ _PROJECT_ITEMS_FIELDS = """
           nodes {
             fieldValueByName(name: "%s") {
               ... on ProjectV2ItemFieldNumberValue { number }
+            }
+            fieldValues(first: 20) {
+              nodes {
+                ... on ProjectV2ItemFieldIterationValue { title }
+              }
             }
           }
         }""" % STORY_POINTS_FIELD_NAME
@@ -118,6 +126,16 @@ def _story_points_from_node(node: dict) -> float | None:
     return None
 
 
+def _iteration_from_node(node: dict) -> str | None:
+    project_items = node.get("projectItems") or {}
+    for item in project_items.get("nodes") or []:
+        field_values = (item or {}).get("fieldValues") or {}
+        for value in field_values.get("nodes") or []:
+            if value and value.get("title"):
+                return value["title"]
+    return None
+
+
 def _parse_issue_node(node: dict) -> dict:
     return {
         "number": node["number"],
@@ -127,6 +145,7 @@ def _parse_issue_node(node: dict) -> dict:
         "labels": [{"name": label["name"]} for label in node["labels"]["nodes"] if label],
         "closed_at": node.get("closedAt"),
         "story_points": _story_points_from_node(node),
+        "iteration": _iteration_from_node(node),
     }
 
 

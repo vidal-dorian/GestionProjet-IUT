@@ -244,8 +244,9 @@ export default function SprintsPage() {
                 <h2>Burndown</h2>
                 {burndown.matched_issue_count === 0 ? (
                   <p>
-                    Aucune US GitHub n'est labellisée « {burndown.sprint.name} ». Ajoute ce label aux US
-                    correspondantes sur GitHub pour voir apparaître ce burndown.
+                    Aucune US GitHub n'est rattachée à « {burndown.sprint.name} ». Place les US dans l'itération
+                    (ou ajoute-leur le label) portant ce nom sur GitHub — la casse, les accents, les espaces et les
+                    tirets sont ignorés —, puis resynchronise les issues pour voir apparaître ce burndown.
                   </p>
                 ) : (
                   <>

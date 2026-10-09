@@ -58,6 +58,7 @@ class GithubIssueRead(BaseModel):
     url: str
     story_points: float | None = None
     closed_at: datetime | None = None
+    iteration: str | None = None
 
 
 class GithubSyncResult(BaseModel):

@@ -21,8 +21,11 @@ def _issue_node(
     labels: list[str] | None = None,
     closed_at: str | None = None,
     story_points: float | None = None,
+    iteration: str | None = None,
 ) -> dict:
     field_value = {"number": story_points} if story_points is not None else None
+    # Comme GitHub : un nœud vide `{}` pour chaque valeur de champ d'un autre type.
+    field_values = [{}, {"title": iteration}] if iteration else [{}]
     return {
         "number": number,
         "title": title,
@@ -30,7 +33,9 @@ def _issue_node(
         "url": f"https://github.com/owner/repo/issues/{number}",
         "closedAt": closed_at,
         "labels": {"nodes": [{"name": label} for label in (labels or [])]},
-        "projectItems": {"nodes": [{"fieldValueByName": field_value}]},
+        "projectItems": {
+            "nodes": [{"fieldValueByName": field_value, "fieldValues": {"nodes": field_values}}]
+        },
     }
 
 
@@ -75,6 +80,7 @@ def test_list_issues_parses_labels_story_points_and_closed_at():
         "labels": [{"name": "Sprint 1"}],
         "closed_at": None,
         "story_points": 3,
+        "iteration": None,
     }
     assert issues[1]["state"] == "closed"
     assert issues[1]["closed_at"] == "2026-08-10T12:00:00Z"
@@ -212,3 +218,13 @@ def test_list_issues_stops_after_the_page_cap(monkeypatch):
     issues = asyncio.run(github_client.list_issues("o/r"))
     assert len(calls) == github_client.MAX_ISSUE_PAGES
     assert len(issues) == github_client.MAX_ISSUES
+
+
+def test_list_issues_reads_the_project_iteration_title():
+    body = _page([_issue_node(1, iteration="Sprint 0"), _issue_node(2)])
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = _http_response(200, body)
+        issues = asyncio.run(github_client.list_issues("owner/repo"))
+
+    assert [issue["iteration"] for issue in issues] == ["Sprint 0", None]

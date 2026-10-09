@@ -13,7 +13,9 @@ def _sprint(name="Sprint 1", start="2026-08-01", end="2026-08-10") -> models.Spr
     )
 
 
-def _issue(labels: str, story_points: float | None = None, closed_at: str | None = None) -> models.GithubIssue:
+def _issue(
+    labels: str, story_points: float | None = None, closed_at: str | None = None, iteration: str | None = None
+) -> models.GithubIssue:
     return models.GithubIssue(
         id=1,
         project_id=1,
@@ -25,6 +27,7 @@ def _issue(labels: str, story_points: float | None = None, closed_at: str | None
         synced_at=datetime.utcnow(),
         story_points=story_points,
         closed_at=datetime.fromisoformat(closed_at) if closed_at else None,
+        iteration=iteration,
     )
 
 
@@ -122,3 +125,33 @@ def test_no_matching_issues_gives_an_empty_flat_burndown():
         {"date": date(2026, 8, 1), "remaining_points": 0.0},
         {"date": date(2026, 8, 5), "remaining_points": 0.0},
     ]
+
+
+def test_sprint_label_matching_ignores_case_accents_and_separators():
+    sprint = _sprint(name="Sprint 0")
+    issues = [
+        _issue("sprint 0", story_points=1),
+        _issue("SPRINT-0", story_points=2),
+        _issue("Sprint0", story_points=3),
+        _issue(" Sprînt_0 ", story_points=4),
+        _issue("Sprint 10", story_points=100),  # un autre sprint, exclu
+    ]
+
+    result = burndown.compute_burndown(sprint, issues, today=date(2026, 8, 5))
+
+    assert result["matched_issue_count"] == 4
+    assert result["total_points"] == 10
+
+
+def test_issues_in_the_sprint_project_iteration_are_counted_without_label():
+    sprint = _sprint(name="Sprint 0")
+    issues = [
+        _issue("US,Mise en place projet", story_points=2, iteration="Sprint 0"),
+        _issue("US", story_points=5, iteration="Sprint 1"),
+        _issue("US", story_points=7),  # ni label ni itération
+    ]
+
+    result = burndown.compute_burndown(sprint, issues, today=date(2026, 8, 5))
+
+    assert result["matched_issue_count"] == 1
+    assert result["total_points"] == 2
