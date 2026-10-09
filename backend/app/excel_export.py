@@ -2,14 +2,19 @@ import io
 from collections import defaultdict
 
 from openpyxl import Workbook
-from openpyxl.chart import BarChart, LineChart, PieChart, Reference
+from openpyxl.chart import BarChart, LineChart, PieChart, Reference, ScatterChart, Series
 from openpyxl.chart.label import DataLabelList
 from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
+from openpyxl.utils.datetime import to_excel
 from openpyxl.worksheet.worksheet import Worksheet
 
 from app import models
 from app.text import strip_control_chars
+
+# Couleurs du burndown de l'app (--ink et --ink-muted, thème clair).
+BURNDOWN_ACTUAL_COLOR = "0B0B0B"
+BURNDOWN_IDEAL_COLOR = "898781"
 
 ENTRY_HEADERS = ["Date", "Durée (h)", "Description", "Sprint", "Issue", "Catégorie"]
 
@@ -172,6 +177,14 @@ def build_account_export(
     return _save(wb)
 
 
+def _burndown_series(ws: Worksheet, title: str, y_col: int, first_row: int, last_row: int) -> Series:
+    x_values = Reference(ws, min_col=1, min_row=first_row, max_row=last_row)
+    y_values = Reference(ws, min_col=y_col, min_row=first_row, max_row=last_row)
+    series = Series(y_values, x_values, title=title)
+    series.smooth = False
+    return series
+
+
 def build_burndown_export(sprint: models.Sprint, data: dict) -> io.BytesIO:
     wb = Workbook()
     ws = wb.active
@@ -182,30 +195,70 @@ def build_burndown_export(sprint: models.Sprint, data: dict) -> io.BytesIO:
     ws.append(["Fin", sprint.end_date])
     ws.append(["Total story points", data["total_points"]])
     ws.append(["US sans valorisation", data["unestimated_issue_count"]])
+    ws["B2"].number_format = ws["B3"].number_format = "dd/mm/yyyy"
     ws.append([])
-    header_row = ws.max_row + 1
 
     total_points = data["total_points"]
     total_days = (sprint.end_date - sprint.start_date).days or 1
     actual_by_date = {point["date"]: point["remaining_points"] for point in data["actual"]}
+    # Le réel s'arrête à aujourd'hui (ou à la fin du sprint), comme dans l'app :
+    # au-delà, la cellule reste vide et la courbe n'est pas prolongée.
+    actual_end = max(actual_by_date, default=sprint.start_date)
     all_dates = sorted({point["date"] for point in data["ideal"]} | set(actual_by_date))
 
     ws.append(["Date", "Idéal (SP restants)", "Réel (SP restants)"])
+    first_data_row = ws.max_row + 1
     last_actual = total_points
     for d in all_dates:
         fraction = max(0.0, min(1.0, (d - sprint.start_date).days / total_days))
         ideal_value = round(total_points * (1 - fraction), 2)
         if d in actual_by_date:
             last_actual = actual_by_date[d]
-        ws.append([d, ideal_value, round(last_actual, 2)])
+        ws.append([d, ideal_value, round(last_actual, 2) if d <= actual_end else None])
+        ws.cell(row=ws.max_row, column=1).number_format = "dd/mm/yyyy"
+    last_data_row = ws.max_row
 
-    chart = LineChart()
-    chart.title = f"Burndown — {sprint.name}"
+    # Nuage de points relié par des segments droits : l'axe X est un vrai axe
+    # de dates (les écarts entre fermetures d'US sont respectés), comme le
+    # graphique de l'app — un LineChart les espacerait régulièrement et
+    # lisserait les courbes.
+    chart = ScatterChart()
+    chart.title = f"Burndown — {_safe_cell(sprint.name)}"
+    chart.style = 13
+    chart.height = 9
+    chart.width = 18
+    chart.legend.position = "b"
+
+    actual = _burndown_series(ws, "Réel", 3, first_data_row, last_data_row)
+    actual.graphicalProperties.line.solidFill = BURNDOWN_ACTUAL_COLOR
+    actual.graphicalProperties.line.width = 28575  # 2,25 pt
+    actual.marker.symbol = "circle"
+    actual.marker.size = 6
+    actual.marker.graphicalProperties.solidFill = BURNDOWN_ACTUAL_COLOR
+    actual.marker.graphicalProperties.line.solidFill = "FFFFFF"
+
+    ideal = _burndown_series(ws, "Idéal", 2, first_data_row, last_data_row)
+    ideal.graphicalProperties.line.solidFill = BURNDOWN_IDEAL_COLOR
+    ideal.graphicalProperties.line.width = 19050  # 1,5 pt
+    ideal.graphicalProperties.line.dashStyle = "dash"
+    ideal.marker.symbol = "none"
+
+    chart.series.extend([actual, ideal])
+
+    chart.x_axis.title = "Date"
+    chart.x_axis.number_format = "dd/mm"
+    chart.x_axis.scaling.min = to_excel(sprint.start_date)
+    chart.x_axis.scaling.max = to_excel(sprint.end_date)
+    if total_days <= 31:
+        chart.x_axis.majorUnit = 1 if total_days <= 14 else 7
+    chart.x_axis.majorGridlines = None
     chart.y_axis.title = "Story points restants"
-    data_ref = Reference(ws, min_col=2, max_col=3, min_row=header_row, max_row=header_row + len(all_dates))
-    cats_ref = Reference(ws, min_col=1, min_row=header_row + 1, max_row=header_row + len(all_dates))
-    chart.add_data(data_ref, titles_from_data=True)
-    chart.set_categories(cats_ref)
+    chart.y_axis.scaling.min = 0
+    chart.y_axis.number_format = "0"
+    # openpyxl >= 3.1 masque les axes par défaut : sans ça, Excel n'affiche ni
+    # dates ni graduations.
+    chart.x_axis.delete = False
+    chart.y_axis.delete = False
     ws.add_chart(chart, "E2")
 
     ws.column_dimensions["A"].width = 22
