@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.5.0](https://github.com/vidal-dorian/GestionProjet-IUT/compare/v1.4.1...v1.5.0) (2026-10-09)
+
+
+### Features
+
+* **burndown:** correction des dates de clôture + export Excel fidèle à l'app ([edca80f](https://github.com/vidal-dorian/GestionProjet-IUT/commit/edca80f771ae528ae3c792b39f32cfbcdaf703e7))
+* **burndown:** corriger la date de clôture des US depuis le burndown ([d285082](https://github.com/vidal-dorian/GestionProjet-IUT/commit/d28508221b62beeae94f3ccf108adafe4147417a))
+* comptes-rendus Scrum collaboratifs exportables en Word ([8d76965](https://github.com/vidal-dorian/GestionProjet-IUT/commit/8d76965f3828dbc074fbb2aa7b495cfece925605))
+* comptes-rendus Scrum collaboratifs exportables en Word ([85f7e97](https://github.com/vidal-dorian/GestionProjet-IUT/commit/85f7e9777021dcf17019c36a9d902b0313adb1e1))
+* daily rempli en même temps par toute l'équipe ([20cf105](https://github.com/vidal-dorian/GestionProjet-IUT/commit/20cf1051fd84f1fb6badc09f896c9578b9c42a0f))
+* modifier les dates (et le nom) d'un sprint depuis les paramètres ([1ddd79f](https://github.com/vidal-dorian/GestionProjet-IUT/commit/1ddd79f7ca69093b80e168e4ac5e0055584cde2c))
+* point rouge déplaçable dans le daily, pied de page = nom du projet ([b82da7f](https://github.com/vidal-dorian/GestionProjet-IUT/commit/b82da7f67f83120e2c8cdf9b09b09f48fb5b8a17))
+
+
+### Bug Fixes
+
+* **burndown:** rattacher les US au sprint via l'itération GitHub Projects ([e585455](https://github.com/vidal-dorian/GestionProjet-IUT/commit/e585455fdd6e3947c62d6a6d453b1c2cd618152a))
+* **export:** burndown Excel identique au graphique de l'app ([6db57fb](https://github.com/vidal-dorian/GestionProjet-IUT/commit/6db57fb3660da43442a0b1e8a8fdbde6b3e56d4d))
+* **security:** audit complet — contrôle d'accès, CSRF, exports, infra ([a4ece00](https://github.com/vidal-dorian/GestionProjet-IUT/commit/a4ece000658b179f08cfbde4f76333a27deb8c2a))
+* **security:** audit complet — contrôle d'accès, CSRF, exports, infra ([e027828](https://github.com/vidal-dorian/GestionProjet-IUT/commit/e0278287b73c0ae14fe0b582bfb2e816286b9191))
+* **security:** corriger les failles d'autorisation et durcir le déploiement ([f708f61](https://github.com/vidal-dorian/GestionProjet-IUT/commit/f708f619e377f329e5519fd6a5bce024b0895687))
+* sync GitHub robuste, modification des sprints et audit de sécurité ([6e10780](https://github.com/vidal-dorian/GestionProjet-IUT/commit/6e10780a9edc15e166177a41332ad7aa45473fcd))
+* synchroniser les issues même quand le GitHub Project est illisible ([72268a0](https://github.com/vidal-dorian/GestionProjet-IUT/commit/72268a0ac783e91fae639459230d9d3edfad5333))
+
 ## [1.4.1](https://github.com/vidal-dorian/GestionProjet-IUT/compare/v1.4.0...v1.4.1) (2026-09-29)
 
 
