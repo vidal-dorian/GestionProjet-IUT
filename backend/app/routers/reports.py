@@ -87,7 +87,7 @@ def _suggested_user_stories(
     toutes pour la planification, seulement les fermées pour la review."""
     if sprint is None:
         return []
-    issues = [issue for issue in crud.list_github_issues(db, project_id) if sprint.name in issue.labels]
+    issues = [issue for issue in crud.list_github_issues(db, project_id) if burndown.matches_sprint(issue, sprint)]
     if report_type == "sprint_review":
         issues = [issue for issue in issues if issue.state == "closed"]
     # Bornées aux limites du contenu, sans quoi le pré-remplissage produirait un

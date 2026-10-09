@@ -366,6 +366,11 @@ export default function ProjectSettingsPage() {
                             #{issue.number} {issue.title}
                           </a>{" "}
                           <span className={`badge badge-${issue.state}`}>{issue.state}</span>
+                          {issue.iteration && (
+                            <span className="badge" title="Itération du GitHub Project">
+                              ↻ {issue.iteration}
+                            </span>
+                          )}
                           {issue.labels.map((label) => (
                             <span key={label} className="badge">
                               {label}

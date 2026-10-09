@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 
 
 STORY_POINTS_UNAVAILABLE_WARNING = (
-    "Les issues ont été synchronisées, mais la valorisation (champ « %s » du GitHub Project) "
-    "n'a pas pu être lue : le token GitHub n'a pas accès au Project lié au dépôt (GitHub : %s). "
+    "Les issues ont été synchronisées, mais la valorisation (champ « %s » du GitHub Project) et "
+    "l'itération (sprint) n'ont pas pu être lues : le token GitHub n'a pas accès au Project lié au dépôt (GitHub : %s). "
     "Utilisez un token classique avec le scope read:project, appartenant à un compte membre du Project."
 )
 

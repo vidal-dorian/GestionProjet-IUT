@@ -1,23 +1,43 @@
+import re
+import unicodedata
 from datetime import date
 
 from app import models
 
+_SEPARATORS = re.compile(r"[\s_-]+")
 
-def _matches_sprint(issue: models.GithubIssue, sprint: models.Sprint) -> bool:
-    return sprint.name in issue.labels
+
+def _normalize_label(value: str) -> str:
+    """Forme canonique d'un nom de sprint / label : sans accents, en minuscules,
+    sans espaces ni tirets ni underscores ("Sprint 0", "sprint 0", "Sprint-0" et
+    "sprint0" deviennent tous "sprint0")."""
+    decomposed = unicodedata.normalize("NFKD", value)
+    without_accents = "".join(c for c in decomposed if not unicodedata.combining(c))
+    return _SEPARATORS.sub("", without_accents).lower()
+
+
+def matches_sprint(issue: models.GithubIssue, sprint: models.Sprint) -> bool:
+    """Une US appartient au sprint si son itération GitHub Projects ou l'un de
+    ses labels porte le nom du sprint."""
+    sprint_key = _normalize_label(sprint.name)
+    if not sprint_key:
+        return False
+    candidates = [*issue.labels, *([issue.iteration] if issue.iteration else [])]
+    return any(_normalize_label(candidate) == sprint_key for candidate in candidates)
 
 
 def compute_burndown(sprint: models.Sprint, issues: list[models.GithubIssue], *, today: date | None = None) -> dict:
-    """Calcule la courbe de burndown d'un sprint à partir des US GitHub qui portent
-    un label correspondant exactement à son nom (ex: label "Sprint 1" pour le sprint
-    "Sprint 1"), valorisées via le champ GitHub Projects "Valorisation".
+    """Calcule la courbe de burndown d'un sprint à partir des US GitHub rattachées
+    à ce sprint (itération GitHub Projects ou label portant son nom, à la casse,
+    aux accents et aux séparateurs près — ex: "sprint 1" ou "Sprint-1" pour le
+    sprint "Sprint 1"), valorisées via le champ GitHub Projects "Valorisation".
 
     L'axe Y est la somme des story points restants ; elle baisse à la date de
     fermeture (`closed_at`) de chaque US, jusqu'à aujourd'hui (ou la fin du sprint
     s'il est déjà terminé).
     """
     today = today or date.today()
-    matched = [issue for issue in issues if _matches_sprint(issue, sprint)]
+    matched = [issue for issue in issues if matches_sprint(issue, sprint)]
     total_points = sum(issue.story_points or 0 for issue in matched)
     unestimated_issue_count = sum(1 for issue in matched if issue.story_points is None)
 

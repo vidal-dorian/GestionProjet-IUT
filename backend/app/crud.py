@@ -129,6 +129,7 @@ def replace_github_issues(db: Session, db_project: models.Project, issues: list[
         db_issue.url = url[:500]
         db_issue.synced_at = synced_at
         db_issue.story_points = payload.get("story_points")
+        db_issue.iteration = strip_control_chars(payload.get("iteration") or "")[:120] or None
         closed_at_raw = payload.get("closed_at")
         db_issue.closed_at = datetime.fromisoformat(closed_at_raw.replace("Z", "+00:00")) if closed_at_raw else None
 
