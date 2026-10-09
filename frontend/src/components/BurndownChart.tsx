@@ -72,9 +72,10 @@ export default function BurndownChart({ ideal, actual, totalPoints }: Props) {
         <path d={toPathD(ideal)} className="burndown-line-ideal" fill="none" />
         <path d={toPathD(actual)} className="burndown-line-actual" fill="none" />
 
-        {actual.map((point) => {
+        {actual.map((point, index) => {
           const { x, y } = toXY(point);
-          return <circle key={point.date} cx={x} cy={y} r={4} className="line-chart-dot" />;
+          // Le premier point et une fermeture le jour du début partagent la même date.
+          return <circle key={`${index}-${point.date}`} cx={x} cy={y} r={4} className="line-chart-dot" />;
         })}
       </svg>
 

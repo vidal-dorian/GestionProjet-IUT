@@ -1962,3 +1962,76 @@ body.has-drawer-open {
     flex: 1 1 100%;
   }
 }
+
+/* Tableau de correction des dates de clôture, sous le burndown. */
+.closure-table-wrapper {
+  margin-top: 1.5rem;
+}
+
+.closure-table-wrapper h3 {
+  margin: 0 0 0.25rem;
+}
+
+.closure-table-scroll {
+  overflow-x: auto;
+}
+
+.closure-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.closure-table th {
+  padding: 0 0.75rem 0.4rem 0;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+.closure-table td {
+  padding: 0.35rem 0.75rem 0.35rem 0;
+  border-top: 1px solid var(--hairline);
+  vertical-align: middle;
+}
+
+.closure-table td:nth-child(2),
+.closure-table td:nth-child(3) {
+  white-space: nowrap;
+}
+
+.closure-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.closure-cell .button-secondary {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.85rem;
+}
+
+.closure-table td:last-child {
+  width: 1%;
+}
+
+.closure-cell input {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.closure-cell input:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}

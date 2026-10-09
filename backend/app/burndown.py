@@ -33,7 +33,8 @@ def compute_burndown(sprint: models.Sprint, issues: list[models.GithubIssue], *,
     sprint "Sprint 1"), valorisées via le champ GitHub Projects "Valorisation".
 
     L'axe Y est la somme des story points restants ; elle baisse à la date de
-    fermeture (`closed_at`) de chaque US, jusqu'à aujourd'hui (ou la fin du sprint
+    fermeture de chaque US (celle saisie à la main si elle a été corrigée, sinon
+    `closed_at`), jusqu'à aujourd'hui (ou la fin du sprint
     s'il est déjà terminé).
     """
     today = today or date.today()
@@ -48,9 +49,9 @@ def compute_burndown(sprint: models.Sprint, issues: list[models.GithubIssue], *,
 
     closures = sorted(
         (
-            (issue.closed_at.date(), issue.story_points or 0)
+            (issue.effective_closed_on, issue.story_points or 0)
             for issue in matched
-            if issue.closed_at is not None
+            if issue.effective_closed_on is not None
         ),
         key=lambda pair: pair[0],
     )
@@ -64,7 +65,12 @@ def compute_burndown(sprint: models.Sprint, issues: list[models.GithubIssue], *,
         if closed_date < sprint.start_date or closed_date > cutoff:
             continue
         remaining -= points
-        actual.append({"date": closed_date, "remaining_points": round(remaining, 2)})
+        # Plusieurs US fermées le même jour : un seul point (le premier point,
+        # début du sprint, reste à part pour garder le total de départ).
+        if len(actual) > 1 and actual[-1]["date"] == closed_date:
+            actual[-1]["remaining_points"] = round(remaining, 2)
+        else:
+            actual.append({"date": closed_date, "remaining_points": round(remaining, 2)})
     if actual[-1]["date"] != cutoff:
         actual.append({"date": cutoff, "remaining_points": round(remaining, 2)})
 
@@ -74,4 +80,5 @@ def compute_burndown(sprint: models.Sprint, issues: list[models.GithubIssue], *,
         "unestimated_issue_count": unestimated_issue_count,
         "ideal": ideal,
         "actual": actual,
+        "issues": sorted(matched, key=lambda issue: issue.number),
     }

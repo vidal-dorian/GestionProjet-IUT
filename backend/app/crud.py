@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -85,6 +85,20 @@ def list_github_issues(db: Session, project_id: int) -> list[models.GithubIssue]
         .order_by(models.GithubIssue.number.desc())
         .all()
     )
+
+
+def get_github_issue(db: Session, project_id: int, issue_id: int) -> models.GithubIssue | None:
+    return (
+        db.query(models.GithubIssue)
+        .filter(models.GithubIssue.project_id == project_id, models.GithubIssue.id == issue_id)
+        .first()
+    )
+
+
+def set_issue_closed_on_override(db: Session, db_issue: models.GithubIssue, closed_on: date | None) -> None:
+    db_issue.closed_on_override = closed_on
+    db.commit()
+    db.refresh(db_issue)
 
 
 def list_visible_github_issues(db: Session, db_project: models.Project) -> list[models.GithubIssue]:

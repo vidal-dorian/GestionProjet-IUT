@@ -16,6 +16,7 @@ import {
 } from "../api/sprints";
 import { getSprintStats, type SprintStats } from "../api/dashboard";
 import BurndownChart from "../components/BurndownChart";
+import BurndownClosureTable from "../components/BurndownClosureTable";
 import GanttChart from "../components/GanttChart";
 
 function formatHours(hours: number): string {
@@ -94,11 +95,17 @@ export default function SprintsPage() {
       })
       .catch(() => setSprintStatsError("Impossible de charger le détail de ce sprint pour le moment."));
 
+    reloadBurndown();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, selectedSprintId]);
+
+  function reloadBurndown() {
+    if (!projectId || selectedSprintId === "") return;
     setBurndownError(null);
     getSprintBurndown(projectId, selectedSprintId)
       .then(setBurndown)
       .catch(() => setBurndownError("Impossible de charger le burndown pour le moment."));
-  }, [projectId, selectedSprintId]);
+  }
 
   // Le ruban défile horizontalement sur petit écran : sans ça, le sprint
   // sélectionné par défaut peut se retrouver hors du champ de vision.
@@ -259,6 +266,7 @@ export default function SprintsPage() {
                         } pour 0)`}
                     </p>
                     <BurndownChart ideal={burndown.ideal} actual={burndown.actual} totalPoints={burndown.total_points} />
+                    <BurndownClosureTable projectId={projectId!} issues={burndown.issues} onChanged={reloadBurndown} />
                   </>
                 )}
               </section>
