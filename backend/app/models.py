@@ -143,12 +143,28 @@ class GithubIssue(Base):
     # Titre de l'itération GitHub Projects (v2) de l'issue (ex: "Sprint 0"),
     # None si elle n'en a pas ou si le Project est illisible avec ce token.
     iteration: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    # Date de clôture saisie à la main depuis le burndown (US fermée en retard
+    # sur GitHub). Jamais touchée par la synchro : elle prime sur `closed_at`
+    # tant que l'US reste fermée.
+    closed_on_override: Mapped[date | None] = mapped_column(Date, nullable=True)
 
     project: Mapped[Project] = relationship(back_populates="github_issues")
 
     @property
     def labels(self) -> list[str]:
         return [label for label in self.labels_raw.split(",") if label]
+
+    @property
+    def github_closed_on(self) -> date | None:
+        return self.closed_at.date() if self.closed_at is not None else None
+
+    @property
+    def effective_closed_on(self) -> date | None:
+        """Date de clôture retenue pour le burndown : celle saisie à la main si
+        elle existe, sinon celle de GitHub. None tant que l'US est ouverte."""
+        if self.closed_at is None:
+            return None
+        return self.closed_on_override or self.closed_at.date()
 
 
 class Sprint(Base):

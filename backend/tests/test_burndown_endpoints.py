@@ -163,3 +163,70 @@ def test_burndown_counts_issues_in_the_sprint_project_iteration(client):
 
     issues = client.get(f"/api/projects/{project['id']}/github/issues").json()
     assert issues[0]["iteration"] == "Sprint 1"
+
+
+def _closed_issue(closed_at="2026-08-06T10:00:00Z", state="closed"):
+    return {
+        "number": 7,
+        "title": "US fermée en retard",
+        "state": state,
+        "labels": [{"name": "Sprint 1"}],
+        "html_url": "https://github.com/owner/repo/issues/7",
+        "story_points": 5,
+        "closed_at": closed_at if state == "closed" else None,
+    }
+
+
+def _burndown(client, project, sprint):
+    return client.get(f"/api/projects/{project['id']}/sprints/{sprint['id']}/burndown").json()
+
+
+def test_closure_date_can_be_corrected_and_survives_a_resync(client):
+    project, sprint = _setup_project_with_sprint(client)
+    _sync_issues(client, project["id"], [_closed_issue()])
+    issue = _burndown(client, project, sprint)["issues"][0]
+    assert issue["github_closed_on"] == "2026-08-06"
+    assert issue["effective_closed_on"] == "2026-08-06"
+
+    response = client.put(
+        f"/api/projects/{project['id']}/github/issues/{issue['id']}/closed-on", json={"closed_on": "2026-08-03"}
+    )
+    assert response.status_code == 200
+    assert response.json()["effective_closed_on"] == "2026-08-03"
+
+    # La synchro suivante ne doit pas écraser la date saisie à la main.
+    _sync_issues(client, project["id"], [_closed_issue()])
+    body = _burndown(client, project, sprint)
+    assert body["issues"][0]["closed_on_override"] == "2026-08-03"
+    assert {"date": "2026-08-03", "remaining_points": 0.0} in body["actual"]
+
+    # null : retour à la date de GitHub.
+    client.put(f"/api/projects/{project['id']}/github/issues/{issue['id']}/closed-on", json={"closed_on": None})
+    body = _burndown(client, project, sprint)
+    assert body["issues"][0]["closed_on_override"] is None
+    assert body["issues"][0]["effective_closed_on"] == "2026-08-06"
+
+
+def test_closure_date_of_an_open_issue_cannot_be_set(client):
+    project, sprint = _setup_project_with_sprint(client)
+    _sync_issues(client, project["id"], [_closed_issue(state="open")])
+    issue = _burndown(client, project, sprint)["issues"][0]
+
+    response = client.put(
+        f"/api/projects/{project['id']}/github/issues/{issue['id']}/closed-on", json={"closed_on": "2026-08-03"}
+    )
+    assert response.status_code == 422
+
+
+def test_closure_date_requires_membership_of_the_issue_project(client):
+    project, sprint = _setup_project_with_sprint(client)
+    _sync_issues(client, project["id"], [_closed_issue()])
+    issue = _burndown(client, project, sprint)["issues"][0]
+
+    client.headers["X-Dev-Email"] = "bob@test.local"
+    other_project = client.post("/api/projects", json={"name": "Projet de Bob"}).json()
+    url = f"/api/projects/{project['id']}/github/issues/{issue['id']}/closed-on"
+    assert client.put(url, json={"closed_on": "2026-08-03"}).status_code == 403
+    # Une issue d'un autre projet n'est pas atteignable via son propre projet.
+    other_url = f"/api/projects/{other_project['id']}/github/issues/{issue['id']}/closed-on"
+    assert client.put(other_url, json={"closed_on": "2026-08-03"}).status_code == 404

@@ -155,3 +155,38 @@ def test_issues_in_the_sprint_project_iteration_are_counted_without_label():
 
     assert result["matched_issue_count"] == 1
     assert result["total_points"] == 2
+
+
+def test_manual_closure_date_replaces_the_github_one():
+    sprint = _sprint(start="2026-08-01", end="2026-08-10")
+    late = _issue("Sprint 1", story_points=5, closed_at="2026-08-06T09:00:00")
+    late.closed_on_override = date(2026, 8, 3)
+
+    result = burndown.compute_burndown(sprint, [late], today=date(2026, 8, 10))
+
+    assert {"date": date(2026, 8, 3), "remaining_points": 0.0} in result["actual"]
+    assert all(point["date"] != date(2026, 8, 6) for point in result["actual"])
+
+
+def test_manual_closure_date_is_ignored_while_the_issue_is_reopened():
+    sprint = _sprint(start="2026-08-01", end="2026-08-10")
+    reopened = _issue("Sprint 1", story_points=5)
+    reopened.closed_on_override = date(2026, 8, 3)
+
+    result = burndown.compute_burndown(sprint, [reopened], today=date(2026, 8, 10))
+
+    assert [point["remaining_points"] for point in result["actual"]] == [5.0, 5.0]
+
+
+def test_issues_closed_the_same_day_make_a_single_point():
+    sprint = _sprint(start="2026-08-01", end="2026-08-10")
+    issues = [
+        _issue("Sprint 1", story_points=2, closed_at="2026-08-04T09:00:00"),
+        _issue("Sprint 1", story_points=3, closed_at="2026-08-04T17:00:00"),
+    ]
+
+    result = burndown.compute_burndown(sprint, issues, today=date(2026, 8, 10))
+
+    assert [p for p in result["actual"] if p["date"] == date(2026, 8, 4)] == [
+        {"date": date(2026, 8, 4), "remaining_points": 0.0}
+    ]

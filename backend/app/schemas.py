@@ -107,6 +107,20 @@ class BurndownPoint(BaseModel):
     remaining_points: float
 
 
+class BurndownIssue(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    number: int
+    title: str
+    url: str
+    state: str
+    story_points: float | None = None
+    github_closed_on: date_type | None = None
+    closed_on_override: date_type | None = None
+    effective_closed_on: date_type | None = None
+
+
 class BurndownChartData(BaseModel):
     sprint: SprintRead
     total_points: float
@@ -114,6 +128,12 @@ class BurndownChartData(BaseModel):
     unestimated_issue_count: int
     ideal: list[BurndownPoint]
     actual: list[BurndownPoint]
+    issues: list[BurndownIssue] = Field(default_factory=list)
+
+
+class IssueClosedOnUpdate(BaseModel):
+    # None : revenir à la date de clôture de GitHub.
+    closed_on: date_type | None = None
 
 
 class TeamRoleCreate(BaseModel):

@@ -35,6 +35,18 @@ export interface BurndownPoint {
   remaining_points: number;
 }
 
+export interface BurndownIssue {
+  id: number;
+  number: number;
+  title: string;
+  url: string;
+  state: string;
+  story_points: number | null;
+  github_closed_on: string | null;
+  closed_on_override: string | null;
+  effective_closed_on: string | null;
+}
+
 export interface BurndownChartData {
   sprint: Sprint;
   total_points: number;
@@ -42,6 +54,7 @@ export interface BurndownChartData {
   unestimated_issue_count: number;
   ideal: BurndownPoint[];
   actual: BurndownPoint[];
+  issues: BurndownIssue[];
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
@@ -90,6 +103,20 @@ export function getSprintBurndown(
     credentials: "include",
     headers: devAuthHeaders(),
   }).then((res) => handleResponse<BurndownChartData>(res));
+}
+
+/* `null` revient à la date de clôture de GitHub. */
+export function setIssueClosedOn(
+  projectId: number | string,
+  issueId: number,
+  closedOn: string | null,
+): Promise<BurndownIssue> {
+  return fetch(`${API_URL}/api/projects/${projectId}/github/issues/${issueId}/closed-on`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...devAuthHeaders() },
+    body: JSON.stringify({ closed_on: closedOn }),
+  }).then((res) => handleResponse<BurndownIssue>(res));
 }
 
 export function listSprintRoleAssignments(

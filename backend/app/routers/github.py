@@ -87,6 +87,28 @@ async def list_issues(
     return crud.list_visible_github_issues(db, db_project)
 
 
+@router.put("/issues/{issue_id}/closed-on", response_model=schemas.BurndownIssue)
+def update_issue_closed_on(
+    project_id: int,
+    issue_id: int,
+    update: schemas.IssueClosedOnUpdate,
+    account: models.Account = Depends(require_project_member),
+    db: Session = Depends(get_db),
+):
+    """Corrige la date de clôture d'une US pour le burndown (US fermée en retard
+    sur GitHub). La valeur saisie survit aux synchronisations ; `null` revient à
+    la date de GitHub."""
+    db_issue = crud.get_github_issue(db, project_id, issue_id)
+    if db_issue is None:
+        raise HTTPException(status_code=404, detail="US introuvable.")
+    if update.closed_on is not None and db_issue.closed_at is None:
+        raise HTTPException(
+            status_code=422, detail="Cette US n'est pas fermée sur GitHub : sa date de clôture ne peut pas être modifiée."
+        )
+    crud.set_issue_closed_on_override(db, db_issue, update.closed_on)
+    return db_issue
+
+
 @router.put("/label-filter", response_model=schemas.ProjectRead)
 async def update_label_filter(
     project_id: int,
