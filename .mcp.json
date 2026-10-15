@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "cockpit": {
+      "type": "http",
+      "url": "https://cockpit.dorianvidal.com/api/mcp",
+      "headers": {
+        "Authorization": "Bearer ${COCKPIT_MCP_TOKEN}"
+      }
+    }
+  }
+}
