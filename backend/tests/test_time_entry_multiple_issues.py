@@ -231,3 +231,48 @@ def test_given_a_fresh_database_when_the_app_starts_then_the_link_migration_is_a
     Base.metadata.create_all(engine)
 
     migrate_time_entry_issue_links(engine)  # ne doit pas lever d'exception
+
+
+def count_links():
+    from tests.conftest import TestingSessionLocal
+
+    with TestingSessionLocal() as db:
+        return db.execute(sa.select(sa.func.count()).select_from(models.time_entry_issues)).scalar()
+
+
+def test_given_an_entry_on_several_us_when_i_delete_it_then_its_links_are_removed(client):
+    project = setup_project(client)
+    issues = sync_issues(client, project["id"], ISSUES)
+    entry = post_entry(client, project["id"], github_issue_ids=[issues[1]["id"], issues[2]["id"]]).json()
+    kept = post_entry(client, project["id"], github_issue_ids=[issues[3]["id"]]).json()
+    assert count_links() == 3
+
+    client.delete(f"/api/projects/{project['id']}/time-entries/{entry['id']}")
+
+    assert count_links() == 1
+    remaining = client.get(f"/api/projects/{project['id']}/time-entries").json()
+    assert [(e["id"], e["github_issue_ids"]) for e in remaining] == [(kept["id"], [issues[3]["id"]])]
+
+
+def test_given_an_entry_on_several_us_when_the_project_is_deleted_then_its_links_are_removed(client):
+    project = setup_project(client)
+    issues = sync_issues(client, project["id"], ISSUES)
+    post_entry(client, project["id"], github_issue_ids=[issues[1]["id"], issues[2]["id"]])
+
+    response = client.delete(f"/api/projects/{project['id']}")
+
+    assert response.status_code == 204
+    assert count_links() == 0
+
+
+def test_given_an_old_client_sending_a_single_us_when_i_create_an_entry_then_the_us_is_kept(client):
+    """Onglet resté ouvert sur l'ancienne version pendant un déploiement : il
+    envoie encore github_issue_id, qui ne doit pas être ignoré en silence."""
+    project = setup_project(client)
+    issues = sync_issues(client, project["id"], ISSUES)
+
+    body = post_entry(client, project["id"], github_issue_id=issues[2]["id"]).json()
+    assert body["github_issue_ids"] == [issues[2]["id"]]
+
+    body = post_entry(client, project["id"], github_issue_id=None).json()
+    assert body["github_issue_ids"] == []

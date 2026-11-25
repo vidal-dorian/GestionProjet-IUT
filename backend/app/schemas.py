@@ -226,6 +226,18 @@ class TimeEntryCreate(BaseModel):
     sprint_id: int | None = None
     category_id: int | None = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def accept_legacy_single_issue(cls, data):
+        # Ancien format (une seule US) encore envoyé par un onglet resté ouvert
+        # sur la version précédente pendant un déploiement : sans cette
+        # conversion, le champ inconnu serait ignoré et l'US perdue sans erreur.
+        if isinstance(data, dict) and "github_issue_id" in data and "github_issue_ids" not in data:
+            data = dict(data)
+            legacy_id = data.pop("github_issue_id")
+            data["github_issue_ids"] = [] if legacy_id is None else [legacy_id]
+        return data
+
     @field_validator("github_issue_ids")
     @classmethod
     def drop_duplicate_issues(cls, value: list[int]) -> list[int]:
