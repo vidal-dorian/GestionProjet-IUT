@@ -33,6 +33,9 @@ export default function TimeEntriesSection({ projectId }: Props) {
   const [duration, setDuration] = useState("");
   const [description, setDescription] = useState("");
   const [issueSearch, setIssueSearch] = useState("");
+  // Objets complets (pas seulement les id) : une entrée modifiée peut porter
+  // sur une US fermée, absente de la liste des issues proposées.
+  const [selectedIssues, setSelectedIssues] = useState<GithubIssue[]>([]);
   const [issues, setIssues] = useState<GithubIssue[]>([]);
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [sprintId, setSprintId] = useState<number | "">("");
@@ -80,6 +83,7 @@ export default function TimeEntriesSection({ projectId }: Props) {
     setDuration("");
     setDescription("");
     setIssueSearch("");
+    setSelectedIssues([]);
     setSprintId(suggestSprintForDate(today(), sprints));
     setCategoryId("");
   }
@@ -90,9 +94,36 @@ export default function TimeEntriesSection({ projectId }: Props) {
     setDate(entry.date);
     setDuration(String(entry.duration_hours));
     setDescription(entry.description);
-    setIssueSearch(entry.github_issue ? formatIssueLabel(entry.github_issue) : "");
+    setIssueSearch("");
+    setSelectedIssues(entry.github_issues);
     setSprintId(entry.sprint_id ?? "");
     setCategoryId(entry.category_id ?? "");
+  }
+
+  function findIssueByLabel(label: string): GithubIssue | undefined {
+    return issues.find((issue) => formatIssueLabel(issue) === label.trim());
+  }
+
+  function addIssue(issue: GithubIssue) {
+    setSelectedIssues((current) =>
+      current.some((selected) => selected.id === issue.id)
+        ? current
+        : [...current, issue].sort((a, b) => a.number - b.number),
+    );
+  }
+
+  function removeIssue(issueId: number) {
+    setSelectedIssues((current) => current.filter((issue) => issue.id !== issueId));
+  }
+
+  function handleIssueSearchChange(value: string) {
+    const matched = findIssueByLabel(value);
+    if (matched) {
+      addIssue(matched);
+      setIssueSearch("");
+    } else {
+      setIssueSearch(value);
+    }
   }
 
   async function handleExport() {
@@ -136,12 +167,25 @@ export default function TimeEntriesSection({ projectId }: Props) {
       return;
     }
 
-    const matchedIssue = issues.find((issue) => formatIssueLabel(issue) === issueSearch.trim());
+    // Texte tapé sans avoir été validé dans la liste : on le prend en compte
+    // s'il désigne une issue, plutôt que de l'ignorer sans rien dire.
+    let issuesToSave = selectedIssues;
+    if (issueSearch.trim()) {
+      const pendingIssue = findIssueByLabel(issueSearch);
+      if (!pendingIssue) {
+        setError("Issue introuvable : choisissez-la dans la liste proposée.");
+        return;
+      }
+      if (!selectedIssues.some((issue) => issue.id === pendingIssue.id)) {
+        issuesToSave = [...selectedIssues, pendingIssue];
+      }
+    }
+
     const payload = {
       date,
       duration_hours: durationHours,
       description: description.trim(),
-      github_issue_id: matchedIssue ? matchedIssue.id : null,
+      github_issue_ids: issuesToSave.map((issue) => issue.id),
       sprint_id: sprintId === "" ? null : sprintId,
       category_id: categoryId === "" ? null : categoryId,
     };
@@ -232,22 +276,43 @@ export default function TimeEntriesSection({ projectId }: Props) {
           </>
         )}
 
-        {issues.length > 0 && (
+        {(issues.length > 0 || selectedIssues.length > 0) && (
           <>
-            <label htmlFor="entry-issue">Issue GitHub (facultatif)</label>
+            <label htmlFor="entry-issue">Issues GitHub (facultatif, plusieurs possibles)</label>
+            {selectedIssues.length > 0 && (
+              <div className="chip-row" aria-label="Issues choisies">
+                {selectedIssues.map((issue) => (
+                  <button
+                    key={issue.id}
+                    type="button"
+                    className="chip"
+                    onClick={() => removeIssue(issue.id)}
+                    aria-label={`Retirer ${formatIssueLabel(issue)}`}
+                    title="Retirer cette issue"
+                  >
+                    {formatIssueLabel(issue)} ×
+                  </button>
+                ))}
+              </div>
+            )}
             <input
               id="entry-issue"
               type="text"
               list="entry-issue-options"
               value={issueSearch}
-              onChange={(e) => setIssueSearch(e.target.value)}
-              placeholder="Rechercher par numéro ou titre..."
+              onChange={(e) => handleIssueSearchChange(e.target.value)}
+              placeholder={selectedIssues.length > 0 ? "Ajouter une autre issue..." : "Rechercher par numéro ou titre..."}
             />
             <datalist id="entry-issue-options">
-              {issues.map((issue) => (
-                <option key={issue.id} value={formatIssueLabel(issue)} />
-              ))}
+              {issues
+                .filter((issue) => !selectedIssues.some((selected) => selected.id === issue.id))
+                .map((issue) => (
+                  <option key={issue.id} value={formatIssueLabel(issue)} />
+                ))}
             </datalist>
+            {selectedIssues.length > 1 && (
+              <p className="meta">Les heures sont réparties à parts égales entre les issues choisies.</p>
+            )}
           </>
         )}
 
@@ -294,12 +359,17 @@ export default function TimeEntriesSection({ projectId }: Props) {
                 <span className="entry-duration">{entry.duration_hours} h</span>
               </div>
               <p className="entry-description">{entry.description}</p>
-              {entry.github_issue && (
+              {entry.github_issues.length > 0 && (
                 <p className="meta">
-                  Issue :{" "}
-                  <a href={entry.github_issue.url} target="_blank" rel="noreferrer">
-                    {formatIssueLabel(entry.github_issue)}
-                  </a>
+                  {entry.github_issues.length > 1 ? "Issues" : "Issue"} :{" "}
+                  {entry.github_issues.map((issue, index) => (
+                    <span key={issue.id}>
+                      {index > 0 && ", "}
+                      <a href={issue.url} target="_blank" rel="noreferrer">
+                        {formatIssueLabel(issue)}
+                      </a>
+                    </span>
+                  ))}
                 </p>
               )}
               {entry.sprint && <p className="meta">Sprint : {entry.sprint.name}</p>}

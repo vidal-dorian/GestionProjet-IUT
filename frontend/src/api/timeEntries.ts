@@ -15,8 +15,8 @@ export interface TimeEntry {
   duration_hours: number;
   description: string;
   created_at: string;
-  github_issue_id: number | null;
-  github_issue: GithubIssue | null;
+  github_issue_ids: number[];
+  github_issues: GithubIssue[];
   sprint_id: number | null;
   sprint: Sprint | null;
   category_id: number | null;
@@ -27,7 +27,7 @@ export interface TimeEntryInput {
   date: string;
   duration_hours: number;
   description: string;
-  github_issue_id?: number | null;
+  github_issue_ids?: number[];
   sprint_id?: number | null;
   category_id?: number | null;
 }

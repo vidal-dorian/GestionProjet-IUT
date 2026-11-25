@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app import crud, github_sync
 from app.config import settings
-from app.database import Base, SessionLocal, engine, sync_missing_columns
+from app.database import Base, SessionLocal, engine, migrate_time_entry_issue_links, sync_missing_columns
 from app.routers import (
     admin,
     auth,
@@ -35,6 +35,7 @@ async def lifespan(app: FastAPI):
     if settings.auto_create_schema:
         Base.metadata.create_all(bind=engine)
         sync_missing_columns(engine)
+        migrate_time_entry_issue_links(engine)
         with SessionLocal() as db:
             crud.backfill_legacy_memberships(db)
     # La boucle périodique utilise le moteur de production (SessionLocal), pas
