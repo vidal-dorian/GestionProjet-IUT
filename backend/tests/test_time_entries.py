@@ -251,15 +251,15 @@ def test_cannot_delete_another_accounts_entry(client):
     assert response.status_code == 403
 
 
-def test_time_entry_without_github_issue_has_null_fields(client):
+def test_time_entry_without_github_issue_has_no_issues(client):
     project, _ = setup_authenticated_account(client)
     entry = client.post(
         f"/api/projects/{project['id']}/time-entries",
         json={"date": "2026-08-13", "duration_hours": 1, "description": "Dev"},
     ).json()
 
-    assert entry["github_issue_id"] is None
-    assert entry["github_issue"] is None
+    assert entry["github_issue_ids"] == []
+    assert entry["github_issues"] == []
 
 
 def test_attaching_unknown_github_issue_returns_422(client):
@@ -267,7 +267,7 @@ def test_attaching_unknown_github_issue_returns_422(client):
 
     response = client.post(
         f"/api/projects/{project['id']}/time-entries",
-        json={"date": "2026-08-13", "duration_hours": 1, "description": "Dev", "github_issue_id": 999},
+        json={"date": "2026-08-13", "duration_hours": 1, "description": "Dev", "github_issue_ids": [999]},
     )
     assert response.status_code == 422
 
@@ -283,7 +283,7 @@ def test_attaching_a_github_issue_from_another_project_returns_422(client):
 
     response = client.post(
         f"/api/projects/{project['id']}/time-entries",
-        json={"date": "2026-08-13", "duration_hours": 1, "description": "Dev", "github_issue_id": issues[1]["id"]},
+        json={"date": "2026-08-13", "duration_hours": 1, "description": "Dev", "github_issue_ids": [issues[1]["id"]]},
     )
     assert response.status_code == 422
 
@@ -357,18 +357,18 @@ def test_create_and_update_time_entry_can_attach_github_issue(client):
 
     entry = client.post(
         f"/api/projects/{project['id']}/time-entries",
-        json={"date": "2026-08-13", "duration_hours": 1, "description": "Dev", "github_issue_id": issue_id},
+        json={"date": "2026-08-13", "duration_hours": 1, "description": "Dev", "github_issue_ids": [issue_id]},
     ).json()
-    assert entry["github_issue_id"] == issue_id
-    assert entry["github_issue"]["number"] == 5
-    assert entry["github_issue"]["title"] == "US-05 — Se connecter"
+    assert entry["github_issue_ids"] == [issue_id]
+    assert entry["github_issues"][0]["number"] == 5
+    assert entry["github_issues"][0]["title"] == "US-05 — Se connecter"
 
     updated = client.put(
         f"/api/projects/{project['id']}/time-entries/{entry['id']}",
-        json={"date": "2026-08-13", "duration_hours": 2, "description": "Dev", "github_issue_id": None},
+        json={"date": "2026-08-13", "duration_hours": 2, "description": "Dev", "github_issue_ids": []},
     ).json()
-    assert updated["github_issue_id"] is None
-    assert updated["github_issue"] is None
+    assert updated["github_issue_ids"] == []
+    assert updated["github_issues"] == []
 
 
 def create_category(client, project_id, name="Dev"):

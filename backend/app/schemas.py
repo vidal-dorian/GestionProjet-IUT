@@ -222,9 +222,26 @@ class TimeEntryCreate(BaseModel):
     date: date_type
     duration_hours: float = Field(gt=0, le=24)
     description: CleanStr = Field(min_length=1, max_length=2000)
-    github_issue_id: int | None = None
+    github_issue_ids: list[int] = Field(default_factory=list, max_length=50)
     sprint_id: int | None = None
     category_id: int | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def accept_legacy_single_issue(cls, data):
+        # Ancien format (une seule US) encore envoyé par un onglet resté ouvert
+        # sur la version précédente pendant un déploiement : sans cette
+        # conversion, le champ inconnu serait ignoré et l'US perdue sans erreur.
+        if isinstance(data, dict) and "github_issue_id" in data and "github_issue_ids" not in data:
+            data = dict(data)
+            legacy_id = data.pop("github_issue_id")
+            data["github_issue_ids"] = [] if legacy_id is None else [legacy_id]
+        return data
+
+    @field_validator("github_issue_ids")
+    @classmethod
+    def drop_duplicate_issues(cls, value: list[int]) -> list[int]:
+        return list(dict.fromkeys(value))
 
     @field_validator("description")
     @classmethod
@@ -254,8 +271,8 @@ class TimeEntryRead(BaseModel):
     duration_hours: float
     description: str
     created_at: datetime
-    github_issue_id: int | None
-    github_issue: GithubIssueRead | None
+    github_issue_ids: list[int]
+    github_issues: list[GithubIssueRead]
     sprint_id: int | None
     sprint: SprintRead | None
     category_id: int | None

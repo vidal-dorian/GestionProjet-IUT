@@ -57,7 +57,7 @@ def _entry_row(entry: models.TimeEntry) -> list:
             entry.duration_hours,
             entry.description,
             entry.sprint.name if entry.sprint else "",
-            f"#{entry.github_issue.number} {entry.github_issue.title}" if entry.github_issue else "",
+            ", ".join(f"#{issue.number} {issue.title}" for issue in entry.github_issues),
             entry.category.name if entry.category else "",
         ]
     )

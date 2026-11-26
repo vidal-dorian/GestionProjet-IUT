@@ -195,15 +195,15 @@ def test_hours_by_issue_groups_by_issue_and_separates_unattached(client):
 
     client.post(
         f"/api/projects/{project['id']}/time-entries",
-        json={"date": "2026-08-01", "duration_hours": 3, "description": "A", "github_issue_id": issues[1]["id"]},
+        json={"date": "2026-08-01", "duration_hours": 3, "description": "A", "github_issue_ids": [issues[1]["id"]]},
     )
     client.post(
         f"/api/projects/{project['id']}/time-entries",
-        json={"date": "2026-08-02", "duration_hours": 2, "description": "B", "github_issue_id": issues[1]["id"]},
+        json={"date": "2026-08-02", "duration_hours": 2, "description": "B", "github_issue_ids": [issues[1]["id"]]},
     )
     client.post(
         f"/api/projects/{project['id']}/time-entries",
-        json={"date": "2026-08-03", "duration_hours": 1, "description": "C", "github_issue_id": issues[2]["id"]},
+        json={"date": "2026-08-03", "duration_hours": 1, "description": "C", "github_issue_ids": [issues[2]["id"]]},
     )
     client.post(
         f"/api/projects/{project['id']}/time-entries",
@@ -258,7 +258,7 @@ def test_sprint_stats_aggregates_hours_by_account_and_issue(client):
             "duration_hours": 3,
             "description": "Alice avec issue",
             "sprint_id": sprint["id"],
-            "github_issue_id": issues[1]["id"],
+            "github_issue_ids": [issues[1]["id"]],
         },
     )
     client.post(

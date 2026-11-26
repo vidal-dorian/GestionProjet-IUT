@@ -19,9 +19,13 @@ def _get_owned_entry(
     return entry
 
 
-def _validate_github_issue(db: Session, project_id: int, entry: schemas.TimeEntryCreate) -> None:
-    if entry.github_issue_id is not None and crud.get_github_issue(db, project_id, entry.github_issue_id) is None:
-        raise HTTPException(status_code=422, detail="Cette issue GitHub n'existe pas pour ce projet.")
+def _resolve_github_issues(
+    db: Session, project_id: int, entry: schemas.TimeEntryCreate
+) -> list[models.GithubIssue]:
+    issues = crud.get_github_issues(db, project_id, entry.github_issue_ids)
+    if len(issues) != len(entry.github_issue_ids):
+        raise HTTPException(status_code=422, detail="Une des issues GitHub choisies n'existe pas pour ce projet.")
+    return issues
 
 
 def _validate_sprint(db: Session, project_id: int, entry: schemas.TimeEntryCreate) -> None:
@@ -62,7 +66,7 @@ def create_time_entry(
     account: models.Account = Depends(require_project_member),
     db: Session = Depends(get_db),
 ):
-    _validate_github_issue(db, project_id, entry)
+    github_issues = _resolve_github_issues(db, project_id, entry)
     _validate_sprint(db, project_id, entry)
     _validate_category(db, project_id, entry)
     _validate_daily_total(db, project_id, account.id, entry)
@@ -70,7 +74,7 @@ def create_time_entry(
     # alors membre explicite (visible et révocable dans la liste des membres).
     if not crud.is_approved_member(db, project_id, account.id):
         crud.add_project_member(db, project_id, account.id)
-    return crud.create_time_entry(db, project_id, account.id, entry)
+    return crud.create_time_entry(db, project_id, account.id, entry, github_issues)
 
 
 @router.put("/{entry_id}", response_model=schemas.TimeEntryRead)
@@ -82,11 +86,11 @@ def update_time_entry(
     db: Session = Depends(get_db),
 ):
     db_entry = _get_owned_entry(db, project_id, entry_id, account)
-    _validate_github_issue(db, project_id, entry)
+    github_issues = _resolve_github_issues(db, project_id, entry)
     _validate_sprint(db, project_id, entry)
     _validate_category(db, project_id, entry)
     _validate_daily_total(db, project_id, account.id, entry, exclude_entry_id=entry_id)
-    return crud.update_time_entry(db, db_entry, entry)
+    return crud.update_time_entry(db, db_entry, entry, github_issues)
 
 
 @router.delete("/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)

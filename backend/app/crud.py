@@ -526,20 +526,39 @@ def sum_project_hours(db: Session, project_id: int) -> float:
     )
 
 
-def sum_hours_by_github_issue(db: Session, project_id: int) -> list[tuple[models.GithubIssue, float]]:
+def _query_hours_by_github_issue(db: Session, project_id: int):
+    """Heures par issue : une entrée rattachée à N issues compte pour
+    duree / N sur chacune, pour que la somme par issue reste égale au total
+    des heures rattachées (pas de double comptage)."""
+    links = models.time_entry_issues
+    issue_counts = (
+        db.query(links.c.time_entry_id.label("time_entry_id"), func.count().label("issue_count"))
+        .group_by(links.c.time_entry_id)
+        .subquery()
+    )
+    share = models.TimeEntry.duration_hours / issue_counts.c.issue_count
     return (
-        db.query(models.GithubIssue, func.coalesce(func.sum(models.TimeEntry.duration_hours), 0.0))
-        .join(models.TimeEntry, models.TimeEntry.github_issue_id == models.GithubIssue.id)
+        db.query(models.GithubIssue, func.coalesce(func.sum(share), 0.0))
+        .join(links, links.c.github_issue_id == models.GithubIssue.id)
+        .join(models.TimeEntry, models.TimeEntry.id == links.c.time_entry_id)
+        .join(issue_counts, issue_counts.c.time_entry_id == models.TimeEntry.id)
         .filter(models.TimeEntry.project_id == project_id)
         .group_by(models.GithubIssue.id)
-        .all()
     )
+
+
+def _without_github_issue():
+    return ~models.TimeEntry.github_issues.any()
+
+
+def sum_hours_by_github_issue(db: Session, project_id: int) -> list[tuple[models.GithubIssue, float]]:
+    return _query_hours_by_github_issue(db, project_id).all()
 
 
 def sum_unattached_hours(db: Session, project_id: int) -> float:
     return (
         db.query(func.coalesce(func.sum(models.TimeEntry.duration_hours), 0.0))
-        .filter(models.TimeEntry.project_id == project_id, models.TimeEntry.github_issue_id.is_(None))
+        .filter(models.TimeEntry.project_id == project_id, _without_github_issue())
         .scalar()
         or 0.0
     )
@@ -588,13 +607,7 @@ def sum_hours_by_account_for_sprint(
 def sum_hours_by_github_issue_for_sprint(
     db: Session, project_id: int, sprint_id: int
 ) -> list[tuple[models.GithubIssue, float]]:
-    return (
-        db.query(models.GithubIssue, func.coalesce(func.sum(models.TimeEntry.duration_hours), 0.0))
-        .join(models.TimeEntry, models.TimeEntry.github_issue_id == models.GithubIssue.id)
-        .filter(models.TimeEntry.project_id == project_id, models.TimeEntry.sprint_id == sprint_id)
-        .group_by(models.GithubIssue.id)
-        .all()
-    )
+    return _query_hours_by_github_issue(db, project_id).filter(models.TimeEntry.sprint_id == sprint_id).all()
 
 
 def sum_unattached_hours_for_sprint(db: Session, project_id: int, sprint_id: int) -> float:
@@ -603,7 +616,7 @@ def sum_unattached_hours_for_sprint(db: Session, project_id: int, sprint_id: int
         .filter(
             models.TimeEntry.project_id == project_id,
             models.TimeEntry.sprint_id == sprint_id,
-            models.TimeEntry.github_issue_id.is_(None),
+            _without_github_issue(),
         )
         .scalar()
         or 0.0
@@ -627,8 +640,22 @@ def get_github_issue(db: Session, project_id: int, issue_id: int) -> models.Gith
     )
 
 
+def get_github_issues(db: Session, project_id: int, issue_ids: list[int]) -> list[models.GithubIssue]:
+    if not issue_ids:
+        return []
+    return (
+        db.query(models.GithubIssue)
+        .filter(models.GithubIssue.project_id == project_id, models.GithubIssue.id.in_(issue_ids))
+        .all()
+    )
+
+
 def create_time_entry(
-    db: Session, project_id: int, account_id: int, entry: schemas.TimeEntryCreate
+    db: Session,
+    project_id: int,
+    account_id: int,
+    entry: schemas.TimeEntryCreate,
+    github_issues: list[models.GithubIssue],
 ) -> models.TimeEntry:
     db_entry = models.TimeEntry(
         project_id=project_id,
@@ -636,7 +663,7 @@ def create_time_entry(
         date=entry.date,
         duration_hours=entry.duration_hours,
         description=entry.description,
-        github_issue_id=entry.github_issue_id,
+        github_issues=github_issues,
         sprint_id=entry.sprint_id,
         category_id=entry.category_id,
     )
@@ -655,12 +682,15 @@ def get_time_entry(db: Session, project_id: int, entry_id: int) -> models.TimeEn
 
 
 def update_time_entry(
-    db: Session, db_entry: models.TimeEntry, entry: schemas.TimeEntryCreate
+    db: Session,
+    db_entry: models.TimeEntry,
+    entry: schemas.TimeEntryCreate,
+    github_issues: list[models.GithubIssue],
 ) -> models.TimeEntry:
     db_entry.date = entry.date
     db_entry.duration_hours = entry.duration_hours
     db_entry.description = entry.description
-    db_entry.github_issue_id = entry.github_issue_id
+    db_entry.github_issues = github_issues
     db_entry.sprint_id = entry.sprint_id
     db_entry.category_id = entry.category_id
     db.commit()
